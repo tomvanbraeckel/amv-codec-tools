@@ -1,0 +1,14 @@
+#summary Roadmap for the project
+
+= Introduction =
+
+We should first agree on the general roadmap we're going to follow in this project.
+
+
+= Roadmap =
+
+# Finish the MTV demuxer at FFmpeg (works but has problems)
+# Code a MTV muxer for ffmpeg
+# Reverse engineering of the ACT audio/speech codec
+# Code an AMV demuxer for FFmpeg
+# Code an AMV muxer for FFmpeg
