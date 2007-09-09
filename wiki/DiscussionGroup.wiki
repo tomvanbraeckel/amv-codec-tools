@@ -1,0 +1,5 @@
+#summary Discussion group for this project
+
+= How to discuss =
+
+We can discuss this project at http://groups.google.com/group/amv-codec-tools/
