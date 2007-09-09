@@ -1,4 +1,5 @@
 #summary Roadmap for the project
+#labels Featured
 
 = Introduction =
 
