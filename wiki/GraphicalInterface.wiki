@@ -1,0 +1,21 @@
+#summary A graphical interface approach for the converter
+
+= Introduction =
+
+As not all users know how to use command line tools, a Graphical Interface would help them get the best from the converter.
+
+= Details =
+
+Here's a possible layout i've been considering for the converter:
+
+http://img443.imageshack.us/img443/9905/layoutqu4.png
+
+And a possible skin for the interface:
+
+http://img205.imageshack.us/img205/3460/winbackgdor6.png
+
+Of course this is just the first try and I am open to any suggestions.
+
+
+
+
