@@ -78,8 +78,8 @@ echo "Copying needed files and patching synced sources: "
 
 cd ffmpeg
 patch -p0 < ../amvmux_patch.diff
-cp ../amvenc.c libavcodec/
-cp ../amv.h libavcodec/
+cp ../amvenc.c libavformat/
+cp ../amv.h libavformat/
 cd ..
 
 echo "Finished"
