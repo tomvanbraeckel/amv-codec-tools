@@ -4,5 +4,5 @@ Testing instructions ;)
 2.- From this dir run ./srcprepare.sh /path/to/clean/FFmpeg/repo
     (a new dir with ffmpeg sources is created here before being patched, your
     repo stays untouched)
-3.- cd trunk
+3.- cd ffmpeg
 4.- ./configure ; make
