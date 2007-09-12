@@ -80,6 +80,7 @@ cd ffmpeg
 patch -p0 < ../amvmux_patch.diff
 cp ../amvenc.c libavformat/
 cp ../amv.h libavformat/
+cp ../mjpegenc.c libavcodec/
 cd ..
 
 echo "Finished"
