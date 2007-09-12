@@ -1,6 +1,42 @@
+Index: libavcodec/mjpegenc.c
+===================================================================
+--- libavcodec/mjpegenc.c	(revision 10481)
++++ libavcodec/mjpegenc.c	(working copy)
+@@ -106,6 +106,7 @@
+ 
+ static void jpeg_table_header(MpegEncContext *s)
+ {
++        
+     PutBitContext *p = &s->pb;
+     int i, j, size;
+     uint8_t *ptr;
+@@ -198,8 +199,11 @@
+ {
+     const int lossless= s->avctx->codec_id != CODEC_ID_MJPEG;
+ 
++
++    goto after_header;
++
+     put_marker(&s->pb, SOI);
+-
++    
+     jpeg_put_comments(s);
+ 
+     jpeg_table_header(s);
+@@ -274,6 +278,10 @@
+     }
+ 
+     put_bits(&s->pb, 8, 0); /* Ah/Al (not used) */
++
++    after_header:
++    // empty
++    put_marker(&s->pb, SOI);
+ }
+ 
+ static void escape_FF(MpegEncContext *s, int start)
 Index: libavformat/Makefile
 ===================================================================
---- libavformat/Makefile	(revision 10455)
+--- libavformat/Makefile	(revision 10481)
 +++ libavformat/Makefile	(working copy)
 @@ -19,6 +19,7 @@
  OBJS-$(CONFIG_AIFF_MUXER)                += aiff.o riff.o
@@ -12,9 +48,9 @@ Index: libavformat/Makefile
  OBJS-$(CONFIG_ASF_MUXER)                 += asf-enc.o riff.o
 Index: libavformat/allformats.c
 ===================================================================
---- libavformat/allformats.c	(revision 10455)
+--- libavformat/allformats.c	(revision 10481)
 +++ libavformat/allformats.c	(working copy)
-@@ -51,6 +51,7 @@
+@@ -52,6 +52,7 @@
      REGISTER_MUXER    (ADTS, adts);
      REGISTER_MUXDEMUX (AIFF, aiff);
      REGISTER_MUXDEMUX (AMR, amr);
@@ -24,9 +60,9 @@ Index: libavformat/allformats.c
      REGISTER_MUXER    (ASF_STREAM, asf_stream);
 Index: libavformat/allformats.h
 ===================================================================
---- libavformat/allformats.h	(revision 10455)
+--- libavformat/allformats.h	(revision 10481)
 +++ libavformat/allformats.h	(working copy)
-@@ -123,6 +123,7 @@
+@@ -125,6 +125,7 @@
  extern AVOutputFormat adts_muxer;
  extern AVOutputFormat aiff_muxer;
  extern AVOutputFormat amr_muxer;
