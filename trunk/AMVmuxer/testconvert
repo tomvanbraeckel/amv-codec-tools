@@ -1,0 +1,3 @@
+#!/bin/bash
+
+ffmpeg/ffmpeg -i hole.avi -t 0:02:00 -f amv -intra -r 16 -vcodec mjpeg -s 160x120 -ac 1 -ar 16000 -acodec adpcm_ima_wav hole.amv
