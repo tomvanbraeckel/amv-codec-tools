@@ -66,7 +66,7 @@ PATCH=`which patch`
 
 echo -n "syncing FFmpeg sources from $1: "
 
-for i in `rsync -avz $1/ .` ; do true  ; done
+for i in `rsync -avz $1/ ffmpeg/` ; do true  ; done
 
 if [ $? ]; then
     echo "Finished"
@@ -76,10 +76,11 @@ fi
 echo ""
 echo "Copying needed files and patching synced sources: "
 
-# cd trunk
-patch -p0 < amvmux_patch.diff
-cp amvenc.c libavcodec/
-cp amv.h libavcodec/
+cd ffmpeg
+patch -p0 < ../amvmux_patch.diff
+cp ../amvenc.c libavcodec/
+cp ../amv.h libavcodec/
+cd ..
 
 echo "Finished"
 echo ""
