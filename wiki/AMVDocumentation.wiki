@@ -7,4 +7,4 @@ The documentation is scattered around the internet, for example at:
   * Various forums
   * ...
 
-What brave man or woman will document the AMV format on this Wikipage ? 
+What brave man (or woman) will document the AMV format on this Wikipage ? 
