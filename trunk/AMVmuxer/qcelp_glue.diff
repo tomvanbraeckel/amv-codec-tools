@@ -1,0 +1,87 @@
+Index: libavcodec/Makefile
+===================================================================
+--- libavcodec/Makefile	(revision 10280)
++++ libavcodec/Makefile	(working copy)
+@@ -134,6 +134,7 @@
+ OBJS-$(CONFIG_PNG_ENCODER)             += png.o pngenc.o
+ OBJS-$(CONFIG_PPM_ENCODER)             += pnmenc.o pnm.o
+ OBJS-$(CONFIG_PTX_DECODER)             += ptx.o
++OBJS-$(CONFIG_QCELP_DECODER)           += qcelpdec.o
+ OBJS-$(CONFIG_QDM2_DECODER)            += qdm2.o mdct.o fft.o mpegaudiodec.o mpegaudiodecheader.o mpegaudio.o mpegaudiodata.o
+ OBJS-$(CONFIG_QDRAW_DECODER)           += qdrw.o
+ OBJS-$(CONFIG_QPEG_DECODER)            += qpeg.o
+@@ -317,6 +318,7 @@
+ OBJS-$(CONFIG_MPEGAUDIO_PARSER)        += mpegaudio_parser.o mpegaudiodecheader.o mpegaudiodata.o
+ OBJS-$(CONFIG_MPEGVIDEO_PARSER)        += mpegvideo_parser.o
+ OBJS-$(CONFIG_PNM_PARSER)              += pnm_parser.o pnm.o
++OBJS-$(CONFIG_QCELP_PARSER)            += qcelp_parser.o
+ OBJS-$(CONFIG_VC1_PARSER)              += vc1_parser.o
+ 
+ OBJS-$(CONFIG_DUMP_EXTRADATA_BSF)      += dump_extradata_bsf.o
+Index: libavcodec/allcodecs.c
+===================================================================
+--- libavcodec/allcodecs.c	(revision 10280)
++++ libavcodec/allcodecs.c	(working copy)
+@@ -192,6 +192,7 @@
+     REGISTER_DECODER (MP3ADU, mp3adu);
+     REGISTER_DECODER (MP3ON4, mp3on4);
+     REGISTER_DECODER (MPC7, mpc7);
++    REGISTER_DECODER (QCELP, qcelp);
+     REGISTER_DECODER (QDM2, qdm2);
+     REGISTER_DECODER (RA_144, ra_144);
+     REGISTER_DECODER (RA_288, ra_288);
+@@ -274,6 +275,7 @@
+     REGISTER_PARSER  (MPEGAUDIO, mpegaudio);
+     REGISTER_PARSER  (MPEGVIDEO, mpegvideo);
+     REGISTER_PARSER  (PNM, pnm);
++    REGISTER_PARSER  (QCELP, qcelp);
+     REGISTER_PARSER  (VC1, vc1);
+ 
+     /* bitstream filters */
+Index: libavcodec/allcodecs.h
+===================================================================
+--- libavcodec/allcodecs.h	(revision 10280)
++++ libavcodec/allcodecs.h	(working copy)
+@@ -147,6 +147,7 @@
+ extern AVCodec nuv_decoder;
+ extern AVCodec png_decoder;
+ extern AVCodec ptx_decoder;
++extern AVCodec qcelp_decoder;
+ extern AVCodec qdm2_decoder;
+ extern AVCodec qdraw_decoder;
+ extern AVCodec qpeg_decoder;
+@@ -303,6 +304,7 @@
+ extern AVCodecParser mpegaudio_parser;
+ extern AVCodecParser mpegvideo_parser;
+ extern AVCodecParser pnm_parser;
++extern AVCodecParser qcelp_parser;
+ extern AVCodecParser vc1_parser;
+ 
+ /* bitstream filters */
+Index: libavformat/isom.c
+===================================================================
+--- libavformat/isom.c	(revision 10280)
++++ libavformat/isom.c	(working copy)
+@@ -166,6 +166,9 @@
+     { CODEC_ID_AC3,  MKTAG('m', 's', 0x20, 0x00) }, /* Dolby AC-3 */
+ 
+     { CODEC_ID_ALAC, MKTAG('a', 'l', 'a', 'c') }, /* Apple Lossless */
++
++    { CODEC_ID_QCELP, MKTAG('Q','c','l','p') },
++
+     { CODEC_ID_QDM2, MKTAG('Q', 'D', 'M', '2') }, /* QDM2 */
+ 
+     { CODEC_ID_DVAUDIO, MKTAG('v', 'd', 'v', 'a') },
+Index: libavformat/mov.c
+===================================================================
+--- libavformat/mov.c	(revision 10280)
++++ libavformat/mov.c	(working copy)
+@@ -835,6 +835,8 @@
+         st->codec->sample_rate= 16000;
+         st->codec->channels= 1; /* really needed */
+         break;
++    case CODEC_ID_QCELP:
++        st->need_parsing = AVSTREAM_PARSE_FULL;
+     case CODEC_ID_AMR_NB:
+         st->codec->sample_rate= 8000;
+         st->codec->channels= 1; /* really needed */
