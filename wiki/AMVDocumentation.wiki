@@ -1,13 +1,10 @@
 #summary We really need to centralise some formal documentation about the AMV format.
 
-= Introduction =
+The documentation is scattered around the internet, for example at:
+  * http://wiki.s1mp3.org/AMV
+  * http://wiki.multimedia.cx/index.php?title=AMV
+  * http://en.wikipedia.org/wiki/AMV_video_format
+  * Various forums
+  * ...
 
-Add your content here.
-
-
-= Details =
-
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
+What brave man or woman will document the AMV format on this Wikipage ? 
