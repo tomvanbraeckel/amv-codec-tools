@@ -185,7 +185,9 @@ static int avi_write_header(AVFormatContext *s)
         put_le32(pb, 0);
         put_le32(pb, 0);
     }
-    put_le32(pb, 0); /* reserved */
+// edited by tom: framerate instead of reserved (0)
+    put_le32(pb, 16); /* reserved */
+
     put_le32(pb, 0); /* reserved */
     put_le32(pb, 0); /* reserved */
     put_le32(pb, 0); /* reserved */
