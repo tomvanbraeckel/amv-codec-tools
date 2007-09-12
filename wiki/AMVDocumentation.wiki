@@ -8,3 +8,4 @@ The documentation is scattered around the internet, for example at:
   * ...
 
 What brave man (or woman) will document the AMV format on this Wikipage ? 
+We can then propagate this documentation to the other Wiki's.
