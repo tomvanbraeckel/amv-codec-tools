@@ -7,5 +7,4 @@ These demuxers are able to take an AMV file and extract the audio and video stre
 = List =
 
   # Dobrica wrote a Perl-demuxer: http://svn.rot13.org/index.cgi/amv
-  # Alex has the source code for a C++ decoder: http://forum.s1mp3.org/viewtopic.php?f=13&t=6614&p=25812#p25812 which I hope he'll soon upload to the download section
-
+  # SangWei(swkyer@gmail.com) and cbntrt@163.com wrote a C++ decoder and player; available for download in our SVN repositories (see 
