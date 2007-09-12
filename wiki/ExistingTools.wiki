@@ -12,7 +12,6 @@ These demuxers are able to take an AMV file and extract the audio and video stre
 
 A muxer joins audio/video streams together to form an AMV file.
 
-  * AMV Convert Tool: Published by the Chinese company that sells [http://www.mympxplayer.org/ s1mp3] players - a bit buggy and only for Windows but it works: http://www.softpedia.com/get/Multimedia/Video/Encoders-Converter-DIVX-Related/AMV-Convert-Tool.shtml 
-
+  * AMV Convert Tool: Published by the Chinese company that sells [http://www.s1mp3.org/ s1mp3] players - a bit buggy and only for Windows but it works: http://www.softpedia.com/get/Multimedia/Video/Encoders-Converter-DIVX-Related/AMV-Convert-Tool.shtml 
 
 
