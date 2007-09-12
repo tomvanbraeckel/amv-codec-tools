@@ -77,7 +77,7 @@ echo ""
 echo "Copying needed files and patching synced sources: "
 
 cd trunk
-patch -p0 < ../amvmux_glue.diff
+patch -p0 < ../amvmux_patch.diff
 cp ../amvenc.c libavcodec/
 cp ../amv.h libavcodec/
 cd ..
