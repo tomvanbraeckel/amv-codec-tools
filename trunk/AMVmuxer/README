@@ -1,8 +1,23 @@
 Testing instructions ;)
 
+Make sure you've got a fresh copy of the sourcecode:
 1.- svn update
+
+Patch the FFmpeg sourcecode so that our code is build into FFmpeg:
 2.- From this dir run ./srcprepare.sh /path/to/clean/FFmpeg/repo
     (a new dir with ffmpeg sources is created here before being patched, your
     repo stays untouched)
+
+Compile the patched FFmpeg - AMV-support is now build in:
 3.- cd ffmpeg
-4.- ./configure ; make
+4.- ./configure
+5.- make
+6.- cd ..
+
+Test it by converting the testvideo hole.avi to hole.amv:
+6.- ./testconvert
+
+Now compare this to the correct hole_correct.amv and fix those bugs !
+
+
+
