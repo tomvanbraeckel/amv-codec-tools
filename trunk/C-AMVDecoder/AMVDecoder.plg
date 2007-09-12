@@ -1,0 +1,40 @@
+<html>
+<body>
+<pre>
+<h1>Build Log</h1>
+<h3>
+--------------------Configuration: AMVDecoder - Win32 Release--------------------
+</h3>
+<h3>Command Lines</h3>
+Creating temporary file "C:\DOCUME~1\ADMINI~1\LOCALS~1\Temp\RSP2B.tmp" with contents
+[
+/nologo /MD /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_AFXDLL" /D "_MBCS" /FR"Release/" /Fp"Release/AMVDecoder.pch" /Yu"stdafx.h" /Fo"Release/" /Fd"Release/" /FD /c 
+"C:\Documents and Settings\Administrator\桌面\复件 decoder_PEF\AMVDecoderDlg.cpp"
+]
+Creating command line "cl.exe @C:\DOCUME~1\ADMINI~1\LOCALS~1\Temp\RSP2B.tmp" 
+Creating temporary file "C:\DOCUME~1\ADMINI~1\LOCALS~1\Temp\RSP2C.tmp" with contents
+[
+AmvLib/Release/AmvLib.lib /nologo /subsystem:windows /incremental:no /pdb:"Release/AMVDecoder.pdb" /machine:I386 /out:"bin/AMVDecoder.exe" 
+".\Release\AMVDecoder.obj"
+".\Release\AMVDecoderDlg.obj"
+".\Release\StdAfx.obj"
+".\Release\AMVDecoder.res"
+]
+Creating command line "link.exe @C:\DOCUME~1\ADMINI~1\LOCALS~1\Temp\RSP2C.tmp"
+<h3>Output Window</h3>
+Compiling...
+AMVDecoderDlg.cpp
+C:\Documents and Settings\Administrator\桌面\复件 decoder_PEF\AMVDecoderDlg.cpp(384) : warning C4146: unary minus operator applied to unsigned type, result still unsigned
+C:\Documents and Settings\Administrator\桌面\复件 decoder_PEF\AMVDecoderDlg.cpp(611) : warning C4146: unary minus operator applied to unsigned type, result still unsigned
+Linking...
+Creating command line "bscmake.exe /nologo /o"Release/AMVDecoder.bsc"  ".\Release\StdAfx.sbr" ".\Release\AMVDecoder.sbr" ".\Release\AMVDecoderDlg.sbr""
+Creating browse info file...
+<h3>Output Window</h3>
+
+
+
+<h3>Results</h3>
+AMVDecoder.exe - 0 error(s), 2 warning(s)
+</pre>
+</body>
+</html>
