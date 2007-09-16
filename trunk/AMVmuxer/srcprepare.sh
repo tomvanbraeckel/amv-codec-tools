@@ -80,9 +80,10 @@ cd ffmpeg
 patch -p0 < ../amvmux_patch.diff
 cp ../amvenc.c libavformat/
 cp ../amv.h libavformat/
-cp ../mjpegenc.c libavcodec/
+# we don't copy these because those differences are handled by the diff file
+# cp ../mjpegenc.c libavcodec/
+# cp ../adpcm.c libavcodec/
 cd ..
-
 echo "Finished"
 echo ""
 echo "Patched source is in trunk dir. happy hacking"
