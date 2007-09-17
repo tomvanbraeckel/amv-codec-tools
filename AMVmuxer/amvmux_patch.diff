@@ -86,20 +86,21 @@ Index: libavcodec/adpcm.c
 ===================================================================
 --- libavcodec/adpcm.c	(revision 10481)
 +++ libavcodec/adpcm.c	(working copy)
-@@ -185,6 +185,12 @@
+@@ -185,6 +185,13 @@
          }
          avctx->frame_size = 512 * (avctx->sample_rate / 11025);
          break;
 +    case CODEC_ID_ADPCM_IMA_AMV:
-+        avctx->frame_size = (BLKSIZE - 4 * avctx->channels) * 8 / (4 * avctx->channels) + 1; /* each 16 bits sample gives one nibble */
++        //avctx->frame_size = (BLKSIZE - 4 * avctx->channels) * 8 / (4 * avctx->channels) + 1; /* each 16 bits sample gives one nibble */
 +                                                             /* and we have 4 bytes per channel overhead */
-+        avctx->block_align = BLKSIZE;
++        avctx->frame_size = 1378;   // 1378...
++        avctx->block_align = BLKSIZE; // 1394 = correct total audio block size
 +        /* seems frame_size isn't taken into account... have to buffer the samples :-( */
 +        break;        
      default:
          return -1;
          break;
-@@ -297,7 +303,7 @@
+@@ -297,7 +304,7 @@
      nodes[0]->step = c->step_index;
      nodes[0]->sample1 = c->sample1;
      nodes[0]->sample2 = c->sample2;
@@ -108,7 +109,7 @@ Index: libavcodec/adpcm.c
          nodes[0]->sample1 = c->prev_sample;
      if(version == CODEC_ID_ADPCM_MS)
          nodes[0]->step = c->idelta;
-@@ -368,7 +374,7 @@
+@@ -368,7 +375,7 @@
                      next_##NAME:;
                      STORE_NODE(ms, FFMAX(16, (AdaptationTable[nibble] * step) >> 8));
                  }
@@ -117,12 +118,15 @@ Index: libavcodec/adpcm.c
  #define LOOP_NODES(NAME, STEP_TABLE, STEP_INDEX)\
                  const int predictor = nodes[j]->sample1;\
                  const int div = (sample - predictor) * 4 / STEP_TABLE;\
-@@ -446,6 +452,75 @@
+@@ -446,6 +453,45 @@
      switch(avctx->codec->id) {
      case CODEC_ID_ADPCM_IMA_QT: /* XXX: can't test until we get .mov writer */
          break;
-+    case CODEC_ID_ADPCM_IMA_AMV:
-+        n = avctx->frame_size / 8;
++    case CODEC_ID_ADPCM_IMA_AMV: 
++        {
++        int i;
++        PutBitContext pb;
++
 +            c->status[0].prev_sample = (signed short)samples[0]; /* XXX */
 +/*            c->status[0].step_index = 0; *//* XXX: not sure how to init the state machine */
 +            bytestream_put_le16(&dst, c->status[0].prev_sample);
@@ -137,63 +141,30 @@ Index: libavcodec/adpcm.c
 +                *dst++ = 0;
 +                samples++;
 +            }
-+            bytestream_put_le32(&dst, avctx->frame_size-1);
-+            
++            bytestream_put_le32(&dst, avctx->frame_size);
 +
-+            /* stereo: 4 bytes (8 samples) for left, 4 bytes for right, 4 bytes left, ... */
-+            if(avctx->trellis > 0) {
-+                uint8_t buf[2][n*8];
-+                adpcm_compress_trellis(avctx, samples, buf[0], &c->status[0], n*8);
-+                if(avctx->channels == 2)
-+                    adpcm_compress_trellis(avctx, samples+1, buf[1], &c->status[1], n*8);
-+                for(i=0; i<n; i++) {
-+                    *dst++ = buf[0][8*i+0] | (buf[0][8*i+1] << 4);
-+                    *dst++ = buf[0][8*i+2] | (buf[0][8*i+3] << 4);
-+                    *dst++ = buf[0][8*i+4] | (buf[0][8*i+5] << 4);
-+                    *dst++ = buf[0][8*i+6] | (buf[0][8*i+7] << 4);
-+                    if (avctx->channels == 2) {
-+                        *dst++ = buf[1][8*i+0] | (buf[1][8*i+1] << 4);
-+                        *dst++ = buf[1][8*i+2] | (buf[1][8*i+3] << 4);
-+                        *dst++ = buf[1][8*i+4] | (buf[1][8*i+5] << 4);
-+                        *dst++ = buf[1][8*i+6] | (buf[1][8*i+7] << 4);
-+                    }
-+                }
-+            } else
-+            for (; n>0; n--) {
++//        init_put_bits(&pb, dst, buf_size*8);
++        n = avctx->frame_size / 2;
++            for (i=1; i<n; i++) {
++/*                put_bits(&pb, 4, adpcm_ima_compress_sample(&c->status[0], samples[avctx->channels*i]) & 0xF);
++                put_bits(&pb, 4, 0xA);
++                if (avctx->channels == 2) put_bits(&pb, 4, adpcm_ima_compress_sample(&c->status[1], samples[2*i+1]) & 0xF);*/
 +                *dst = adpcm_ima_compress_sample(&c->status[0], samples[0]) & 0x0F;
-+                *dst |= (adpcm_ima_compress_sample(&c->status[0], samples[avctx->channels]) << 4) & 0xF0;
++                *dst |= (adpcm_ima_compress_sample(&c->status[0], samples[1]) << 4) & 0xF0;
 +                dst++;
-+                *dst = adpcm_ima_compress_sample(&c->status[0], samples[avctx->channels * 2]) & 0x0F;
-+                *dst |= (adpcm_ima_compress_sample(&c->status[0], samples[avctx->channels * 3]) << 4) & 0xF0;
-+                dst++;
-+                *dst = adpcm_ima_compress_sample(&c->status[0], samples[avctx->channels * 4]) & 0x0F;
-+                *dst |= (adpcm_ima_compress_sample(&c->status[0], samples[avctx->channels * 5]) << 4) & 0xF0;
-+                dst++;
-+                *dst = adpcm_ima_compress_sample(&c->status[0], samples[avctx->channels * 6]) & 0x0F;
-+                *dst |= (adpcm_ima_compress_sample(&c->status[0], samples[avctx->channels * 7]) << 4) & 0xF0;
-+                dst++;
-+                /* right channel */
-+                if (avctx->channels == 2) {
-+                    *dst = adpcm_ima_compress_sample(&c->status[1], samples[1]);
-+                    *dst |= adpcm_ima_compress_sample(&c->status[1], samples[3]) << 4;
-+                    dst++;
-+                    *dst = adpcm_ima_compress_sample(&c->status[1], samples[5]);
-+                    *dst |= adpcm_ima_compress_sample(&c->status[1], samples[7]) << 4;
-+                    dst++;
-+                    *dst = adpcm_ima_compress_sample(&c->status[1], samples[9]);
-+                    *dst |= adpcm_ima_compress_sample(&c->status[1], samples[11]) << 4;
-+                    dst++;
-+                    *dst = adpcm_ima_compress_sample(&c->status[1], samples[13]);
-+                    *dst |= adpcm_ima_compress_sample(&c->status[1], samples[15]) << 4;
-+                    dst++;
-+                }
-+                samples += 8 * avctx->channels;
++                samples+=2;
 +            }
++            
++/*        flush_put_bits(&pb);
++        dst += put_bits_count(&pb)>>3;
++        dst++;
++        dst++;*/
 +        break;
++        }
      case CODEC_ID_ADPCM_IMA_WAV:
          n = avctx->frame_size / 8;
              c->status[0].prev_sample = (signed short)samples[0]; /* XXX */
-@@ -1438,6 +1513,7 @@
+@@ -1438,6 +1484,7 @@
  
  ADPCM_CODEC(CODEC_ID_ADPCM_IMA_QT, adpcm_ima_qt);
  ADPCM_CODEC(CODEC_ID_ADPCM_IMA_WAV, adpcm_ima_wav);

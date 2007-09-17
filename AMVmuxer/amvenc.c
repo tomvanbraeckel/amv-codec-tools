@@ -500,8 +500,7 @@ static int avi_write_packet(AVFormatContext *s, AVPacket *pkt)
     put_buffer(pb, tag, 4);
     put_le32(pb, size);
     put_buffer(pb, pkt->data, size);
-    if (size & 1)
-        put_byte(pb, 0);
+    if (size & 1) put_byte(pb, 0);
 
     put_flush_packet(pb);
     return 0;
@@ -567,8 +566,8 @@ AVOutputFormat amv_muxer = {
     "video/amv",
     "amv",
     sizeof(AMVContext),
-    CODEC_ID_MP2,
-    CODEC_ID_MPEG4,
+    CODEC_ID_ADPCM_IMA_AMV,
+    CODEC_ID_MJPEG,
     avi_write_header,
     avi_write_packet,
     avi_write_trailer,

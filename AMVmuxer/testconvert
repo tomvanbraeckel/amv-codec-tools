@@ -4,7 +4,7 @@
 #
 # NOTE !!! Make sure you've run ./srcprepare.sh and compiled ffmpeg (cd ffmpeg;./configure;make)
 
-ffmpeg/ffmpeg -i hole.avi -f amv -intra -r 16 -vcodec mjpeg -s 160x120 -ac 1 -ar 22050 -acodec adpcm_ima_amv hole.amv
+ffmpeg/ffmpeg -i hole.avi -f amv -intra -r 16 -s 160x120 -ac 1 -ar 22050 hole.amv
 
 # No audio stream:
 # ffmpeg/ffmpeg -i hole.avi -f amv -intra -r 16 -vcodec mjpeg -s 160x120 -an -ac 1 -ar 16000 -acodec adpcm_ima_wav hole.amv
