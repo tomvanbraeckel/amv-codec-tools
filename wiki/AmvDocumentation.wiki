@@ -31,7 +31,7 @@ the header contains two strings, "avih" and "amvh" ("AVI" and "avih" for AVI).
 The section where codec, frame size, and other information would normally be found
 is filled with zeroes (because most of that information is hard-coded into
 the player's firmware). Tthe string "AMV_END" is found at the end of the file.
-The modified avi header contains several 'garbage' values because many of the parameters are hardcoded. It contains a [http://wiki.multimedia.cx/index.php?title=RIFF RIFF] packed stream of video data and MP3 encoded
+The modified avi header contains several 'garbage' values because many of the parameters are hardcoded. It contains a [http://wiki.multimedia.cx/index.php?title=RIFF RIFF] packed stream of video data and ADPCM encoded
 audio. There is an [http://svn.rot13.org/index.cgi/amv open source decoder] (written in Perl) for the format.
 According to [http://blog.rot13.org/2007/08/amv_free_decoder_works.html its author], the video codec is a modified version of [http://wiki.multimedia.cx/index.php?title=Motion_JPEG Motion JPEG]
 but missing quantization tables which are fixed (from jpeg standard) and audio is a
@@ -119,3 +119,4 @@ would define these players is "S1MP3" as named by their creators.
 
 
 
+ 
