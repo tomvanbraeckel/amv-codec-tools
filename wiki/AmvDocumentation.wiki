@@ -80,9 +80,12 @@ LIST(
 'movi'(data)
 .
 00dc(video frame data)
-.
-01wb(audio data
-)
+01wb(audio data)
+00dc(video frame data)
+01wb(audio data)
+...
+00dc(video frame data)
+01wb(audio data)
 'AMV_END_'
 )
 
@@ -118,8 +121,8 @@ WORD cbSize;
 } WAVEFORMATEX;
 }}}
 
-* Video format is jpeg (without DQT,SOF,SOS)
-* Audio format is IMA-ADPCM
+  * Video format is jpeg (without DQT,SOF,SOS)
+  * Audio format is IMA-ADPCM
 
 = Software players that support AMV and MTV playback =
 There are no players known to decode AMV or MTV files, except for the proprietary
