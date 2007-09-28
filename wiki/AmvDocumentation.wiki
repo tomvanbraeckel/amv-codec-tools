@@ -1,4 +1,5 @@
 #summary Documentation about the AMV format (built from various sources)
+#labels Phase-Requirements,AMVmovieformat
 
 = AMV video origin and history =
 
@@ -58,6 +59,65 @@ is a variant of IMA ADPCM encoding. First 8 bytes of each frame are used os orig
 and index (two shorts, 4 bytes) for ADPCM decoder and for length of audio frame
 (long, 4 bytes). Video stream is composed of mjpeg frames (similar to jpeg images,
 but without quantization tables which can be obtained in jpeg standard). 
+
+= Formal AMV movie format Specification =
+
+RIFF('AVI '
+LIST(
+'hdrl'
+'avih'
+LIST(
+'strl'(video stream info)
+'strh'
+'strf'
+)
+LIST(
+'strl'(audio stream info)
+'strh'
+'strf' )
+LIST(
+'movi'(data)
+.
+00dc(video frame data)
+.
+01wb(audio data
+)
+'AMV_END_'
+)
+
+typedef struct _amvmainheader {
+FOURCC fcc; // 'amvh'
+DWORD cb;
+DWORD dwMicroSecPerFrame;
+BYTE reserve[28];
+DWORD dwWidth;
+DWORD dwHeight;
+DWORD dwSpeed;
+DWORD reserve0;
+DWORD reserve1;
+BYTE dwTimeSec;
+BYTE dwTimeMin;
+WORD dwTimeHour;
+} AMVMAINHEADER;
+
+typedef struct _amvstreamheader {
+FOURCC fcc; // 'strh'
+DWORD cb;
+BYTE reserve[56];
+} AMVSTREAMHEADER;
+
+typedef struct {
+WORD wFormatTag;
+WORD nChannels;
+DWORD nSamplesPerSec;
+DWORD nAvgBytesPerSec;
+WORD nBlockAlign;
+WORD wBitsPerSample;
+WORD cbSize;
+} WAVEFORMATEX;
+
+video format is jpeg(without DQT,SOF,SOS)
+audio format is IMA-ADPCM
 
 = Software players that support AMV and MTV playback =
 There are no players known to decode AMV or MTV files, except for the proprietary
