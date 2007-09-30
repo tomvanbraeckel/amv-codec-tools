@@ -40,7 +40,7 @@ variant of IMA ADPCM where the first 8 bytes of each frame are:
 
     * origin (16bits)
     * index (16bits)
-    * audio frame length (32bits). 
+    * number of encoded 16-bit samples (32bits). 
 
 The decoder extracts each frame into a JPEG file and then uses ffmpeg to encode the
 video in another format. Here is a simple test to understand what's in the AMV video
@@ -99,9 +99,9 @@ DWORD dwHeight;
 DWORD dwSpeed;
 DWORD reserve0;
 DWORD reserve1;
-BYTE dwTimeSec;
-BYTE dwTimeMin;
-WORD dwTimeHour;
+BYTE bTimeSec;
+BYTE bTimeMin;
+WORD wTimeHour;
 } AMVMAINHEADER;
 
 typedef struct _amvstreamheader {
