@@ -15,5 +15,3 @@ Here's the general outline Reynaldo suggested:
   # Reverse engineering of the ACT audio/speech codec
   # Code an AMV demuxer for FFmpeg (done)
   # Code an AMV muxer for FFmpeg
-
-Tom is woundering why we need the MTV stuff; can't we leave out steps 1 and 2 or finish them when the rest is finished ? Reynaldo, what do you suggest ?
