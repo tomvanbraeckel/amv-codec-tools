@@ -294,7 +294,8 @@ static int avi_write_packet(AVFormatContext *s, AVPacket *pkt)
     put_buffer(pb, tag, 4);
     put_le32(pb, size);
     put_buffer(pb, pkt->data, size);
-    if (size & 1) put_byte(pb, 0);
+    //Data in AMV files are not aligned by 2 bytes
+//    if (size & 1) put_byte(pb, 0);
 
     put_flush_packet(pb);
     return 0;
