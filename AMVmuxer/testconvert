@@ -5,10 +5,10 @@
 # NOTE !!! Make sure you've run ./srcprepare.sh and compiled ffmpeg (cd ffmpeg;./configure;make)
 
 # Use default ADPCM_IMA_WAV codec and AVI format
-# ffmpeg/ffmpeg -i hole.avi -f avi -intra -r 16 -vcodec mjpeg -s 160x120 -ac 1 -ar 22050 -acodec adpcm_ima_wav hole_indextest.avi
+# fmpeg/ffmpeg -i hole.avi -f avi -intra -r 16 -vcodec mjpeg -s 160x120 -ac 1 -ar 22050 -acodec adpcm_ima_wav hole_indextest.avi
 
 # Use default ADPCM_IMA_WAV codec
-#ffmpeg/ffmpeg -y -i hole.avi -f amv -intra -r 16 -s 160x120 -ac 1 -ar 22050 -acodec adpcm_ima_wav hole.amv
+ffmpeg/ffmpeg -y -i hole.avi -f amv -intra -r 16 -s 160x120 -ac 1 -ar 22050 -acodec adpcm_ima_wav hole.amv
 
 # Use our ADPCM_IMA_AMV codec
 # ffmpeg/ffmpeg -i hole.avi -f amv -intra -r 16 -s 160x120 -ac 1 -ar 22050 hole.amv
@@ -16,7 +16,7 @@
 # No audio stream:
 # ffmpeg/ffmpeg -i hole.avi -f amv -intra -r 16 -vcodec mjpeg -s 160x120 -an hole.amv
 
-#copy
-../../ffmpeg/ffmpeg -y -i hole_correct.amv -f amv -intra -r 10 -vcodec copy -acodec copy  -s 160x120  hole.amv
+# Copy unchanges audio/video data from correct AMV file (muxer tesst)
+# ffmpeg/ffmpeg -y -i hole_correct.amv -f amv -intra -r 10 -vcodec copy -acodec copy  -s 160x120  hole.amv
 
-#ghex2 hole.amv
+ghex2 hole.amv
