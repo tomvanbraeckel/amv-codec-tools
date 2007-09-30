@@ -102,7 +102,7 @@ Index: libavcodec/adpcm.c
 +                dst++;
 +                samples+=2;
 +            }
-+            
++            *dst++ = 0x00;  // this fixes the clicking for 
 +        break;
 +        }
      case CODEC_ID_ADPCM_IMA_WAV:
