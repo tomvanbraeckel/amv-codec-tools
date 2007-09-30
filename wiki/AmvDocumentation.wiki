@@ -117,7 +117,8 @@ DWORD nSamplesPerSec;
 DWORD nAvgBytesPerSec;
 WORD nBlockAlign;
 WORD wBitsPerSample;
-WORD cbSize;
+WORD cbSize
+WORD reserved;
 } WAVEFORMATEX;
 }}}
 
