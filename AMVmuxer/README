@@ -14,6 +14,10 @@ Compile the patched FFmpeg - AMV-support is now build in:
 5.- make
 6.- cd ..
 
+Grab sample files (hole.avi and hole_correct.amv) from 
+http://code.google.com/p/amv-codec-tools/downloads/list
+and put them to this directory.
+
 Test it by converting the testvideo hole.avi to hole.amv:
 6.- ./testconvert
 
