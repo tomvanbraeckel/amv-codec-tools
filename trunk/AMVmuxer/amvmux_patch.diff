@@ -14,38 +14,15 @@ Index: libavcodec/mjpegenc.c
 ===================================================================
 --- libavcodec/mjpegenc.c	(revision 10481)
 +++ libavcodec/mjpegenc.c	(working copy)
-@@ -106,6 +106,7 @@
- 
- static void jpeg_table_header(MpegEncContext *s)
- {
-+        
-     PutBitContext *p = &s->pb;
-     int i, j, size;
-     uint8_t *ptr;
-@@ -198,8 +199,11 @@
- {
+@@ -199,7 +199,7 @@
      const int lossless= s->avctx->codec_id != CODEC_ID_MJPEG;
  
-+
-+    goto after_header;
-+
      put_marker(&s->pb, SOI);
 -
-+    
++    return;
      jpeg_put_comments(s);
  
      jpeg_table_header(s);
-@@ -274,6 +278,10 @@
-     }
- 
-     put_bits(&s->pb, 8, 0); /* Ah/Al (not used) */
-+
-+    after_header:
-+    // empty
-+    put_marker(&s->pb, SOI);
- }
- 
- static void escape_FF(MpegEncContext *s, int start)
 Index: libavcodec/allcodecs.c
 ===================================================================
 --- libavcodec/allcodecs.c	(revision 10481)
