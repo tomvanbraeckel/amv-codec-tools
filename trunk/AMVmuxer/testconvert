@@ -7,11 +7,11 @@
 # Use default ADPCM_IMA_WAV codec and AVI format
 # fmpeg/ffmpeg -i hole.avi -f avi -intra -r 16 -vcodec mjpeg -s 160x120 -ac 1 -ar 22050 -acodec adpcm_ima_wav hole_indextest.avi
 
-# Use default ADPCM_IMA_WAV codec
-ffmpeg/ffmpeg -y -i hole.avi -f amv -intra -r 16 -s 160x120 -ac 1 -ar 22050 -acodec adpcm_ima_wav hole.amv
+# Use ADPCM_IMA_WAV codec
+# ffmpeg/ffmpeg -y -i hole.avi -f amv -intra -r 16 -s 160x120 -ac 1 -ar 22050 -acodec adpcm_ima_wav hole.amv
 
-# Use our ADPCM_IMA_AMV codec
-# ffmpeg/ffmpeg -i hole.avi -f amv -intra -r 16 -s 160x120 -ac 1 -ar 22050 hole.amv
+# Use default ADPCM_IMA_AMV codec and set quality to maximum
+ffmpeg/ffmpeg -i hole.avi -f amv -intra -qscale 1 -r 16 -s 160x120 -ac 1 -ar 22050 hole.amv
 
 # No audio stream:
 # ffmpeg/ffmpeg -i hole.avi -f amv -intra -r 16 -vcodec mjpeg -s 160x120 -an hole.amv
