@@ -124,8 +124,12 @@ WORD cbSize;
   * Video format is jpeg (without DQT,SOF,SOS)
   * Audio format is IMA-ADPCM
 
-= Software players that support AMV and MTV playback =
-There are no players known to decode AMV or MTV files, except for the proprietary
+= Software players that support AMV playback =
+  * FFmpeg  (since SVN r10623)
+  * MPlayer (since SVN r24673)
+
+= Software players that support MTV playback =
+There are no players known to decode MTV files, except for the proprietary
 converter (and the attached player) that comes on the original CD sold with the unit.
 
 = Hardware players that support AMV and MTV playback =
