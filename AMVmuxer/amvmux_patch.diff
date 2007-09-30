@@ -184,15 +184,3 @@ Index: libavformat/allformats.c
      REGISTER_DEMUXER  (APC, apc);
      REGISTER_MUXDEMUX (ASF, asf);
      REGISTER_MUXER    (ASF_STREAM, asf_stream);
-Index: libavformat/allformats.h
-===================================================================
---- libavformat/allformats.h	(revision 10481)
-+++ libavformat/allformats.h	(working copy)
-@@ -125,6 +125,7 @@
- extern AVOutputFormat adts_muxer;
- extern AVOutputFormat aiff_muxer;
- extern AVOutputFormat amr_muxer;
-+extern AVOutputFormat amv_muxer;
- extern AVOutputFormat asf_muxer;
- extern AVOutputFormat asf_stream_muxer;
- extern AVOutputFormat au_muxer;
