@@ -14,12 +14,11 @@ Index: libavcodec/mjpegenc.c
 ===================================================================
 --- libavcodec/mjpegenc.c	(revision 10481)
 +++ libavcodec/mjpegenc.c	(working copy)
-@@ -199,7 +199,7 @@
-     const int lossless= s->avctx->codec_id != CODEC_ID_MJPEG;
+@@ -200,6 +200,7 @@
  
      put_marker(&s->pb, SOI);
--
-+    return;
+ 
++    return; // hack for AMV mjpeg format
      jpeg_put_comments(s);
  
      jpeg_table_header(s);
