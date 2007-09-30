@@ -95,15 +95,17 @@ static int avi_write_counters(AVFormatContext* s, int riff_id)
         url_fseek(pb, avi->frames_hdr_all, SEEK_SET);
         put_le32(pb, nb_frames);
         
+        // HACK !
+        int duration_seconds = nb_frames/s->streams[0]->codec->time_base.den;
         assert(avi->seconds);
         url_fseek(pb, avi->seconds, SEEK_SET);
-        put_byte(pb,(nb_frames/16)%60);
+        put_byte(pb,duration_seconds%60);
         assert(avi->minutes);
         url_fseek(pb, avi->minutes, SEEK_SET);
-        put_byte(pb,(nb_frames/16)/60);
+        put_byte(pb,duration_seconds/60);
         assert(avi->hours);
         url_fseek(pb, avi->hours, SEEK_SET);
-        put_le16(pb, (nb_frames/16)/3600);
+        put_le16(pb,duration_seconds/3600);
     }
     url_fseek(pb, file_size, SEEK_SET);
 
