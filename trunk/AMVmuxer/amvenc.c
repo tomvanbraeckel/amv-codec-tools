@@ -257,6 +257,15 @@ static int avi_write_header(AVFormatContext *s)
 
     put_flush_packet(pb);
 
+    /*
+     HACK!!!
+     Set correct frame_size for audio stream
+    */
+    s->streams[1]->codec->frame_size=av_rescale(
+            s->streams[1]->codec->sample_rate,
+            s->streams[0]->codec->time_base.num,
+            s->streams[0]->codec->time_base.den);
+
     return 0;
 }
 
