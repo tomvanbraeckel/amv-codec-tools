@@ -1,8 +1,8 @@
 Index: libavcodec/Makefile
 ===================================================================
---- libavcodec/Makefile	(revision 10481)
+--- libavcodec/Makefile	(revision 10629)
 +++ libavcodec/Makefile	(working copy)
-@@ -272,6 +272,7 @@
+@@ -275,6 +275,7 @@
  OBJS-$(CONFIG_ADPCM_IMA_SMJPEG_ENCODER) += adpcm.o
  OBJS-$(CONFIG_ADPCM_IMA_WAV_DECODER)   += adpcm.o
  OBJS-$(CONFIG_ADPCM_IMA_WAV_ENCODER)   += adpcm.o
@@ -12,7 +12,7 @@ Index: libavcodec/Makefile
  OBJS-$(CONFIG_ADPCM_MS_DECODER)        += adpcm.o
 Index: libavcodec/mjpegenc.c
 ===================================================================
---- libavcodec/mjpegenc.c	(revision 10481)
+--- libavcodec/mjpegenc.c	(revision 10629)
 +++ libavcodec/mjpegenc.c	(working copy)
 @@ -200,6 +200,7 @@
  
@@ -24,7 +24,7 @@ Index: libavcodec/mjpegenc.c
      jpeg_table_header(s);
 Index: libavcodec/allcodecs.c
 ===================================================================
---- libavcodec/allcodecs.c	(revision 10626)
+--- libavcodec/allcodecs.c	(revision 10629)
 +++ libavcodec/allcodecs.c	(working copy)
 @@ -247,7 +247,7 @@
      REGISTER_ENCDEC  (ADPCM_CT, adpcm_ct);
@@ -37,7 +37,7 @@ Index: libavcodec/allcodecs.c
      REGISTER_ENCDEC  (ADPCM_IMA_QT, adpcm_ima_qt);
 Index: libavcodec/adpcm.c
 ===================================================================
---- libavcodec/adpcm.c	(revision 10481)
+--- libavcodec/adpcm.c	(revision 10629)
 +++ libavcodec/adpcm.c	(working copy)
 @@ -185,6 +185,13 @@
          }
@@ -71,14 +71,13 @@ Index: libavcodec/adpcm.c
  #define LOOP_NODES(NAME, STEP_TABLE, STEP_INDEX)\
                  const int predictor = nodes[j]->sample1;\
                  const int div = (sample - predictor) * 4 / STEP_TABLE;\
-@@ -446,6 +453,45 @@
+@@ -446,6 +453,36 @@
      switch(avctx->codec->id) {
      case CODEC_ID_ADPCM_IMA_QT: /* XXX: can't test until we get .mov writer */
          break;
 +    case CODEC_ID_ADPCM_IMA_AMV: 
 +        {
 +        int i;
-+        PutBitContext pb;
 +
 +            c->status[0].prev_sample = (signed short)samples[0]; /* XXX */
 +/*            c->status[0].step_index = 0; *//* XXX: not sure how to init the state machine */
@@ -96,22 +95,14 @@ Index: libavcodec/adpcm.c
 +            }
 +            bytestream_put_le32(&dst, avctx->frame_size);
 +
-+//        init_put_bits(&pb, dst, buf_size*8);
 +        n = avctx->frame_size / 2;
 +            for (i=1; i<n; i++) {
-+/*                put_bits(&pb, 4, adpcm_ima_compress_sample(&c->status[0], samples[avctx->channels*i]) & 0xF);
-+                put_bits(&pb, 4, 0xA);
-+                if (avctx->channels == 2) put_bits(&pb, 4, adpcm_ima_compress_sample(&c->status[1], samples[2*i+1]) & 0xF);*/
 +                *dst = adpcm_ima_compress_sample(&c->status[0], samples[0]) & 0x0F;
 +                *dst |= (adpcm_ima_compress_sample(&c->status[0], samples[1]) << 4) & 0xF0;
 +                dst++;
 +                samples+=2;
 +            }
 +            
-+/*        flush_put_bits(&pb);
-+        dst += put_bits_count(&pb)>>3;
-+        dst++;
-+        dst++;*/
 +        break;
 +        }
      case CODEC_ID_ADPCM_IMA_WAV:
@@ -119,7 +110,7 @@ Index: libavcodec/adpcm.c
              c->status[0].prev_sample = (signed short)samples[0]; /* XXX */
 Index: libavformat/riff.c
 ===================================================================
---- libavformat/riff.c	(revision 10481)
+--- libavformat/riff.c	(revision 10629)
 +++ libavformat/riff.c	(working copy)
 @@ -188,6 +188,7 @@
      { CODEC_ID_PCM_MULAW, 0x07 },
@@ -131,7 +122,7 @@ Index: libavformat/riff.c
      { CODEC_ID_ADPCM_IMA_DK4, 0x61 },  /* rogue format number */
 Index: libavformat/Makefile
 ===================================================================
---- libavformat/Makefile	(revision 10481)
+--- libavformat/Makefile	(revision 10629)
 +++ libavformat/Makefile	(working copy)
 @@ -19,6 +19,7 @@
  OBJS-$(CONFIG_AIFF_MUXER)                += aiff.o riff.o
@@ -139,17 +130,17 @@ Index: libavformat/Makefile
  OBJS-$(CONFIG_AMR_MUXER)                 += amr.o
 +OBJS-$(CONFIG_AMV_MUXER)                 += amvenc.o
  OBJS-$(CONFIG_APC_DEMUXER)               += apc.o
+ OBJS-$(CONFIG_APE_DEMUXER)               += ape.o
  OBJS-$(CONFIG_ASF_DEMUXER)               += asf.o riff.o
- OBJS-$(CONFIG_ASF_MUXER)                 += asf-enc.o riff.o
 Index: libavformat/allformats.c
 ===================================================================
---- libavformat/allformats.c	(revision 10481)
+--- libavformat/allformats.c	(revision 10629)
 +++ libavformat/allformats.c	(working copy)
-@@ -52,6 +52,7 @@
+@@ -57,6 +57,7 @@
      REGISTER_MUXER    (ADTS, adts);
      REGISTER_MUXDEMUX (AIFF, aiff);
      REGISTER_MUXDEMUX (AMR, amr);
 +    REGISTER_MUXER    (AMV, amv);
      REGISTER_DEMUXER  (APC, apc);
+     REGISTER_DEMUXER  (APE, ape);
      REGISTER_MUXDEMUX (ASF, asf);
-     REGISTER_MUXER    (ASF_STREAM, asf_stream);
