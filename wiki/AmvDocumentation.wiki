@@ -107,9 +107,9 @@ WORD wFormatTag;
 WORD nChannels;
 DWORD nSamplesPerSec;
 DWORD nAvgBytesPerSec;
-WORD nBlockAlign;
-WORD wBitsPerSample;
-WORD cbSize
+WORD nBlockAlign; (Fixme: this seems to be 2 in AMV files, is this correct ?)
+WORD wBitsPerSample; (Fixme: this seems to be 16 in AMV files instead of the expected 4)
+WORD cbSize; (Fixme: this seems to be 0 in AMV files)
 WORD reserved;
 } WAVEFORMATEX;
 }}}
