@@ -35,18 +35,6 @@ Index: libavcodec/allcodecs.c
      REGISTER_ENCDEC  (ADPCM_IMA_DK3, adpcm_ima_dk3);
      REGISTER_ENCDEC  (ADPCM_IMA_DK4, adpcm_ima_dk4);
      REGISTER_ENCDEC  (ADPCM_IMA_QT, adpcm_ima_qt);
-Index: libavcodec/avcodec.h
-===================================================================
---- libavcodec/avcodec.h	(revision 10481)
-+++ libavcodec/avcodec.h	(working copy)
-@@ -190,6 +190,7 @@
-     /* various ADPCM codecs */
-     CODEC_ID_ADPCM_IMA_QT= 0x11000,
-     CODEC_ID_ADPCM_IMA_WAV,
-+    CODEC_ID_ADPCM_IMA_AMV,
-     CODEC_ID_ADPCM_IMA_DK3,
-     CODEC_ID_ADPCM_IMA_DK4,
-     CODEC_ID_ADPCM_IMA_WS,
 Index: libavcodec/adpcm.c
 ===================================================================
 --- libavcodec/adpcm.c	(revision 10481)
