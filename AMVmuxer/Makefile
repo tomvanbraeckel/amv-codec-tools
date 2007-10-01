@@ -1,7 +1,7 @@
 patch=amvmux_patch.diff
 
 all:
-	@echo "usage: make [patch|build|diff|clean|test]"
+	@echo "usage: make [patch|build|diff|clean|test|debug]"
 
 patch:
 	svn revert -R ffmpeg
@@ -23,6 +23,9 @@ clean:
 	cd ffmpeg && make clean
 
 test: build
+	ffmpeg/ffmpeg -i hole.avi -f amv -intra -qscale 1 -r 16 -s 160x120 -ac 1 -ar 22050 -y hole.amv
+
+debug: build
 	echo "**** test build in gdb ****"
 	gdb --args ffmpeg/ffmpeg_g -i hole.avi -f amv -intra -qscale 1 -r 16 -s 160x120 -ac 1 -ar 22050 -y hole.amv
 
