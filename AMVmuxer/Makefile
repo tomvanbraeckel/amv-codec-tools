@@ -25,3 +25,5 @@ clean:
 test: build
 	echo "**** test build in gdb ****"
 	gdb --args ffmpeg/ffmpeg_g -i hole.avi -f amv -intra -qscale 1 -r 16 -s 160x120 -ac 1 -ar 22050 -y hole.amv
+
+.PHONY: all patch dif build clean test
