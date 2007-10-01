@@ -263,10 +263,12 @@ static int avi_write_header(AVFormatContext *s)
      HACK!!!
      Set correct frame_size for audio stream
     */
-    s->streams[1]->codec->frame_size=av_rescale(
-            s->streams[1]->codec->sample_rate,
-            s->streams[0]->codec->time_base.num,
-            s->streams[0]->codec->time_base.den);
+    if(s->nb_streams > 1 && s->streams[1]->codec->codec_type == CODEC_TYPE_AUDIO) {
+	    s->streams[1]->codec->frame_size=av_rescale(
+		    s->streams[1]->codec->sample_rate,
+		    s->streams[0]->codec->time_base.num,
+		    s->streams[0]->codec->time_base.den);
+    }
 
     return 0;
 }
