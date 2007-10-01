@@ -71,7 +71,7 @@ Index: libavcodec/adpcm.c
  #define LOOP_NODES(NAME, STEP_TABLE, STEP_INDEX)\
                  const int predictor = nodes[j]->sample1;\
                  const int div = (sample - predictor) * 4 / STEP_TABLE;\
-@@ -446,6 +453,36 @@
+@@ -446,6 +453,37 @@
      switch(avctx->codec->id) {
      case CODEC_ID_ADPCM_IMA_QT: /* XXX: can't test until we get .mov writer */
          break;
@@ -102,7 +102,8 @@ Index: libavcodec/adpcm.c
 +                dst++;
 +                samples+=2;
 +            }
-+            *dst++ = 0x00;  // this fixes the clicking for 
++            if (avctx->frame_size & 1)
++                *dst++ = adpcm_ima_compress_sample(&c->status[0], *samples++) & 0x0F;  // this fixes the clicking for 
 +        break;
 +        }
      case CODEC_ID_ADPCM_IMA_WAV:
