@@ -12,8 +12,8 @@ patch:
 	cd ffmpeg && ./configure
 
 diff:
-	@svn diff ffmpeg > $(patch).new
-	@grep '^[+-]' $(patch).new | grep -v '[+-]Index:' | egrep -v '[+-](+++|----)' && mv $(patch).new $(patch) && svn diff || rm $(patch).new
+	svn diff ffmpeg > $(patch).new
+	grep '^[+-]' $(patch).new | grep -v '[+-]Index:' | egrep -v '[+-](+++|----)' && mv $(patch).new $(patch) && svn diff || rm $(patch).new
 
 
 build:
