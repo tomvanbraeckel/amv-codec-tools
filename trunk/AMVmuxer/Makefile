@@ -6,14 +6,14 @@ all:
 patch:
 	svn revert -R ffmpeg
 	svn update ffmpeg
-	cd ffmpeg && patch -p0 < ../$(patch)
+	cd ffmpeg && patch -p1 < ../$(patch)
 	ln -sf `pwd`/amvenc.c `pwd`/ffmpeg/libavformat/
 	ln -sf `pwd`/amv.h `pwd`/ffmpeg/libavformat/
 	cd ffmpeg && ./configure
 
 diff:
 	svn diff ffmpeg > $(patch).new
-	grep '^[+-]' $(patch).new | grep -v '[+-]Index:' | egrep -v '[+-](+++|----)' && mv $(patch).new $(patch) && svn diff || rm $(patch).new
+	diff -uw $(patch) $(patch).new | grep '^[+-]' | grep -v '[+-]Index:' | grep '^[+-]' && mv $(patch).new $(patch) && svn diff || rm $(patch).new
 
 
 build:
