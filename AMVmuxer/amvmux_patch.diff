@@ -1,6 +1,6 @@
 Index: ffmpeg/libavcodec/Makefile
 ===================================================================
---- ffmpeg/libavcodec/Makefile	(revision 10635)
+--- ffmpeg/libavcodec/Makefile	(revision 10636)
 +++ ffmpeg/libavcodec/Makefile	(working copy)
 @@ -275,6 +275,7 @@
  OBJS-$(CONFIG_ADPCM_IMA_SMJPEG_ENCODER) += adpcm.o
@@ -12,7 +12,7 @@ Index: ffmpeg/libavcodec/Makefile
  OBJS-$(CONFIG_ADPCM_MS_DECODER)        += adpcm.o
 Index: ffmpeg/libavcodec/mjpegenc.c
 ===================================================================
---- ffmpeg/libavcodec/mjpegenc.c	(revision 10635)
+--- ffmpeg/libavcodec/mjpegenc.c	(revision 10636)
 +++ ffmpeg/libavcodec/mjpegenc.c	(working copy)
 @@ -200,6 +200,7 @@
  
@@ -24,7 +24,7 @@ Index: ffmpeg/libavcodec/mjpegenc.c
      jpeg_table_header(s);
 Index: ffmpeg/libavcodec/allcodecs.c
 ===================================================================
---- ffmpeg/libavcodec/allcodecs.c	(revision 10635)
+--- ffmpeg/libavcodec/allcodecs.c	(revision 10636)
 +++ ffmpeg/libavcodec/allcodecs.c	(working copy)
 @@ -247,7 +247,7 @@
      REGISTER_ENCDEC  (ADPCM_CT, adpcm_ct);
@@ -37,7 +37,7 @@ Index: ffmpeg/libavcodec/allcodecs.c
      REGISTER_ENCDEC  (ADPCM_IMA_QT, adpcm_ima_qt);
 Index: ffmpeg/libavcodec/adpcm.c
 ===================================================================
---- ffmpeg/libavcodec/adpcm.c	(revision 10635)
+--- ffmpeg/libavcodec/adpcm.c	(revision 10636)
 +++ ffmpeg/libavcodec/adpcm.c	(working copy)
 @@ -185,6 +185,13 @@
          }
@@ -84,14 +84,14 @@ Index: ffmpeg/libavcodec/adpcm.c
 +            bytestream_put_le16(&dst, c->status[0].prev_sample);
 +            *dst++ = (unsigned char)c->status[0].step_index;
 +            *dst++ = 0; /* unknown */
-+            //samples++;
++            samples++;
 +            if (avctx->channels == 2) {
 +                c->status[1].prev_sample = (signed short)samples[1];
 +/*                c->status[1].step_index = 0; */
 +                bytestream_put_le16(&dst, c->status[1].prev_sample);
 +                *dst++ = (unsigned char)c->status[1].step_index;
 +                *dst++ = 0;
-+                //samples++;
++                samples++;
 +            }
 +            bytestream_put_le32(&dst, avctx->frame_size);
 +
@@ -111,7 +111,7 @@ Index: ffmpeg/libavcodec/adpcm.c
              c->status[0].prev_sample = (signed short)samples[0]; /* XXX */
 Index: ffmpeg/libavformat/riff.c
 ===================================================================
---- ffmpeg/libavformat/riff.c	(revision 10635)
+--- ffmpeg/libavformat/riff.c	(revision 10636)
 +++ ffmpeg/libavformat/riff.c	(working copy)
 @@ -188,6 +188,7 @@
      { CODEC_ID_PCM_MULAW, 0x07 },
@@ -123,7 +123,7 @@ Index: ffmpeg/libavformat/riff.c
      { CODEC_ID_ADPCM_IMA_DK4, 0x61 },  /* rogue format number */
 Index: ffmpeg/libavformat/Makefile
 ===================================================================
---- ffmpeg/libavformat/Makefile	(revision 10635)
+--- ffmpeg/libavformat/Makefile	(revision 10636)
 +++ ffmpeg/libavformat/Makefile	(working copy)
 @@ -19,6 +19,7 @@
  OBJS-$(CONFIG_AIFF_MUXER)                += aiff.o riff.o
@@ -135,7 +135,7 @@ Index: ffmpeg/libavformat/Makefile
  OBJS-$(CONFIG_ASF_DEMUXER)               += asf.o riff.o
 Index: ffmpeg/libavformat/allformats.c
 ===================================================================
---- ffmpeg/libavformat/allformats.c	(revision 10635)
+--- ffmpeg/libavformat/allformats.c	(revision 10636)
 +++ ffmpeg/libavformat/allformats.c	(working copy)
 @@ -57,6 +57,7 @@
      REGISTER_MUXER    (ADTS, adts);
