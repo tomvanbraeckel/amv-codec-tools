@@ -242,6 +242,7 @@ static int avi_write_header(AVFormatContext *s)
                 av_free(avi);
                 return -1;
             }
+	    put_le32(pb, 0);
             break;
         default:
             return -1;
