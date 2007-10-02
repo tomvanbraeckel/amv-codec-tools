@@ -13,7 +13,8 @@ patch:
 
 diff:
 	svn diff ffmpeg > $(patch).new
-	diff -uw $(patch) $(patch).new | grep '^[+-]' | grep -v '[+-]Index:' | grep '^[+-]' && mv $(patch).new $(patch) && svn diff || rm $(patch).new
+	svn revert $(patch)
+	diff -uw $(patch) $(patch).new | grep '^[+-]' | grep -v '^[+-]Index:' | grep -v '^[+-]---' | grep -v $(patch) | grep '^[+-]' && mv $(patch).new $(patch) && svn diff || rm $(patch).new
 
 
 build:
