@@ -1,6 +1,6 @@
 patch=amvmux_patch.diff
 
-all:
+all: build
 	@echo "usage: make [patch|build|diff|clean|test|debug]"
 
 patch:
