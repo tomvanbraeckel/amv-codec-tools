@@ -23,8 +23,11 @@ build:
 clean:
 	cd ffmpeg && make clean
 
-test: build
-	ffmpeg/ffmpeg -i hole.avi -f amv -intra -qscale 1 -r 16 -s 160x120 -ac 1 -ar 22050 -y hole.amv
+test: build test-hole
+
+test-%:
+	ffmpeg/ffmpeg -i $*.avi -f amv -intra -qscale 1 -r 16 -s 160x120 -ac 1 -ar 22050 -y $*.amv
+	ffmpeg/ffmpeg -i $*.amv -y test.avi
 
 debug: build
 	echo "**** test build in gdb ****"
