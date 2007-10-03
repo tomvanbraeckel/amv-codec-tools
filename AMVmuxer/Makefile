@@ -1,21 +1,10 @@
-patch=amvmux_patch.diff
-
 all: build
-	@echo "usage: make [patch|build|diff|clean|test|debug]"
+	@echo "usage: make [build|clean|test|debug]"
 
-patch:
-	cd ffmpeg && patch -p1 < ../$(patch)
-	ln -sf `pwd`/amvenc.c `pwd`/ffmpeg/libavformat/
-	ln -sf `pwd`/amv.h `pwd`/ffmpeg/libavformat/
-	cd ffmpeg && ./configure
+configure:
+	test -f ffmpeg/config.mak || ( cd ffmpeg && ./configure )
 
-diff:
-	svn diff ffmpeg > $(patch).new
-	svn revert $(patch)
-	diff -uw $(patch) $(patch).new | grep '^[+-]' | grep -v '^[+-]Index:' | grep -v '^[+-]---' | grep -v $(patch) | grep '^[+-]' && mv $(patch).new $(patch) && svn diff || rm $(patch).new
-
-
-build:
+build: configure
 	cd ffmpeg && make
 
 clean:
