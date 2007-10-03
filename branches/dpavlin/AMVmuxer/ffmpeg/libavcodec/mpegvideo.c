@@ -977,6 +977,9 @@ alloc:
     }else if(s->out_format == FMT_H263 || s->out_format == FMT_H261){
         s->dct_unquantize_intra = s->dct_unquantize_h263_intra;
         s->dct_unquantize_inter = s->dct_unquantize_h263_inter;
+    }else if(s->codec_id == CODEC_ID_AMV){
+        s->dct_unquantize_intra = s->dct_unquantize_mpeg1_intra;
+        s->dct_unquantize_inter = s->dct_unquantize_mpeg1_inter;
     }else{
         s->dct_unquantize_intra = s->dct_unquantize_mpeg1_intra;
         s->dct_unquantize_inter = s->dct_unquantize_mpeg1_inter;

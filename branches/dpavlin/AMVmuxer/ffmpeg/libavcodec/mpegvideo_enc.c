@@ -248,6 +248,7 @@ int MPV_encode_init(AVCodecContext *avctx)
         break;
     case CODEC_ID_LJPEG:
     case CODEC_ID_MJPEG:
+    case CODEC_ID_AMV:
         if(avctx->pix_fmt != PIX_FMT_YUVJ420P && avctx->pix_fmt != PIX_FMT_YUVJ422P &&
            ((avctx->pix_fmt != PIX_FMT_YUV420P && avctx->pix_fmt != PIX_FMT_YUV422P) || avctx->strict_std_compliance>FF_COMPLIANCE_INOFFICIAL)){
             av_log(avctx, AV_LOG_ERROR, "colorspace not supported in jpeg\n");
@@ -488,6 +489,9 @@ int MPV_encode_init(AVCodecContext *avctx)
     if(s->codec_id==CODEC_ID_MJPEG){
         s->intra_quant_bias= 1<<(QUANT_BIAS_SHIFT-1); //(a + x/2)/x
         s->inter_quant_bias= 0;
+    }else if(s->codec_id==CODEC_ID_AMV){
+        s->intra_quant_bias= 1<<(QUANT_BIAS_SHIFT-1); //(a + x/2)/x
+        s->inter_quant_bias= 0;
     }else if(s->mpeg_quant || s->codec_id==CODEC_ID_MPEG1VIDEO || s->codec_id==CODEC_ID_MPEG2VIDEO){
         s->intra_quant_bias= 3<<(QUANT_BIAS_SHIFT-3); //(a + x*3/8)/x
         s->inter_quant_bias= 0;
@@ -523,6 +527,7 @@ int MPV_encode_init(AVCodecContext *avctx)
         break;
     case CODEC_ID_LJPEG:
     case CODEC_ID_MJPEG:
+    case CODEC_ID_AMV:
         s->out_format = FMT_MJPEG;
         s->intra_only = 1; /* force intra only for jpeg */
         s->mjpeg_vsample[0] = 2;
@@ -1731,6 +1736,7 @@ static av_always_inline void encode_mb_internal(MpegEncContext *s, int motion_x,
             h263_encode_mb(s, s->block, motion_x, motion_y);
         break;
     case CODEC_ID_MJPEG:
+    case CODEC_ID_AMV:
         if (ENABLE_MJPEG_ENCODER)
             ff_mjpeg_encode_mb(s, s->block);
         break;
