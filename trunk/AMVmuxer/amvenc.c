@@ -349,6 +349,8 @@ static int amv_interleave_packet(struct AVFormatContext *s, AVPacket *out, AVPac
     if(!pkt || stream_index == pkt->stream_index)
     {
         av_init_packet(out);
+        if(pkt)
+            av_log(s, AV_LOG_WARNING, "amv_interleave_packet: dropping packet for stream #%d!\n", pkt->stream_index);
         return 0;
     }
 
