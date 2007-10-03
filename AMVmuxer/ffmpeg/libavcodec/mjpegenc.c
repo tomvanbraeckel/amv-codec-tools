@@ -459,3 +459,14 @@ AVCodec mjpeg_encoder = {
     MPV_encode_end,
     .pix_fmts= (enum PixelFormat[]){PIX_FMT_YUVJ420P, PIX_FMT_YUVJ422P, -1},
 };
+
+AVCodec amv_encoder = {
+    "amv",
+    CODEC_TYPE_VIDEO,
+    CODEC_ID_AMV,
+    sizeof(MpegEncContext),
+    MPV_encode_init,
+    MPV_encode_picture,
+    MPV_encode_end,
+    .pix_fmts= (enum PixelFormat[]){PIX_FMT_YUVJ420P, PIX_FMT_YUVJ422P, -1},
+};
