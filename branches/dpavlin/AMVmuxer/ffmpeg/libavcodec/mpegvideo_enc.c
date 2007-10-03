@@ -490,7 +490,7 @@ int MPV_encode_init(AVCodecContext *avctx)
         s->intra_quant_bias= 1<<(QUANT_BIAS_SHIFT-1); //(a + x/2)/x
         s->inter_quant_bias= 0;
     }else if(s->codec_id==CODEC_ID_AMV){
-        s->intra_quant_bias= 1<<(QUANT_BIAS_SHIFT-1); //(a + x/2)/x
+        s->intra_quant_bias= 0;
         s->inter_quant_bias= 0;
     }else if(s->mpeg_quant || s->codec_id==CODEC_ID_MPEG1VIDEO || s->codec_id==CODEC_ID_MPEG2VIDEO){
         s->intra_quant_bias= 3<<(QUANT_BIAS_SHIFT-3); //(a + x*3/8)/x
@@ -504,6 +504,8 @@ int MPV_encode_init(AVCodecContext *avctx)
         s->intra_quant_bias= avctx->intra_quant_bias;
     if(avctx->inter_quant_bias != FF_DEFAULT_QUANT_BIAS)
         s->inter_quant_bias= avctx->inter_quant_bias;
+
+    av_log(avctx, AV_LOG_DEBUG, "intra_quant_bias = %d inter_quant_bias = %d\n",s->intra_quant_bias,s->inter_quant_bias);
 
     avcodec_get_chroma_sub_sample(avctx->pix_fmt, &chroma_h_shift, &chroma_v_shift);
 
