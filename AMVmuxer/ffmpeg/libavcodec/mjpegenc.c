@@ -200,6 +200,7 @@ void ff_mjpeg_encode_picture_header(MpegEncContext *s)
 
     put_marker(&s->pb, SOI);
 
+    return; // hack for AMV mjpeg format
     jpeg_put_comments(s);
 
     jpeg_table_header(s);
