@@ -403,7 +403,7 @@ AVOutputFormat amv_muxer = {
     "amv",
     sizeof(AMVContext),
     CODEC_ID_ADPCM_IMA_AMV,
-    CODEC_ID_MJPEG,
+    CODEC_ID_AMV,
     avi_write_header,
     avi_write_packet,
     avi_write_trailer,
