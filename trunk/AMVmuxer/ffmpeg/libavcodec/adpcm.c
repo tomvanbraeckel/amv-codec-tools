@@ -185,6 +185,13 @@ static int adpcm_encode_init(AVCodecContext *avctx)
         }
         avctx->frame_size = 512 * (avctx->sample_rate / 11025);
         break;
+    case CODEC_ID_ADPCM_IMA_AMV:
+        //avctx->frame_size = (BLKSIZE - 4 * avctx->channels) * 8 / (4 * avctx->channels) + 1; /* each 16 bits sample gives one nibble */
+                                                             /* and we have 4 bytes per channel overhead */
+        avctx->frame_size = 1378;   // 1378...
+        avctx->block_align = 2; // 1394 = correct total audio block size
+        /* seems frame_size isn't taken into account... have to buffer the samples :-( */
+        break;        
     default:
         return -1;
         break;
@@ -297,7 +304,7 @@ static void adpcm_compress_trellis(AVCodecContext *avctx, const short *samples,
     nodes[0]->step = c->step_index;
     nodes[0]->sample1 = c->sample1;
     nodes[0]->sample2 = c->sample2;
-    if((version == CODEC_ID_ADPCM_IMA_WAV) || (version == CODEC_ID_ADPCM_SWF))
+    if((version == CODEC_ID_ADPCM_IMA_WAV) || (version == CODEC_ID_ADPCM_SWF) || (version == CODEC_ID_ADPCM_IMA_AMV))
         nodes[0]->sample1 = c->prev_sample;
     if(version == CODEC_ID_ADPCM_MS)
         nodes[0]->step = c->idelta;
@@ -368,7 +375,7 @@ static void adpcm_compress_trellis(AVCodecContext *avctx, const short *samples,
                     next_##NAME:;
                     STORE_NODE(ms, FFMAX(16, (AdaptationTable[nibble] * step) >> 8));
                 }
-            } else if((version == CODEC_ID_ADPCM_IMA_WAV)|| (version == CODEC_ID_ADPCM_SWF)) {
+            } else if((version == CODEC_ID_ADPCM_IMA_WAV)|| (version == CODEC_ID_ADPCM_SWF) || (version == CODEC_ID_ADPCM_IMA_AMV)) {
 #define LOOP_NODES(NAME, STEP_TABLE, STEP_INDEX)\
                 const int predictor = nodes[j]->sample1;\
                 const int div = (sample - predictor) * 4 / STEP_TABLE;\
@@ -446,6 +453,37 @@ static int adpcm_encode_frame(AVCodecContext *avctx,
     switch(avctx->codec->id) {
     case CODEC_ID_ADPCM_IMA_QT: /* XXX: can't test until we get .mov writer */
         break;
+    case CODEC_ID_ADPCM_IMA_AMV: 
+        {
+        int i;
+
+            c->status[0].prev_sample = (signed short)samples[0]; /* XXX */
+/*            c->status[0].step_index = 0; *//* XXX: not sure how to init the state machine */
+            bytestream_put_le16(&dst, c->status[0].prev_sample);
+            *dst++ = (unsigned char)c->status[0].step_index;
+            *dst++ = 0; /* unknown */
+            samples++;
+            if (avctx->channels == 2) {
+                c->status[1].prev_sample = (signed short)samples[1];
+/*                c->status[1].step_index = 0; */
+                bytestream_put_le16(&dst, c->status[1].prev_sample);
+                *dst++ = (unsigned char)c->status[1].step_index;
+                *dst++ = 0;
+                samples++;
+            }
+            bytestream_put_le32(&dst, avctx->frame_size);
+
+        n = avctx->frame_size / 2;
+            for (i=0; i<n; i++) {
+                *dst = adpcm_ima_compress_sample(&c->status[0], samples[0]) & 0x0F;
+                *dst |= (adpcm_ima_compress_sample(&c->status[0], samples[1]) << 4) & 0xF0;
+                dst++;
+                samples+=2;
+            }
+            if (avctx->frame_size & 1)
+                *dst++ = adpcm_ima_compress_sample(&c->status[0], *samples++) & 0x0F;  // this fixes the clicking for 
+        break;
+        }
     case CODEC_ID_ADPCM_IMA_WAV:
         n = avctx->frame_size / 8;
             c->status[0].prev_sample = (signed short)samples[0]; /* XXX */
@@ -1183,6 +1221,36 @@ static int adpcm_decode_frame(AVCodecContext *avctx,
         }
         break;
     case CODEC_ID_ADPCM_IMA_AMV:
+    {
+        int len = 0;
+
+        c->status[0].predictor = (int16_t)AV_RL16(src);
+        src += 2;
+        c->status[0].step_index = (int16_t)AV_RL16(src);
+        src += 2;
+
+        //number of samples to proceed
+        len = FFMIN(AV_RL32(src), (buf_size-8) * 2);
+        src+=4;
+
+        av_log(avctx, AV_LOG_DEBUG, "predictor = %d step_index = %d len = %d buf_size = %d\n", c->status[0].predictor, c->status[0].step_index,len, buf_size);
+
+        while ( src < buf + buf_size && len) {
+            *samples++ = adpcm_ima_expand_nibble(&c->status[0], *src >> 4, 3);
+            len--;
+            //check starving decoder condition
+            if (!len) break ;
+
+            *samples++ = adpcm_ima_expand_nibble(&c->status[0], *src & 0x0F, 3);
+            len--;
+            src++;
+        }
+        if( src < buf + buf_size)
+            av_log(avctx, AV_LOG_WARNING, "%d bytes left in input buffer after decoding!\n",buf+buf_size-src);
+        if(len)
+            av_log(avctx, AV_LOG_WARNING, "Not enough samples: cannot find additional %d samples!\n",len);
+        break;
+    }
     case CODEC_ID_ADPCM_IMA_SMJPEG:
         c->status[0].predictor = *src;
         src += 2;

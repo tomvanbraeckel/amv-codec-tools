@@ -1,7 +1,7 @@
-Index: ffmpeg/libavcodec/Makefile
-===================================================================
---- ffmpeg/libavcodec/Makefile	(revision 10650)
-+++ ffmpeg/libavcodec/Makefile	(working copy)
+=== ffmpeg/libavcodec/Makefile
+==================================================================
+--- ffmpeg/libavcodec/Makefile	(revision 122)
++++ ffmpeg/libavcodec/Makefile	(local)
 @@ -275,6 +275,7 @@
  OBJS-$(CONFIG_ADPCM_IMA_SMJPEG_ENCODER) += adpcm.o
  OBJS-$(CONFIG_ADPCM_IMA_WAV_DECODER)   += adpcm.o
@@ -10,35 +10,10 @@ Index: ffmpeg/libavcodec/Makefile
  OBJS-$(CONFIG_ADPCM_IMA_WS_DECODER)    += adpcm.o
  OBJS-$(CONFIG_ADPCM_IMA_WS_ENCODER)    += adpcm.o
  OBJS-$(CONFIG_ADPCM_MS_DECODER)        += adpcm.o
-Index: ffmpeg/libavcodec/mjpegenc.c
-===================================================================
---- ffmpeg/libavcodec/mjpegenc.c	(revision 10650)
-+++ ffmpeg/libavcodec/mjpegenc.c	(working copy)
-@@ -200,6 +200,7 @@
- 
-     put_marker(&s->pb, SOI);
- 
-+    return; // hack for AMV mjpeg format
-     jpeg_put_comments(s);
- 
-     jpeg_table_header(s);
-Index: ffmpeg/libavcodec/allcodecs.c
-===================================================================
---- ffmpeg/libavcodec/allcodecs.c	(revision 10650)
-+++ ffmpeg/libavcodec/allcodecs.c	(working copy)
-@@ -247,7 +247,7 @@
-     REGISTER_ENCDEC  (ADPCM_CT, adpcm_ct);
-     REGISTER_ENCDEC  (ADPCM_EA, adpcm_ea);
-     REGISTER_ENCDEC  (ADPCM_G726, adpcm_g726);
--    REGISTER_DECODER (ADPCM_IMA_AMV, adpcm_ima_amv);
-+    REGISTER_ENCDEC  (ADPCM_IMA_AMV, adpcm_ima_amv);
-     REGISTER_ENCDEC  (ADPCM_IMA_DK3, adpcm_ima_dk3);
-     REGISTER_ENCDEC  (ADPCM_IMA_DK4, adpcm_ima_dk4);
-     REGISTER_ENCDEC  (ADPCM_IMA_QT, adpcm_ima_qt);
-Index: ffmpeg/libavcodec/adpcm.c
-===================================================================
---- ffmpeg/libavcodec/adpcm.c	(revision 10650)
-+++ ffmpeg/libavcodec/adpcm.c	(working copy)
+=== ffmpeg/libavcodec/adpcm.c
+==================================================================
+--- ffmpeg/libavcodec/adpcm.c	(revision 122)
++++ ffmpeg/libavcodec/adpcm.c	(local)
 @@ -185,6 +185,13 @@
          }
          avctx->frame_size = 512 * (avctx->sample_rate / 11025);
@@ -146,22 +121,35 @@ Index: ffmpeg/libavcodec/adpcm.c
      case CODEC_ID_ADPCM_IMA_SMJPEG:
          c->status[0].predictor = *src;
          src += 2;
-Index: ffmpeg/libavformat/riff.c
-===================================================================
---- ffmpeg/libavformat/riff.c	(revision 10650)
-+++ ffmpeg/libavformat/riff.c	(working copy)
-@@ -188,6 +188,7 @@
-     { CODEC_ID_PCM_MULAW, 0x07 },
-     { CODEC_ID_ADPCM_MS, 0x02 },
-     { CODEC_ID_ADPCM_IMA_WAV, 0x11 },
-+    { CODEC_ID_ADPCM_IMA_AMV, 0x01 },
-     { CODEC_ID_ADPCM_YAMAHA, 0x20 },
-     { CODEC_ID_ADPCM_G726, 0x45 },
-     { CODEC_ID_ADPCM_IMA_DK4, 0x61 },  /* rogue format number */
-Index: ffmpeg/libavformat/Makefile
-===================================================================
---- ffmpeg/libavformat/Makefile	(revision 10650)
-+++ ffmpeg/libavformat/Makefile	(working copy)
+=== ffmpeg/libavcodec/allcodecs.c
+==================================================================
+--- ffmpeg/libavcodec/allcodecs.c	(revision 122)
++++ ffmpeg/libavcodec/allcodecs.c	(local)
+@@ -247,7 +247,7 @@
+     REGISTER_ENCDEC  (ADPCM_CT, adpcm_ct);
+     REGISTER_ENCDEC  (ADPCM_EA, adpcm_ea);
+     REGISTER_ENCDEC  (ADPCM_G726, adpcm_g726);
+-    REGISTER_DECODER (ADPCM_IMA_AMV, adpcm_ima_amv);
++    REGISTER_ENCDEC  (ADPCM_IMA_AMV, adpcm_ima_amv);
+     REGISTER_ENCDEC  (ADPCM_IMA_DK3, adpcm_ima_dk3);
+     REGISTER_ENCDEC  (ADPCM_IMA_DK4, adpcm_ima_dk4);
+     REGISTER_ENCDEC  (ADPCM_IMA_QT, adpcm_ima_qt);
+=== ffmpeg/libavcodec/mjpegenc.c
+==================================================================
+--- ffmpeg/libavcodec/mjpegenc.c	(revision 122)
++++ ffmpeg/libavcodec/mjpegenc.c	(local)
+@@ -200,6 +200,7 @@
+ 
+     put_marker(&s->pb, SOI);
+ 
++    return; // hack for AMV mjpeg format
+     jpeg_put_comments(s);
+ 
+     jpeg_table_header(s);
+=== ffmpeg/libavformat/Makefile
+==================================================================
+--- ffmpeg/libavformat/Makefile	(revision 122)
++++ ffmpeg/libavformat/Makefile	(local)
 @@ -19,6 +19,7 @@
  OBJS-$(CONFIG_AIFF_MUXER)                += aiff.o riff.o
  OBJS-$(CONFIG_AMR_DEMUXER)               += amr.o
@@ -170,10 +158,10 @@ Index: ffmpeg/libavformat/Makefile
  OBJS-$(CONFIG_APC_DEMUXER)               += apc.o
  OBJS-$(CONFIG_APE_DEMUXER)               += ape.o
  OBJS-$(CONFIG_ASF_DEMUXER)               += asf.o riff.o
-Index: ffmpeg/libavformat/allformats.c
-===================================================================
---- ffmpeg/libavformat/allformats.c	(revision 10650)
-+++ ffmpeg/libavformat/allformats.c	(working copy)
+=== ffmpeg/libavformat/allformats.c
+==================================================================
+--- ffmpeg/libavformat/allformats.c	(revision 122)
++++ ffmpeg/libavformat/allformats.c	(local)
 @@ -57,6 +57,7 @@
      REGISTER_MUXER    (ADTS, adts);
      REGISTER_MUXDEMUX (AIFF, aiff);
@@ -182,3 +170,19 @@ Index: ffmpeg/libavformat/allformats.c
      REGISTER_DEMUXER  (APC, apc);
      REGISTER_DEMUXER  (APE, ape);
      REGISTER_MUXDEMUX (ASF, asf);
+=== ffmpeg/libavformat/riff.c
+==================================================================
+--- ffmpeg/libavformat/riff.c	(revision 122)
++++ ffmpeg/libavformat/riff.c	(local)
+@@ -188,6 +188,7 @@
+     { CODEC_ID_PCM_MULAW, 0x07 },
+     { CODEC_ID_ADPCM_MS, 0x02 },
+     { CODEC_ID_ADPCM_IMA_WAV, 0x11 },
++    { CODEC_ID_ADPCM_IMA_AMV, 0x01 },
+     { CODEC_ID_ADPCM_YAMAHA, 0x20 },
+     { CODEC_ID_ADPCM_G726, 0x45 },
+     { CODEC_ID_ADPCM_IMA_DK4, 0x61 },  /* rogue format number */
+=== libavformat/amv.h	(copied from /local/trunk/AMVmuxer/amv.h@102)
+==================================================================
+=== libavformat/amvenc.c	(copied from /local/trunk/AMVmuxer/amvenc.c@121)
+==================================================================
