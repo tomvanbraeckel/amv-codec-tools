@@ -1243,41 +1243,9 @@ static int adpcm_decode_frame(AVCodecContext *avctx,
         }
         break;
     case CODEC_ID_ADPCM_IMA_AMV:
-    {
-        int len = 0;
-
-        c->status[0].predictor = (int16_t)AV_RL16(src);
-        src += 2;
-        c->status[0].step_index = (int16_t)AV_RL16(src);
-        src += 2;
-
-        //number of samples to proceed
-        len = FFMIN(AV_RL32(src), (buf_size-8) * 2);
-        src+=4;
-
-        av_log(avctx, AV_LOG_DEBUG, "predictor = %d step_index = %d len = %d buf_size = %d\n", c->status[0].predictor, c->status[0].step_index,len, buf_size);
-
-        while ( src < buf + buf_size && len) {
-            *samples++ = adpcm_ima_expand_nibble(&c->status[0], *src >> 4, 3);
-            len--;
-            //check starving decoder condition
-            if (!len) break ;
-
-            *samples++ = adpcm_ima_expand_nibble(&c->status[0], *src & 0x0F, 3);
-            len--;
-            src++;
-        }
-        if( src < buf + buf_size)
-            av_log(avctx, AV_LOG_WARNING, "%d bytes left in input buffer after decoding!\n",buf+buf_size-src);
-        if(len)
-            av_log(avctx, AV_LOG_WARNING, "Not enough samples: cannot find additional %d samples!\n",len);
-        break;
-    }
     case CODEC_ID_ADPCM_IMA_SMJPEG:
-        c->status[0].predictor = *src;
-        src += 2;
-        c->status[0].step_index = *src++;
-        src++;  /* skip another byte before getting to the meat */
+        c->status[0].predictor = (signed short)bytestream_get_le16(&src);
+        c->status[0].step_index = bytestream_get_le16(&src);
 
         if (avctx->codec->id == CODEC_ID_ADPCM_IMA_AMV)
             src+=4;
