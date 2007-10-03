@@ -14,6 +14,7 @@ int main(void)
     unsigned int good_sect_id,bad_sect_id;
     unsigned int video_num,audio_num;
     unsigned int samples=0;
+    unsigned int good_samples,bad_samples;
     fgood=fopen(GOOD_FILE,"rb");
     if(!fgood) {
         printf("Error opening good file '%s'\n",GOOD_FILE);
@@ -76,8 +77,19 @@ int main(void)
                 printf("Sect length for %.4s (bad offset 0x%x) #%d is equal: 0x%X (%d)\n",
                         &good_sect_id,ftell(fbad),(video_num+audio_num),good_sect_len,samples);
             }
+            if(good_sect_id==AUDIO_SECT_ID){
+                fseek(fbad,4,SEEK_CUR);
+                fseek(fgood,4,SEEK_CUR);
+                fread(&bad_samples,4,1,fbad);
+                fread(&good_samples,4,1,fgood);
+                printf("Samples count for %.4s (bad offset 0x%x) #%d are %s equal: good=0x%X, bad=0x%X %d\n",
+                        &good_sect_id,ftell(fbad),(video_num+audio_num),good_samples==bad_samples?"":"not",good_samples,bad_samples);
+                fseek(fgood,good_sect_len-8,SEEK_CUR);
+                fseek(fbad,bad_sect_len-8,SEEK_CUR);
+            }else{
             fseek(fgood,good_sect_len,SEEK_CUR);
             fseek(fbad,bad_sect_len,SEEK_CUR);
+            }
 
         }
         printf("Check successfully finished\n");
