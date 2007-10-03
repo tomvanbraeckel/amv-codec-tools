@@ -4,8 +4,6 @@ all: build
 	@echo "usage: make [patch|build|diff|clean|test|debug]"
 
 patch:
-	svn revert -R ffmpeg
-	svn update ffmpeg
 	cd ffmpeg && patch -p1 < ../$(patch)
 	ln -sf `pwd`/amvenc.c `pwd`/ffmpeg/libavformat/
 	ln -sf `pwd`/amv.h `pwd`/ffmpeg/libavformat/
