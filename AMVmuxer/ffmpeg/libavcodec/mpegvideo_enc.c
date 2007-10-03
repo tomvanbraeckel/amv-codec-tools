@@ -492,6 +492,8 @@ int MPV_encode_init(AVCodecContext *avctx)
     }else if(s->codec_id==CODEC_ID_AMV){
         s->intra_quant_bias= 0;
         s->inter_quant_bias= 0;
+        s->fixed_qscale = 1;
+        s->adaptive_quant = 0;
     }else if(s->mpeg_quant || s->codec_id==CODEC_ID_MPEG1VIDEO || s->codec_id==CODEC_ID_MPEG2VIDEO){
         s->intra_quant_bias= 3<<(QUANT_BIAS_SHIFT-3); //(a + x*3/8)/x
         s->inter_quant_bias= 0;
