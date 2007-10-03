@@ -109,35 +109,40 @@ Index: ffmpeg/libavcodec/adpcm.c
      case CODEC_ID_ADPCM_IMA_WAV:
          n = avctx->frame_size / 8;
              c->status[0].prev_sample = (signed short)samples[0]; /* XXX */
-@@ -1183,6 +1221,31 @@
+@@ -1183,6 +1221,36 @@
          }
          break;
      case CODEC_ID_ADPCM_IMA_AMV:
-+	c->status[0].predictor = (int16_t)AV_RL16(src);
-+	src += 2;
-+	c->status[0].step_index = (int16_t)AV_RL16(src);
-+	src += 2;
++    {
++        int len = 0;
 +
-+	// number of samples in frame
-+	int len = AV_RL32(src);
-+	src+=4;
++        c->status[0].predictor = (int16_t)AV_RL16(src);
++        src += 2;
++        c->status[0].step_index = (int16_t)AV_RL16(src);
++        src += 2;
 +
-+//av_log(avctx, AV_LOG_ERROR, "predictor = %d step_index = %d len = %d buf_size = %d\n", c->status[0].predictor, c->status[0].step_index,len, buf_size, src - buf);
++        //number of samples to proceed
++        len = FFMIN(AV_RL32(src), (buf_size-8) * 2);
++        src+=4;
 +
-+	int size = 0;
++        av_log(avctx, AV_LOG_DEBUG, "predictor = %d step_index = %d len = %d buf_size = %d\n", c->status[0].predictor, c->status[0].step_index,len, buf_size);
 +
-+	while ( src < buf + buf_size ) {
-+		*samples++ = adpcm_ima_expand_nibble(&c->status[0], *src >> 4, 3);
-+		size++;
-+		// check starving decoder condition
-+		if ( size == len ) break ;
-+		*samples++ = adpcm_ima_expand_nibble(&c->status[0], *src & 0x0F, 3);
-+		size++;
-+		src++;
-+	}
++        while ( src < buf + buf_size && len) {
++            *samples++ = adpcm_ima_expand_nibble(&c->status[0], *src >> 4, 3);
++            len--;
++            //check starving decoder condition
++            if (!len) break ;
 +
-+//	if ( size != len ) av_log(avctx, AV_LOG_ERROR, "size of audio %d != %d header length\n", size, len);
-+
++            *samples++ = adpcm_ima_expand_nibble(&c->status[0], *src & 0x0F, 3);
++            len--;
++            src++;
++        }
++        if( src < buf + buf_size)
++            av_log(avctx, AV_LOG_WARNING, "%d bytes left in input buffer after decoding!\n",buf+buf_size-src);
++        if(len)
++            av_log(avctx, AV_LOG_WARNING, "Not enough samples: cannot find additional %d samples!\n",len);
++        break;
++    }
      case CODEC_ID_ADPCM_IMA_SMJPEG:
          c->status[0].predictor = *src;
          src += 2;
