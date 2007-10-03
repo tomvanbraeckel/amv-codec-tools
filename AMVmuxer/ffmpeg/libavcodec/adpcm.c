@@ -304,7 +304,7 @@ static void adpcm_compress_trellis(AVCodecContext *avctx, const short *samples,
     nodes[0]->step = c->step_index;
     nodes[0]->sample1 = c->sample1;
     nodes[0]->sample2 = c->sample2;
-    if((version == CODEC_ID_ADPCM_IMA_WAV) || (version == CODEC_ID_ADPCM_SWF) || (version == CODEC_ID_ADPCM_IMA_AMV))
+    if((version == CODEC_ID_ADPCM_IMA_WAV) || (version == CODEC_ID_ADPCM_SWF))
         nodes[0]->sample1 = c->prev_sample;
     if(version == CODEC_ID_ADPCM_MS)
         nodes[0]->step = c->idelta;
@@ -454,6 +454,27 @@ static int adpcm_encode_frame(AVCodecContext *avctx,
     case CODEC_ID_ADPCM_IMA_QT: /* XXX: can't test until we get .mov writer */
         break;
     case CODEC_ID_ADPCM_IMA_AMV: 
+
+	bytestream_put_le16(&dst, c->status[0].prev_sample);
+	bytestream_put_le16(&dst, c->status[0].step_index);
+	bytestream_put_le32(&dst, avctx->frame_size);
+
+	n = avctx->frame_size;
+	while ( n ) {
+		*dst =  (adpcm_ima_compress_sample(&c->status[0], *samples++) << 4);
+		n--;
+		if ( ! n ) {
+			dst++;
+			av_log(avctx, AV_LOG_ERROR, "starving encoder\n");
+			break ;
+		}
+                *dst |= (adpcm_ima_compress_sample(&c->status[0], *samples++) & 0x0F);
+		n--;
+		dst++;
+	}
+        break;
+#if 0
+    case CODEC_ID_ADPCM_IMA_AMV: 
         {
         int i;
 
@@ -484,6 +505,7 @@ static int adpcm_encode_frame(AVCodecContext *avctx,
                 *dst++ = adpcm_ima_compress_sample(&c->status[0], *samples++) & 0x0F;  // this fixes the clicking for 
         break;
         }
+#endif
     case CODEC_ID_ADPCM_IMA_WAV:
         n = avctx->frame_size / 8;
             c->status[0].prev_sample = (signed short)samples[0]; /* XXX */
