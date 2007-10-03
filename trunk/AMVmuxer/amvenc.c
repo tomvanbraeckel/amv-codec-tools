@@ -339,53 +339,61 @@ static int avi_write_trailer(AVFormatContext *s)
 }
 static int amv_interleave_packet(struct AVFormatContext *s, AVPacket *out, AVPacket *pkt, int flush)
 {
-    static int stream_index=-1; //video stream
-#if 0
-    AVStream *st;
-    AVPacketList *pktl, **next_item;
-    int same_stream;
-#endif
+    AVPacketList *pktl, **next_point, *this_pktl;
+    int stream_count=0;
+    int streams[MAX_STREAMS];
+    //Ugly and should we rewrited before sending to upstream
+    static int stream_index=1; //first should be video
 
-    if(!pkt || stream_index == pkt->stream_index)
-    {
-        av_init_packet(out);
-        if(pkt)
-            av_log(s, AV_LOG_WARNING, "amv_interleave_packet: dropping packet for stream #%d!\n", pkt->stream_index);
-        return 0;
-    }
-
-    stream_index = pkt->stream_index;
-
-    *out=*pkt;
-    return 1;
-#if 0
     if(pkt){
-        same_stream=0;
-        next_item=&s->packet_buffer;
-	while((*next_item)){
-	    same_stream=(*next_item)->pkt.stream_index==pkt->stream_index;
-	    next_item=&(*next_item)->next;
-	}
-        if(same_stream){
-            av_init_packet(out);
-            return 0;
+        AVStream *st= s->streams[ pkt->stream_index];
+
+//        assert(pkt->destruct != av_destruct_packet); //FIXME
+
+        this_pktl = av_mallocz(sizeof(AVPacketList));
+        this_pktl->pkt= *pkt;
+        if(pkt->destruct == av_destruct_packet)
+            pkt->destruct= NULL; // non shared -> must keep original from being freed
+        else
+            av_dup_packet(&this_pktl->pkt);  //shared -> must dup
+
+        next_point = &s->packet_buffer;
+        while(*next_point){
+            next_point= &(*next_point)->next;
         }
-	pktl=av_mallocz(sizeof(struct AVPacketList));
-	pktl->next=*next_item;
-        *next_item=pktl;
+        this_pktl->next= *next_point;
+        *next_point= this_pktl;
     }
 
+    if(s->packet_buffer && s->packet_buffer->pkt.stream_index!=stream_index){
+        *out= s->packet_buffer->pkt;
+        pktl=s->packet_buffer;
+        s->packet_buffer= s->packet_buffer->next;
+        av_freep(&pktl);
+	stream_index=out->stream_index;
+        return 1;
+    }
     pktl= s->packet_buffer;
-    if(!pktl){
+    while(pktl && pktl->next){
+//av_log(s, AV_LOG_DEBUG, "show st:%d dts:%"PRId64"\n", pktl->pkt.stream_index, pktl->pkt.dts);
+        if(pktl->next->pkt.stream_index!=stream_index)
+            break;
+        pktl=pktl->next;
+    }
+
+    if(pktl && pktl->next){
+        this_pktl=pktl->next;
+
+        pktl->next = this_pktl->next;
+
+        *out= this_pktl->pkt;
+	stream_index=out->stream_index;
+        av_freep(&this_pktl);
+        return 1;
+    }else{
         av_init_packet(out);
         return 0;
     }
-
-    *out= pktl->pkt;
-    s->packet_buffer= pktl->next;
-    av_freep(&pktl);
-    return 1;
-#endif
 }
 
 AVOutputFormat amv_muxer = {
