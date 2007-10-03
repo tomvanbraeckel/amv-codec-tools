@@ -1,4 +1,5 @@
-﻿Here is how to quickly create private development branch:
+﻿#summary How to create private development branch
+#labels Phase-Implementation
 
 {{{
 svn co https://amv-codec-tools.googlecode.com/svn/ amv-codec-tools
