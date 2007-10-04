@@ -458,23 +458,23 @@ static int adpcm_encode_frame(AVCodecContext *avctx,
         break;
     case CODEC_ID_ADPCM_IMA_AMV: 
 
-	bytestream_put_le16(&dst, c->status[0].prev_sample);
-	bytestream_put_le16(&dst, c->status[0].step_index);
+        bytestream_put_le16(&dst, c->status[0].prev_sample);
+        bytestream_put_le16(&dst, c->status[0].step_index);
 
-	//if frame_size is odd, place extra sample into each even frame
-	n = avctx->frame_size>>1;
-	c->extra_samples_count+=avctx->frame_size&1;
-	n+=c->extra_samples_count>>1;
-	c->extra_samples_count&=1;
+        //if frame_size is odd, place extra sample into each even frame
+        n = avctx->frame_size>>1;
+        c->extra_samples_count+=avctx->frame_size&1;
+        n+=c->extra_samples_count>>1;
+        c->extra_samples_count&=1;
 
-	bytestream_put_le32(&dst, n<<1);
+        bytestream_put_le32(&dst, n<<1);
 
-	while ( n ) {
-		*dst =  (adpcm_ima_compress_sample(&c->status[0], *samples++) << 4);
+        while ( n ) {
+                *dst =  (adpcm_ima_compress_sample(&c->status[0], *samples++) << 4);
                 *dst |= (adpcm_ima_compress_sample(&c->status[0], *samples++) & 0x0F);
-		n--;
-		dst++;
-	}
+                n--;
+                dst++;
+        }
         break;
     case CODEC_ID_ADPCM_IMA_WAV:
         n = avctx->frame_size / 8;
