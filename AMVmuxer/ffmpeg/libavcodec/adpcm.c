@@ -191,11 +191,8 @@ static int adpcm_encode_init(AVCodecContext *avctx)
             av_log(avctx, AV_LOG_ERROR, "Only mono sound is supported\n");
             return -1;
         }
-        //avctx->frame_size = (BLKSIZE - 4 * avctx->channels) * 8 / (4 * avctx->channels) + 1; /* each 16 bits sample gives one nibble */
-                                                             /* and we have 4 bytes per channel overhead */
-        avctx->frame_size = 1378;   // 1378...
-        avctx->block_align = 2; // 1394 = correct total audio block size
-        /* seems frame_size isn't taken into account... have to buffer the samples :-( */
+        //avct->frame_size will be initialized later in AMV muxer
+        avctx->block_align = 2;
         break;        
     default:
         return -1;
