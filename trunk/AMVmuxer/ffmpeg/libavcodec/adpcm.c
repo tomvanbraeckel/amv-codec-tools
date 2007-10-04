@@ -375,7 +375,7 @@ static void adpcm_compress_trellis(AVCodecContext *avctx, const short *samples,
                     next_##NAME:;
                     STORE_NODE(ms, FFMAX(16, (AdaptationTable[nibble] * step) >> 8));
                 }
-            } else if((version == CODEC_ID_ADPCM_IMA_WAV)|| (version == CODEC_ID_ADPCM_SWF) || (version == CODEC_ID_ADPCM_IMA_AMV)) {
+            } else if((version == CODEC_ID_ADPCM_IMA_WAV)|| (version == CODEC_ID_ADPCM_SWF)) {
 #define LOOP_NODES(NAME, STEP_TABLE, STEP_INDEX)\
                 const int predictor = nodes[j]->sample1;\
                 const int div = (sample - predictor) * 4 / STEP_TABLE;\
