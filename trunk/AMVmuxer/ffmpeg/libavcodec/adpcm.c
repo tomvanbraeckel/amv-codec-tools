@@ -146,6 +146,7 @@ typedef struct ADPCMContext {
     int channel; /* for stereo MOVs, decode left, then decode right, then tell it's decoded */
     ADPCMChannelStatus status[2];
     short sample_buffer[32]; /* hold left samples while waiting for right samples */
+    int extra_samples_count; //number of samples to put into next frame
 } ADPCMContext;
 
 /* XXX: implement encoding */
@@ -457,17 +458,17 @@ static int adpcm_encode_frame(AVCodecContext *avctx,
 
 	bytestream_put_le16(&dst, c->status[0].prev_sample);
 	bytestream_put_le16(&dst, c->status[0].step_index);
-	bytestream_put_le32(&dst, avctx->frame_size);
 
-	n = avctx->frame_size;
+	//if frame_size is odd, place extra sample into each even frame
+	n = avctx->frame_size>>1;
+	c->extra_samples_count+=avctx->frame_size&1;
+	n+=c->extra_samples_count>>1;
+	c->extra_samples_count&=1;
+
+	bytestream_put_le32(&dst, n<<1);
+
 	while ( n ) {
 		*dst =  (adpcm_ima_compress_sample(&c->status[0], *samples++) << 4);
-		n--;
-		if ( ! n ) {
-			dst++;
-			av_log(avctx, AV_LOG_ERROR, "starving encoder\n");
-			break ;
-		}
                 *dst |= (adpcm_ima_compress_sample(&c->status[0], *samples++) & 0x0F);
 		n--;
 		dst++;
