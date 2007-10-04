@@ -340,57 +340,62 @@ static int avi_write_trailer(AVFormatContext *s)
 
     return res;
 }
-static int amv_interleave_packet(struct AVFormatContext *s, AVPacket *out, AVPacket *pkt, int flush)
-{
-    AVPacketList *pktl, **next_point, *this_pktl;
-    AMVContext* amv=s->priv_data;
-    int stream_count=0;
-    int streams[MAX_STREAMS];
 
-    if(pkt){
-        AVStream *st= s->streams[ pkt->stream_index];
+static void amv_queue_packet(AVPacket *pkt, AVPacketList** ppktl){
+    AVPacketList* pktl, **next_point;
+
+    pktl = av_mallocz(sizeof(AVPacketList));
+    pktl->pkt= *pkt;
 
 //        assert(pkt->destruct != av_destruct_packet); //FIXME
 
-        this_pktl = av_mallocz(sizeof(AVPacketList));
-        this_pktl->pkt= *pkt;
-        if(pkt->destruct == av_destruct_packet)
-            pkt->destruct= NULL; // non shared -> must keep original from being freed
-        else
-            av_dup_packet(&this_pktl->pkt);  //shared -> must dup
+    if(pkt->destruct == av_destruct_packet)
+        pkt->destruct= NULL; // non shared -> must keep original from being freed
+    else
+        av_dup_packet(&pktl->pkt);  //shared -> must dup
 
-        next_point = &s->packet_buffer;
-        while(*next_point){
-            next_point= &(*next_point)->next;
-        }
-        this_pktl->next= *next_point;
-        *next_point= this_pktl;
+    next_point = ppktl;
+    while(*next_point){
+        next_point= &(*next_point)->next;
     }
+    pktl->next= *next_point;
+    *next_point= pktl;
+}
+
+static AVPacket amv_dequeue_packet(AVPacketList** ppktl){
+    AVPacketList* pktl;
+    AVPacket pkt;
+
+    pktl=*ppktl;
+    *ppktl=pktl->next;
+    pkt=pktl->pkt;
+    av_freep(&pktl);
+    return pkt;
+}
+
+static int amv_interleave_packet(struct AVFormatContext *s, AVPacket *out, AVPacket *pkt, int flush)
+{
+    AVPacketList *pktl;
+    AMVContext* amv=s->priv_data;
+
+    if(pkt)
+        amv_queue_packet(pkt,&s->packet_buffer);
 
     if(s->packet_buffer && s->packet_buffer->pkt.stream_index!=amv->last_stream_index){
-        *out= s->packet_buffer->pkt;
-        pktl=s->packet_buffer;
-        s->packet_buffer= s->packet_buffer->next;
-        av_freep(&pktl);
+        *out=amv_dequeue_packet(&s->packet_buffer);
 	amv->last_stream_index=out->stream_index;
         return 1;
     }
     pktl= s->packet_buffer;
     while(pktl && pktl->next){
-//av_log(s, AV_LOG_DEBUG, "show st:%d dts:%"PRId64"\n", pktl->pkt.stream_index, pktl->pkt.dts);
         if(pktl->next->pkt.stream_index!=amv->last_stream_index)
             break;
         pktl=pktl->next;
     }
 
     if(pktl && pktl->next){
-        this_pktl=pktl->next;
-
-        pktl->next = this_pktl->next;
-
-        *out= this_pktl->pkt;
+        *out=amv_dequeue_packet(&pktl->next);
 	amv->last_stream_index=out->stream_index;
-        av_freep(&this_pktl);
         return 1;
     }else{
         av_init_packet(out);
