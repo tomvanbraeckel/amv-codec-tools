@@ -191,7 +191,8 @@ static int adpcm_encode_init(AVCodecContext *avctx)
             av_log(avctx, AV_LOG_ERROR, "Only mono sound is supported\n");
             return -1;
         }
-        //avct->frame_size will be initialized later in AMV muxer
+        avctx->frame_size = (BLKSIZE - 8) * 2; /* each 16 bits sample gives one nibble */
+                                                             /* and we have 8 bytes overhead */
         avctx->block_align = 2;
         break;        
     default:
