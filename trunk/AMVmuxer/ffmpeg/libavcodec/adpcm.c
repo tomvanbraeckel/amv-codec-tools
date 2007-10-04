@@ -187,6 +187,10 @@ static int adpcm_encode_init(AVCodecContext *avctx)
         avctx->frame_size = 512 * (avctx->sample_rate / 11025);
         break;
     case CODEC_ID_ADPCM_IMA_AMV:
+        if (avctx->channels != 1){
+            av_log(avctx, AV_LOG_ERROR, "Only mono sound is supported\n");
+            return -1;
+        }
         //avctx->frame_size = (BLKSIZE - 4 * avctx->channels) * 8 / (4 * avctx->channels) + 1; /* each 16 bits sample gives one nibble */
                                                              /* and we have 4 bytes per channel overhead */
         avctx->frame_size = 1378;   // 1378...
