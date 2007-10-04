@@ -37,6 +37,7 @@ typedef struct {
     int audio_strm_length[MAX_STREAMS];
     int riff_id;
     int packet_count[MAX_STREAMS];
+    int last_stream_index;
 } AMVContext;
 
 static offset_t avi_start_new_riff(AMVContext *avi, ByteIOContext *pb,
@@ -119,6 +120,8 @@ static int avi_write_header(AVFormatContext *s)
     int bitrate, n, i, nb_frames, au_byterate, au_ssize, au_scale;
     AVCodecContext *stream, *video_enc;
     offset_t list1, list2, strh, strf;
+
+    avi->last_stream_index=1;
 
     /* header list */
     avi->riff_id = 0;
@@ -340,10 +343,9 @@ static int avi_write_trailer(AVFormatContext *s)
 static int amv_interleave_packet(struct AVFormatContext *s, AVPacket *out, AVPacket *pkt, int flush)
 {
     AVPacketList *pktl, **next_point, *this_pktl;
+    AMVContext* amv=s->priv_data;
     int stream_count=0;
     int streams[MAX_STREAMS];
-    //Ugly and should we rewrited before sending to upstream
-    static int stream_index=1; //first should be video
 
     if(pkt){
         AVStream *st= s->streams[ pkt->stream_index];
@@ -365,18 +367,18 @@ static int amv_interleave_packet(struct AVFormatContext *s, AVPacket *out, AVPac
         *next_point= this_pktl;
     }
 
-    if(s->packet_buffer && s->packet_buffer->pkt.stream_index!=stream_index){
+    if(s->packet_buffer && s->packet_buffer->pkt.stream_index!=amv->last_stream_index){
         *out= s->packet_buffer->pkt;
         pktl=s->packet_buffer;
         s->packet_buffer= s->packet_buffer->next;
         av_freep(&pktl);
-	stream_index=out->stream_index;
+	amv->last_stream_index=out->stream_index;
         return 1;
     }
     pktl= s->packet_buffer;
     while(pktl && pktl->next){
 //av_log(s, AV_LOG_DEBUG, "show st:%d dts:%"PRId64"\n", pktl->pkt.stream_index, pktl->pkt.dts);
-        if(pktl->next->pkt.stream_index!=stream_index)
+        if(pktl->next->pkt.stream_index!=amv->last_stream_index)
             break;
         pktl=pktl->next;
     }
@@ -387,7 +389,7 @@ static int amv_interleave_packet(struct AVFormatContext *s, AVPacket *out, AVPac
         pktl->next = this_pktl->next;
 
         *out= this_pktl->pkt;
-	stream_index=out->stream_index;
+	amv->last_stream_index=out->stream_index;
         av_freep(&this_pktl);
         return 1;
     }else{
