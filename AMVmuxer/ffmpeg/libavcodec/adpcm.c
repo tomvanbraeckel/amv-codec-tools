@@ -475,39 +475,6 @@ static int adpcm_encode_frame(AVCodecContext *avctx,
 		dst++;
 	}
         break;
-#if 0
-    case CODEC_ID_ADPCM_IMA_AMV: 
-        {
-        int i;
-
-            c->status[0].prev_sample = (signed short)samples[0]; /* XXX */
-/*            c->status[0].step_index = 0; *//* XXX: not sure how to init the state machine */
-            bytestream_put_le16(&dst, c->status[0].prev_sample);
-            *dst++ = (unsigned char)c->status[0].step_index;
-            *dst++ = 0; /* unknown */
-            samples++;
-            if (avctx->channels == 2) {
-                c->status[1].prev_sample = (signed short)samples[1];
-/*                c->status[1].step_index = 0; */
-                bytestream_put_le16(&dst, c->status[1].prev_sample);
-                *dst++ = (unsigned char)c->status[1].step_index;
-                *dst++ = 0;
-                samples++;
-            }
-            bytestream_put_le32(&dst, avctx->frame_size);
-
-        n = avctx->frame_size / 2;
-            for (i=0; i<n; i++) {
-                *dst = adpcm_ima_compress_sample(&c->status[0], samples[0]) & 0x0F;
-                *dst |= (adpcm_ima_compress_sample(&c->status[0], samples[1]) << 4) & 0xF0;
-                dst++;
-                samples+=2;
-            }
-            if (avctx->frame_size & 1)
-                *dst++ = adpcm_ima_compress_sample(&c->status[0], *samples++) & 0x0F;  // this fixes the clicking for 
-        break;
-        }
-#endif
     case CODEC_ID_ADPCM_IMA_WAV:
         n = avctx->frame_size / 8;
             c->status[0].prev_sample = (signed short)samples[0]; /* XXX */
