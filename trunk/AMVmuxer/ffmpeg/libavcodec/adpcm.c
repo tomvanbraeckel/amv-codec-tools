@@ -191,6 +191,10 @@ static int adpcm_encode_init(AVCodecContext *avctx)
             av_log(avctx, AV_LOG_ERROR, "Only mono sound is supported\n");
             return -1;
         }
+        if (avctx->sample_rate != 22050){
+            av_log(avctx, AV_LOG_ERROR, "Only 22050 sample rate is supported\n");
+            return -1;
+        }
         break;        
     default:
         return -1;
