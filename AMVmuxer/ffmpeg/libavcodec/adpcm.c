@@ -471,6 +471,11 @@ static int adpcm_encode_frame(AVCodecContext *avctx,
         n+=c->extra_samples_count>>1;
         c->extra_samples_count&=1;
 
+        i=(c->samples_written+2*n)%avctx->sample_rate;
+
+        if(i && i+avctx->frame_size > avctx->sample_rate)
+            n+=(avctx->sample_rate-i)>>1;
+
         bytestream_put_le32(&dst, n<<1);
 
         if(avctx->trellis > 0)
