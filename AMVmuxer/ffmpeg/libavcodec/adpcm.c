@@ -147,6 +147,7 @@ typedef struct ADPCMContext {
     ADPCMChannelStatus status[2];
     short sample_buffer[32]; /* hold left samples while waiting for right samples */
     int extra_samples_count; //number of samples to put into next frame
+    int samples_written;
 } ADPCMContext;
 
 /* XXX: implement encoding */
@@ -459,6 +460,7 @@ static int adpcm_encode_frame(AVCodecContext *avctx,
         break;
     case CODEC_ID_ADPCM_IMA_AMV: 
 
+        avctx->coded_frame->pts=c->samples_written;
         c->status[0].prev_sample=*samples;
         bytestream_put_le16(&dst, c->status[0].prev_sample);
         bytestream_put_le16(&dst, c->status[0].step_index);
@@ -484,6 +486,7 @@ static int adpcm_encode_frame(AVCodecContext *avctx,
                 n--;
                 dst++;
             }
+        c->samples_written+=samples-(short*)data;
         break;
     case CODEC_ID_ADPCM_IMA_WAV:
         n = avctx->frame_size / 8;
