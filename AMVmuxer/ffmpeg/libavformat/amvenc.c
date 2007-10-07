@@ -199,6 +199,12 @@ static int avi_write_header(AVFormatContext *s)
         put_le16(pb, 0); /* language */
         put_le32(pb, 0); /* initial frame */
 
+        if(stream->codec_type==CODEC_TYPE_AUDIO && i==1)
+        {
+            au_ssize=2;
+            au_scale=s->streams[0]->time_base.num;
+            au_byterate=s->streams[0]->time_base.den;
+        }else
         ff_parse_specific_params(stream, &au_byterate, &au_ssize, &au_scale);
 
         put_le32(pb, au_scale); /* scale */
