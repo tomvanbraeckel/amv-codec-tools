@@ -308,7 +308,7 @@ static void adpcm_compress_trellis(AVCodecContext *avctx, const short *samples,
     nodes[0]->step = c->step_index;
     nodes[0]->sample1 = c->sample1;
     nodes[0]->sample2 = c->sample2;
-    if((version == CODEC_ID_ADPCM_IMA_WAV) || (version == CODEC_ID_ADPCM_SWF))
+    if((version == CODEC_ID_ADPCM_IMA_WAV) || (version == CODEC_ID_ADPCM_SWF) || (version == CODEC_ID_ADPCM_IMA_AMV))
         nodes[0]->sample1 = c->prev_sample;
     if(version == CODEC_ID_ADPCM_MS)
         nodes[0]->step = c->idelta;
@@ -379,7 +379,7 @@ static void adpcm_compress_trellis(AVCodecContext *avctx, const short *samples,
                     next_##NAME:;
                     STORE_NODE(ms, FFMAX(16, (AdaptationTable[nibble] * step) >> 8));
                 }
-            } else if((version == CODEC_ID_ADPCM_IMA_WAV)|| (version == CODEC_ID_ADPCM_SWF)) {
+            } else if((version == CODEC_ID_ADPCM_IMA_WAV)|| (version == CODEC_ID_ADPCM_SWF)|| (version == CODEC_ID_ADPCM_IMA_AMV)) {
 #define LOOP_NODES(NAME, STEP_TABLE, STEP_INDEX)\
                 const int predictor = nodes[j]->sample1;\
                 const int div = (sample - predictor) * 4 / STEP_TABLE;\
@@ -459,6 +459,7 @@ static int adpcm_encode_frame(AVCodecContext *avctx,
         break;
     case CODEC_ID_ADPCM_IMA_AMV: 
 
+        c->status[0].prev_sample=*samples;
         bytestream_put_le16(&dst, c->status[0].prev_sample);
         bytestream_put_le16(&dst, c->status[0].step_index);
 
@@ -470,6 +471,14 @@ static int adpcm_encode_frame(AVCodecContext *avctx,
 
         bytestream_put_le32(&dst, n<<1);
 
+        if(avctx->trellis > 0)
+	{
+            uint8_t buf[2*n];
+            adpcm_compress_trellis(avctx, samples+1, buf, &c->status[0], 2*n);
+            for(i=0; i < n; i++)
+                *dst++ =  (buf[2*i] << 4) | buf[2*i+1];
+       
+        }else
         while ( n ) {
                 *dst =  (adpcm_ima_compress_sample(&c->status[0], *samples++) << 4);
                 *dst |= (adpcm_ima_compress_sample(&c->status[0], *samples++) & 0x0F);
