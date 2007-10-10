@@ -1,4 +1,4 @@
-#summary Documentation about the AMV format (built from various sources)
+#summary Documentation about the AMV format (built from various sources)-
 #labels Phase-Requirements,AMVmovieformat
 
 = AMV video origin and history =
