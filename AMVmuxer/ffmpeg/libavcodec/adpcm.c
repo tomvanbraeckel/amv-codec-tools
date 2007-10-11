@@ -484,6 +484,7 @@ static int adpcm_encode_frame(AVCodecContext *avctx,
             adpcm_compress_trellis(avctx, samples, buf, &c->status[0], 2*n);
             for(i=0; i < n; i++)
                 *dst++ =  (buf[2*i] << 4) | buf[2*i+1];
+            samples+=2*n;
         }else
             while ( n ) {
                 *dst =  (adpcm_ima_compress_sample(&c->status[0], *samples++) << 4);
