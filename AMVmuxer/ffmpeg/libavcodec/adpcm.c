@@ -461,6 +461,7 @@ static int adpcm_encode_frame(AVCodecContext *avctx,
     case CODEC_ID_ADPCM_IMA_AMV: 
 
         avctx->coded_frame->pts=c->samples_written;
+        if(!c->samples_written)
         c->status[0].prev_sample=*samples;
         bytestream_put_le16(&dst, c->status[0].prev_sample);
         bytestream_put_le16(&dst, c->status[0].step_index);
@@ -481,7 +482,7 @@ static int adpcm_encode_frame(AVCodecContext *avctx,
         if(avctx->trellis > 0)
 	{
             uint8_t buf[2*n];
-            adpcm_compress_trellis(avctx, samples+1, buf, &c->status[0], 2*n);
+            adpcm_compress_trellis(avctx, samples, buf, &c->status[0], 2*n);
             for(i=0; i < n; i++)
                 *dst++ =  (buf[2*i] << 4) | buf[2*i+1];
         }else
