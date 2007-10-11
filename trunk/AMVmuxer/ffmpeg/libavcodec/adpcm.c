@@ -480,7 +480,7 @@ static int adpcm_encode_frame(AVCodecContext *avctx,
         bytestream_put_le32(&dst, n<<1);
 
         if(avctx->trellis > 0)
-	{
+        {
             uint8_t buf[2*n];
             adpcm_compress_trellis(avctx, samples, buf, &c->status[0], 2*n);
             for(i=0; i < n; i++)
