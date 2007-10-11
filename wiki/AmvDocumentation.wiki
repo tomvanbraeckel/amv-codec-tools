@@ -139,7 +139,7 @@ Video format, it is simple motion [http://wiki.multimedia.cx/index.php?title=JPE
 
 = Software players that support AMV playback =
   * FFmpeg  (since SVN r10623)
-  * MPlayer (since SVN r24673)
+  * MPlayer (1.0rc2 and later)
   * Proprietary converter (and the attached player) that comes on the original CD sold with the unit
 
 = Software players that support MTV playback =
