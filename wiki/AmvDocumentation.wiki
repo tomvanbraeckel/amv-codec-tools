@@ -41,6 +41,8 @@ Audio is a variant of IMA ADPCM where the first 8 bytes of each frame are:
     * index (16bits)
     * number of encoded 16-bit samples (32bits). 
 
+There is also apologize that [http://en.wikipedia.org/wiki/Trellis_quantization trellis quantizaton] is used.
+
 == Formal AMV movie format Specification ==
 
 {{{
