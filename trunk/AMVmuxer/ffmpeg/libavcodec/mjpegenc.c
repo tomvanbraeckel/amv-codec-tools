@@ -201,7 +201,7 @@ void ff_mjpeg_encode_picture_header(MpegEncContext *s)
     put_marker(&s->pb, SOI);
 
     // hack for AMV mjpeg format
-    if(s->avctx->codec_id = CODEC_ID_AMV) return;
+    if(s->avctx->codec_id == CODEC_ID_AMV) return;
 
     jpeg_put_comments(s);
 
