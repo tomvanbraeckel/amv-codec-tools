@@ -208,6 +208,5 @@ AVCodec amv_decoder = {
     ff_mjpeg_decode_init,
     NULL,
     ff_mjpeg_decode_end,
-    sp5x_decode_frame,
-    0
+    sp5x_decode_frame
 };
