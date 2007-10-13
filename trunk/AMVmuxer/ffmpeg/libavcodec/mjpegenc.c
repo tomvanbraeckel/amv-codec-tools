@@ -449,6 +449,23 @@ void ff_mjpeg_encode_mb(MpegEncContext *s, DCTELEM block[6][64])
     }
 }
 
+int amv_encode_picture(AVCodecContext *avctx,
+                       unsigned char *buf, int buf_size, void *data)
+{
+
+    AVFrame* pic=data;
+    MpegEncContext *s = avctx->priv_data;
+    int i;
+
+    for(i=0; i < 3; i++) {
+        //picture should be flipped upside-down for this codec
+        assert(!(s->avctx->flags & CODEC_FLAG_EMU_EDGE));
+        pic->data[i] += (pic->linesize[i] * (s->mjpeg_vsample[i] * (8 * s->mb_height -((s->height/2)&7)) - 1 ));
+        pic->linesize[i] *= -1;
+    }
+    return MPV_encode_picture(avctx,buf, buf_size, pic);
+}
+
 AVCodec mjpeg_encoder = {
     "mjpeg",
     CODEC_TYPE_VIDEO,
@@ -466,7 +483,7 @@ AVCodec amv_encoder = {
     CODEC_ID_AMV,
     sizeof(MpegEncContext),
     MPV_encode_init,
-    MPV_encode_picture,
+    amv_encode_picture,
     MPV_encode_end,
     .pix_fmts= (enum PixelFormat[]){PIX_FMT_YUVJ420P, PIX_FMT_YUVJ422P, -1},
 };
