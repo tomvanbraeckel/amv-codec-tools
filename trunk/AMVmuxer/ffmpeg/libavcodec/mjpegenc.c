@@ -449,6 +449,8 @@ void ff_mjpeg_encode_mb(MpegEncContext *s, DCTELEM block[6][64])
     }
 }
 
+// maximum over s->mjpeg_vsample[i]
+#define V_MAX 2
 int amv_encode_picture(AVCodecContext *avctx,
                        unsigned char *buf, int buf_size, void *data)
 {
@@ -457,10 +459,13 @@ int amv_encode_picture(AVCodecContext *avctx,
     MpegEncContext *s = avctx->priv_data;
     int i;
 
+    //CODEC_FLAG_EMU_EDGE have to be cleared
+    if(s->avctx->flags & CODEC_FLAG_EMU_EDGE)
+        return -1;
+
+    //picture should be flipped upside-down
     for(i=0; i < 3; i++) {
-        //picture should be flipped upside-down for this codec
-        assert(!(s->avctx->flags & CODEC_FLAG_EMU_EDGE));
-        pic->data[i] += (pic->linesize[i] * (s->mjpeg_vsample[i] * (8 * s->mb_height -((s->height/2)&7)) - 1 ));
+        pic->data[i] += (pic->linesize[i] * (s->mjpeg_vsample[i] * (8 * s->mb_height -((s->height/V_MAX)&7)) - 1 ));
         pic->linesize[i] *= -1;
     }
     return MPV_encode_picture(avctx,buf, buf_size, pic);
