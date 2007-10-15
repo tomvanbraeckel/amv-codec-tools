@@ -94,10 +94,10 @@ BYTE reserve[56];
 } AMVSTREAMHEADER;
 
 typedef struct {
-WORD wFormatTag;
-WORD nChannels;
-DWORD nSamplesPerSec;
-DWORD nAvgBytesPerSec;
+WORD wFormatTag; (Fixme: this is equal to PCM's 0x01 format code)
+WORD nChannels; (Fixme: this is always 1)
+DWORD nSamplesPerSec; (Fixme: for all known sample files this is equal to 22050)
+DWORD nAvgBytesPerSec; (Fixme: for all known sample files this is equal to 44100)
 WORD nBlockAlign; (Fixme: this seems to be 2 in AMV files, is this correct ?)
 WORD wBitsPerSample; (Fixme: this seems to be 16 in AMV files instead of the expected 4)
 WORD cbSize; (Fixme: this seems to be 0 in AMV files)
