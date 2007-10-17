@@ -1,0 +1,67 @@
+#summary Documentation about the AMV format (built from various sources)
+
+= Preface =
+
+ACT is a low complexity speech compression codec. There are 3 different ways to record to this codec from a player.
+
+    * Fine Rec
+    * Long Rec
+    * Long Vox, in this mode the player will just record if there is anything to record. 
+
+*Table 1. Known Formats*
+|| *Name* || *Sample rate* || *Frame size* || *Frames per chunk* || *Chunk size* || *Padding bytes* ||
+|| Fine Rec || 8000 || 10 || 51 || 510 || 2 ||
+|| Long Rec || 4400 || 22 || 23 || 506 || 6 ||
+|| Long Vox || 4400 || 22 || 23 || 506 || 6 ||
+
+The codec actually is G729 (or G729A)
+
+= ACT File Format =
+
+Files is always aligned to 512 bytes boundary and contains 512 byte header and chunks of the same size. Each chunk consists of fixed number of frames and several padding bytes (see Table 1).
+
+*Table 2. ACT header*
+|| *Name* || *Offset* || *Bytes* || *Description* ||
+|| riff tag || 0 || 4 || 'RIFF' ||
+|| riff size || 4 || 4 || `data_size + 36` ||
+|| wave tag || 8 || 4 || 'WAVE' ||
+|| fmt tag || 12 || 4 || 'fmt ' ||
+|| wave header size || 16 || 4 || Always 0x10 ||
+|| wave format || 20 || 2 || PCM's 0x01 ||
+|| channels || 22 || 2 || 0x01 ||
+|| sample rate || 24 || 4 || 8000 or 4400 ||
+|| bit rate || 28 || 4 || 16000 or ? ||
+|| block align || 32 || 2 || Always 0x02 ||
+|| bits per sample || 34 || 2 || Always 16 ||
+|| data_tag || 36 || 4 || 'data' ||
+|| data_size || 40 || 4 || `chunks_count *  8 * chunk_size`^1^ ||
+|| reserved || 44 || 212 || filled by zero ||
+|| act tag || 256 || 1 || Always 0x84 ||
+|| millisec || 257 || 2 || milliseconds part of duration value ||
+|| seconds || 259 || 1 || seconds part of duration value ||
+|| minutes || 260 || 4 || minutes part of duration value ||
+|| reserved || 264 || 248 || filled by zero ||
+
+^1^ chunk_size is determined from Table 1.
+
+== ACT Frame format ==
+First half of ACT frame contains odd bytes, while the second contains even bytes of encoded G729 frame.
+{{{
+for(i=0 ; i<frame_size/2; i++)
+{
+  g729_data[2*i]=act_data[i]
+  g729_data[2*i+1]=act_data[frame_size/2+i]
+}
+}}}
+= Proprietary software =
+
+*Table 3. Proprietary decoder functions*
+||*Offset*|| *Function* ||
+||0x00401000|| Read ACT Header||
+
+
+
+= Links =
+  * [http://wiki.multimedia.cx/index.php?title=ACT ACT Page on wiki.multimedia.cx]
+  * [http://samples.mplayerhq.hu/A-codecs/act/ Samples]
+  * [http://www.netac.com/Download/C635/C635%20Driver&Tools.zip Working decoder]
