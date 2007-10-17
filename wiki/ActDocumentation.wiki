@@ -1,6 +1,6 @@
-#summary Documentation about the AMV format (built from various sources)
+#summary Documentation about the ACT format
 
-= Preface =
+= Origin =
 
 ACT is a low complexity speech compression codec. There are 3 different ways to record to this codec from a player.
 
