@@ -15,7 +15,7 @@ ACT is a low complexity speech compression codec. There are 3 different ways to 
 || Long Rec || 4400 || 22 || 23 || 506 || 6 ||
 || Long Vox || 4400 || 22 || 23 || 506 || 6 ||
 
-The codec actually is G729 (or G729A)
+The codec actually is G729 (or even G729A)
 
 = ACT File Format =
 
