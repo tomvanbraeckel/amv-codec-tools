@@ -19,7 +19,7 @@ The codec actually is G729 (or even G729A)
 
 = ACT File Format =
 
-Files is always aligned to 512 bytes boundary and contains 512 byte header and chunks of the same size. Each chunk consists of fixed number of frames and several padding bytes (see Table 1).
+Files are always aligned to 512 bytes boundary and contains 512 byte header and chunks of the same size. Each chunk consists of fixed number of frames and padding bytes (see Table 1).
 
 *Table 2. ACT header*
 || *Name* || *Offset* || *Bytes* || *Description* ||
