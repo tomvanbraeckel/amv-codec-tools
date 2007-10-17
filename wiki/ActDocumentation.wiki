@@ -1,4 +1,5 @@
 #summary Documentation about the ACT format
+#labels ACTFormat
 
 = Origin =
 
