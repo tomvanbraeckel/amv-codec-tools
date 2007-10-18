@@ -15,7 +15,7 @@ ACT is a low complexity speech compression codec. There are 3 different ways to 
 || Long Vox || 4400 || 22 || 23 || 506 || 6 ||
 *Table 1. Known Formats*
 
-The codec actually is G729 (or even G729A)
+The codec actually is G.729A
 
 = ACT File Format =
 
@@ -46,7 +46,7 @@ Files are always aligned to 512 bytes boundary and contains 512 byte header and 
 ^1^ chunk_size is determined from Table 1.
 
 == ACT Frame format ==
-First half of ACT frame contains odd bytes, while the second contains even bytes of encoded G729 frame.
+First half of ACT frame contains odd bytes, while the second contains even bytes of encoded G.729 frame.
 {{{
 for(i=0 ; i<frame_size/2; i++)
 {
