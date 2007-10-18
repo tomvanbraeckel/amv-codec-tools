@@ -96,5 +96,6 @@ for(i=0 ; i<frame_size/2; i++)
 
 = Links =
   * [http://wiki.multimedia.cx/index.php?title=ACT ACT Page on wiki.multimedia.cx]
+  * [http://amv-codec-tools.googlecode.com/files/G.729_e.pdf ITU G.729 Specification]
   * [http://samples.mplayerhq.hu/A-codecs/act/ Samples]
   * [http://www.netac.com/Download/C635/C635%20Driver&Tools.zip Working decoder]
