@@ -9,11 +9,11 @@ ACT is a low complexity speech compression codec. There are 3 different ways to 
     * Long Rec
     * Long Vox, in this mode the player will just record if there is anything to record. 
 
-*Table 1. Known Formats*
 || *Name* || *Sample rate* || *Frame size* || *Frames per chunk* || *Chunk size* || *Padding bytes* ||
 || Fine Rec || 8000 || 10 || 51 || 510 || 2 ||
 || Long Rec || 4400 || 22 || 23 || 506 || 6 ||
 || Long Vox || 4400 || 22 || 23 || 506 || 6 ||
+*Table 1. Known Formats*
 
 The codec actually is G729 (or even G729A)
 
@@ -21,7 +21,6 @@ The codec actually is G729 (or even G729A)
 
 Files are always aligned to 512 bytes boundary and contains 512 byte header and chunks of the same size. Each chunk consists of fixed number of frames and padding bytes (see Table 1).
 
-*Table 2. ACT header*
 || *Name* || *Offset* || *Bytes* || *Description* ||
 || riff tag || 0 || 4 || 'RIFF' ||
 || riff size || 4 || 4 || `data_size + 36` ||
@@ -42,6 +41,7 @@ Files are always aligned to 512 bytes boundary and contains 512 byte header and 
 || seconds || 259 || 1 || seconds part of duration value ||
 || minutes || 260 || 4 || minutes part of duration value ||
 || reserved || 264 || 248 || filled by zero ||
+*Table 2. ACT header*
 
 ^1^ chunk_size is determined from Table 1.
 
@@ -54,11 +54,37 @@ for(i=0 ; i<frame_size/2; i++)
   g729_data[2*i+1]=act_data[frame_size/2+i]
 }
 }}}
+
+== G.729 Codec ==
+
+|| *Symbol* || *Description* || *Bits (Fine rec)* || *Bits (Long Rec/Long vox)* ||
+|| L0 || Switched MA predictor of LSP quantizer || 1 || 1 ||
+|| L1 || First stage vector of quantizer || 7 || 7 ||
+|| L2 || Second stage lower vector of LSP quantizer || 5 || 5 ||
+|| L3 || Second stage higher vector of LSP quantizer || 5 || 5 ||
+|| P1 || Pitch delay first subframe || 8 || 8 ||
+|| P0 || Parity bit for Pitch delay || 1 || 1 ||
+|| C1 || Fixed codebook first subframe || 13 || 12 ||
+|| S1 || Signs of fixed-codebook pulses 1st subframe || 4 || 9 ||
+|| GA1 || Gain codebook (stage 1) 1st subframe || 3 || 3 ||
+|| GB1 || Gain codebook (stage 1) 1st subframe || 4 || 4 ||
+|| P2 || Pitch delay second subframe || 5 || 5 ||
+|| C2 || Fixed codebook 2nd subframe || 13 || 12 ||
+|| S2 || Signs of fixed-codebook pulses 2nd subframe || 4 || 9 ||
+|| GA2 || Gain codebook (stage 1) 2nd subframe || 3 || 3 ||
+|| GB2 || Gain codebook (stage 1) 2nd subframe || 4 || 4 ||
+|| || *Total* || *80* || *88*^2^ ||
+*Table 3. Description of transmitted parameters indices*^1^
+
+^1^Note: the bitstream ordering is reflected by order in the table. For each parameter, the Most Significant Bit (MSB) is transmitted first.
+
+^2^ Two G.729 frames are passed from demuxer to codec at one time
+
 = Proprietary software =
 
-*Table 3. Proprietary decoder functions*
 ||*Offset*|| *Function* ||
 ||0x00401000|| Read ACT Header||
+*Table 4. Proprietary decoder functions*
 
 
 
