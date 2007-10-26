@@ -13,6 +13,8 @@ HEADERS = avformat.h avio.h rtp.h rtsp.h rtspcodes.h
 # muxers/demuxers
 OBJS-$(CONFIG_AAC_DEMUXER)               += raw.o
 OBJS-$(CONFIG_AC3_DEMUXER)               += raw.o
+OBJS-$(CONFIG_ACT_DEMUXER)               += act.o
+OBJS-$(CONFIG_ACT_MUXER)                 += act.o
 OBJS-$(CONFIG_AC3_MUXER)                 += raw.o
 OBJS-$(CONFIG_ADTS_MUXER)                += adtsenc.o
 OBJS-$(CONFIG_AIFF_DEMUXER)              += aiff.o riff.o raw.o

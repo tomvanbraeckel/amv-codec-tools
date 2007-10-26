@@ -87,6 +87,7 @@ show_help(){
   echo "  --enable-libfaac         enable FAAC support via libfaac [default=no]"
   echo "  --enable-libfaad         enable FAAD support via libfaad [default=no]"
   echo "  --enable-libfaadbin      open libfaad.so.0 at runtime [default=no]"
+  echo "  --enable-libg729a        enable G.729A support via libg729a [default=no]"
   echo "  --enable-libgsm          enable GSM support via libgsm [default=no]"
   echo "  --enable-libmp3lame      enable MP3 encoding via libmp3lame [default=no]"
   echo "  --enable-libnut          enable NUT (de)muxing via libnut,"
@@ -617,6 +618,7 @@ CONFIG_LIST="
     libfaac
     libfaad
     libfaadbin
+    libg729a
     libgsm
     libmp3lame
     libnut
@@ -775,6 +777,8 @@ libamr_wb_encoder_deps="libamr_wb"
 libfaac_encoder_deps="libfaac"
 libfaad_decoder_deps="libfaad"
 libfaadbin_decoder_extralibs='$ldl'
+g729a_decoder_deps="libg729a"
+g729a_encoder_deps="libg729a"
 libgsm_decoder_deps="libgsm"
 libgsm_encoder_deps="libgsm"
 libgsm_ms_decoder_deps="libgsm"
@@ -789,6 +793,8 @@ mpeg4aac_decoder_deps="libfaad"
 
 # demuxers / muxers
 ac3_demuxer_deps="ac3_parser"
+act_muxer_deps="g729a_encoder"
+act_demuxer_deps="g729a_decoder"
 audio_beos_demuxer_deps="audio_beos"
 audio_beos_demuxer_extralibs="-lmedia -lbe"
 audio_beos_muxer_deps="audio_beos"
@@ -1564,6 +1570,7 @@ enabled libamr_wb  && require libamrwb amrwb/dec_if.h D_IF_init -lamrwb -lm
 enabled libdc1394  && require libdc1394 libdc1394/dc1394_control.h dc1394_create_handle -ldc1394_control -lraw1394
 enabled libfaac    && require2 libfaac "stdint.h faac.h" faacEncGetVersion -lfaac
 enabled libfaad    && require2 libfaad faad.h faacDecOpen -lfaad
+enabled libg729a   && require libg729a g729a.h g729a_encoder_init -lg729a
 enabled libgsm     && require libgsm gsm.h gsm_create -lgsm
 enabled libmp3lame && require LAME lame/lame.h lame_init -lmp3lame -lm
 enabled libnut     && require libnut libnut.h nut_demuxer_init -lnut
@@ -1814,6 +1821,7 @@ echo "libdc1394 support         ${libdc1394-no}"
 echo "libfaac enabled           ${libfaac-no}"
 echo "libfaad enabled           ${libfaad-no}"
 echo "libfaad dlopened          ${libfaadbin-no}"
+echo "libg729a enabled          ${libg729a-no}"
 echo "libgsm enabled            ${libgsm-no}"
 echo "libmp3lame enabled        ${libmp3lame-no}"
 echo "libnut enabled            ${libnut-no}"

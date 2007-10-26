@@ -180,6 +180,7 @@ void avcodec_register_all(void)
     REGISTER_DECODER (DCA, dca);
     REGISTER_DECODER (DSICINAUDIO, dsicinaudio);
     REGISTER_ENCDEC  (FLAC, flac);
+    REGISTER_ENCDEC  (G729A, g729a);
     REGISTER_DECODER (IMC, imc);
     REGISTER_ENCDEC  (LIBAMR_NB, libamr_nb);
     REGISTER_ENCDEC  (LIBAMR_WB, libamr_wb);
