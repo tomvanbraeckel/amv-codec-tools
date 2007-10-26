@@ -97,7 +97,7 @@ sources.dep: $(DECODER-SRCS) $(ENCODER-SRCS)
 
 ffmpeg-cfg:
 	cd ../AMVmuxer/ffmpeg ; \
-	./configure --extra-libs="-l g729a" --extra-cflags="-I../../G.729 -I../../../G.729" --extra-ldflags=-L../../G.729;\
+	./configure --enable-libg729a --extra-cflags="-I../../G.729 -I../../../G.729" --extra-ldflags=-L../../G.729
 
 ffmpeg:
 	make -C ../AMVmuxer/ffmpeg
