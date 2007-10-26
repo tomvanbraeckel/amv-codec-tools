@@ -1,0 +1,39 @@
+1. Downloading sources
+
+You need ITU's sources for G.729 Annex A codec.
+
+Grab it from ITU's site (search for "Zip (PDF)" link):
+http://www.itu.int/rec/T-REC-G.729-199611-S!AnnA/en
+
+You need g729anxaE folder which resides in:
+T-REC-G.729-199611-S!AnnA!ZPF-E.zip.zip/software.zip/g729anxaE
+
+2. Extracting sources.
+
+Extract these directory into currect folder.
+
+You should see:
+
+<this dir>\
+    g729anxaE\
+        ACELP_CA.C
+	BASIC_OP.C
+	...
+    Makefile
+    README
+    g729a.c
+    g729a.h
+
+3. Builing library
+
+Now "make" will build libg729a.a for your
+
+4. Execute "make ffmpeg-cfg" followed by "make ffmpeg"
+
+Above command will build ffmpeg with enabled ACT muxer/demuxer
+
+6. Testing
+
+Put any ACT file in this directory and rename it into "test.act"
+Execute "make test" and you'll see decded test.wav file.
+
