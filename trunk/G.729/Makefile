@@ -95,5 +95,14 @@ sources.dep: $(DECODER-SRCS) $(ENCODER-SRCS)
 	dos2unix $(G729DIR)/*.MAK
 	touch sources.dep
 
+ffmpeg-cfg:
+	cd ../AMVmuxer/ffmpeg ; \
+	./configure --extra-libs="-l g729a" --extra-cflags="-I../../G.729 -I../../../G.729" --extra-ldflags=-L../../G.729;\
 
-.PHONY: prepare all clean
+ffmpeg:
+	make -C ../AMVmuxer/ffmpeg
+
+test: ffmpeg test.act
+	../AMVmuxer/ffmpeg/ffmpeg -i test.act test.wav
+
+.PHONY: prepare all clean distclean ffmpeg
