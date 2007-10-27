@@ -292,6 +292,8 @@ static inline uint16_t g729a_random(G729A_Context* ctx)
  * \param L2 Second stage lower vector of LSP quantizer
  * \param L3 Second stage higher vector of LSP quantizer
  * \param lsfq Decoded LSP coefficients
+ *
+ * 3.2.4
  */
 static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t L2, int16_t L3, int32_t* lsfq)
 {
@@ -383,6 +385,75 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
         lsfq[i]=FL2FP(cos(FP2FL(lsfq[i])));
 }
 
+/**
+ * \brief LSP to LP conversion
+ * \param ctx private data structure
+ * \param q LSP coefficients
+ * \param a decoded LP coefficients
+ *
+ * 3.2.6
+ */
+static void g729a_lsp2a(G729A_Context* ctx, int* q, int* a)
+{
+    int f1[7];
+    int f2[7];
+
+    int ff1[5];
+    int ff2[5];
+
+    f1[0]=0; // f1(-1)
+    f1[1]=1; // f1(0)
+    f2[0]=0; // f2(-1)
+    f2[1]=1; // f2(0)
+    for(i=0; i<5; i++)
+    {
+        f1[i+2]=(f1[i]-FP_MUL(q[2*i],f1[i+1]))<<1;
+        f2[i+2]=(f2[i]-FP_MUL(q[2*i+1],f2[i+1]))<<1;
+    }
+
+    for(i=0;i<5;i++)
+    {
+        ff1[i]=f1[i+2]+f1[i+1];
+        ff2[i]=f2[i+2]-f2[i+1];
+    }
+
+    for(i=0;i<5;i++)
+    {
+        a[i]=(ff1[i]+ff2[i])>>1;
+        a[i+5]=(ff1[4-i]-ff2[4-i])>>1;
+    }
+    
+}
+
+/**
+ * \brief interpolate LSP end decode LP for both first and second subframes
+ * \param ctx private data structure
+ * \param lspq current LSP coefficients
+ *
+ * 3.2.5 and 3.2.6
+ */
+static void g729a_decode_lp(G729A_Context* ctx, int* lspq)
+{
+    int lsp[10];
+    int a1[10],a2[10];
+
+    /* LSP values for first subframe (3.2.5)*/
+    for(i=0;i<10;i++)
+        lsp[i]=(lsqp[i]+ctx->lsp_prev[i])>>1;
+
+    g729a_lsp2a(ctx, lsp, a1);
+
+    /* LSP values for second subframe (3.2.5)*/
+    for(i=0;i<10;i++)
+        lsp[i]=lsqp[i];
+
+    g729a_lsp2a(ctx, lsp, a2);
+
+    /* saving LSP coefficients for using in next frame */
+    for(i=0;i<10;i++)
+        lsp_prev[i]=q[i];
+
+}
 /*
 -------------------------------------------------------------------------------
           API
