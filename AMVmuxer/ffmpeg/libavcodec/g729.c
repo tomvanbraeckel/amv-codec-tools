@@ -9,6 +9,7 @@ typedef struct
     unsigned char format;
     FILE* f;
     FILE* f2;
+    void* priv;
 } G729Context;
 
 #define MAX_FORMATS 2
@@ -47,7 +48,7 @@ static int ff_g729a_encoder_init(AVCodecContext * avctx)
 {
     G729Context *ctx=avctx->priv_data;
 
-    g729a_encoder_init();
+    ctx->priv=g729a_encoder_init();
 
     if(avctx->channels!=1)
     {
@@ -81,7 +82,7 @@ static int ff_g729a_encode_frame(AVCodecContext *avctx,
     PutBitContext pb;
     int idx=2,i,k;
 
-    g729a_encode_frame(data, 0/* not used yet*/, serial, buf_size);
+    g729a_encode_frame(ctx->priv, data, 0/* not used yet*/, serial, buf_size);
 
     init_put_bits(&pb, dst, buf_size*8);
     for(i=0;i<formats[ctx->format].frame_size;i++)
@@ -105,7 +106,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
         return -1;
     }
 
-    g729a_decoder_init();
+    ctx->priv=g729a_decoder_init();
 ctx->f=fopen("test2.bit","wb");
 ctx->f2=fopen("test2.raw","wb");
 
@@ -118,7 +119,8 @@ static int ff_g729a_close(AVCodecContext *avctx)
     G729Context *ctx=avctx->priv_data;
     if(ctx->f) fclose(ctx->f);
     if(ctx->f2) fclose(ctx->f2);
-
+    g729a_decoder_uninit(ctx->priv);
+    ctx->priv=NULL;
     return 0;
 }
 
@@ -145,7 +147,7 @@ static int ff_g729a_decode_frame(AVCodecContext *avctx,
                 serial[dst++]=get_bits1(&gb)?0x81:0x7f;
             }
         fwrite(serial,sizeof(uint16_t),l_frame+2,ctx->f);
-        g729a_decode_frame(serial, 0/*not used yet*/,(short*)data+j*l_frame, l_frame);
+        g729a_decode_frame(ctx->priv,serial, 0/*not used yet*/,(short*)data+j*l_frame, l_frame);
         *data_size+=2*l_frame;
     }
     fwrite(data,1,*data_size,ctx->f2);

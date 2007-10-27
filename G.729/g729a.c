@@ -6,13 +6,14 @@
 
  Word16 bad_lsf;        /* bad LSF indicator   */
 
-int g729a_encoder_init()
+void* g729a_encoder_init()
 {
   Init_Pre_Process();
   Init_Coder_ld8a();
+  return NULL;
 }
 
-int g729a_encode_frame(Word16* data, int ibuflen, Word16* serial, int obuflen)
+int g729a_encode_frame(void * context, Word16* data, int ibuflen, Word16* serial, int obuflen)
 {
     extern Word16 *new_speech;     /* Pointer to new speech data            */
     Word16 prm[PRM_SIZE];          /* Analysis parameters.                  */
@@ -27,16 +28,20 @@ int g729a_encode_frame(Word16* data, int ibuflen, Word16* serial, int obuflen)
     return SERIAL_SIZE;
 }
 
-int g729a_decoder_init()
+void g729a_encoder_uninit(void* context)
+{
+}
+
+void* g729a_decoder_init()
 {
   bad_lsf = 0;          /* Initialize bad LSF indicator */
   Init_Decod_ld8a();
   Init_Post_Filter();
   Init_Post_Process();
-  return 1;
+  return NULL;
 }
 
-int g729a_decode_frame(Word16* serial, int ibuflen, Word16* obuf, int obuflen){
+int g729a_decode_frame(void* context, Word16* serial, int ibuflen, Word16* obuf, int obuflen){
   Word16  parm[PRM_SIZE+1];             /* Synthesis parameters        */
   Word16  Az_dec[MP1*2];                /* Decoded Az for post-filter  */
   Word16  T2[2];                        /* Pitch lag for 2 subframes   */
@@ -59,3 +64,6 @@ int g729a_decode_frame(Word16* serial, int ibuflen, Word16* obuf, int obuflen){
     return L_FRAME;
 }
 
+void g729a_decoder_uninit(void* context)
+{
+}
