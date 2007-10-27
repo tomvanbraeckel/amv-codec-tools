@@ -45,7 +45,12 @@ int g729a_decode_frame(void* context, Word16* serial, int ibuflen, Word16* obuf,
   Word16  parm[PRM_SIZE+1];             /* Synthesis parameters        */
   Word16  Az_dec[MP1*2];                /* Decoded Az for post-filter  */
   Word16  T2[2];                        /* Pitch lag for 2 subframes   */
+  Word16  synth_buf[L_FRAME+M];
+  Word16* synth;
   int i;
+
+    for (i=0; i<M; i++) synth_buf[i] = 0;
+    synth = synth_buf + M;
 
     parm[0] = 0;           /* No frame erasure */
     for (i=2; i < SERIAL_SIZE; i++)
@@ -55,12 +60,13 @@ int g729a_decode_frame(void* context, Word16* serial, int ibuflen, Word16* obuf,
 
     parm[4] = Check_Parity_Pitch(parm[3], parm[4]);
 
-    Decod_ld8a(parm, obuf, Az_dec, T2);
+    Decod_ld8a(parm, synth, Az_dec, T2);
 
-    Post_Filter(obuf, Az_dec, T2);        /* Post-filter */
+    Post_Filter(synth, Az_dec, T2);        /* Post-filter */
 
-    Post_Process(obuf, L_FRAME);
+    Post_Process(synth, L_FRAME);
 
+    Copy(synth, obuf, L_FRAME);
     return L_FRAME;
 }
 
