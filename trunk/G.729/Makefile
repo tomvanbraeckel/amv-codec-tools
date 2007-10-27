@@ -42,16 +42,13 @@ DECODER-OBJECTS := $(COMMON-OBJECTS) \
  POST_PRO.o\
  POSTFILT.o
 
-DECODER-OBJECTS += DECODER.o
-ENCODER-OBJECTS += CODER.o
-
 DECODER-OBJECTS := $(patsubst %.o,$(G729DIR)/%.o, $(DECODER-OBJECTS))
 ENCODER-OBJECTS := $(patsubst %.o,$(G729DIR)/%.o, $(ENCODER-OBJECTS))
 
 LIB-OBJECTS := $(DECODER-OBJECTS) $(ENCODER-OBJECTS) g729a.o
 
-LIB-OBJECTS := $(filter-out DECODER.O, $(LIB-OBJECTS))
-LIB-OBJECTS := $(filter-out CODER.O, $(LIB-OBJECTS))
+DECODER-OBJECTS += $(G729DIR)/DECODER.o
+ENCODER-OBJECTS += $(G729DIR)/CODER.o
 
 DECODER-SRCS := $(patsubst %.o,%.c, $(DECODER-OBJECTS))
 ENCODER-SRCS := $(patsubst %.o,%.c, $(ENCODER-OBJECTS))
@@ -104,5 +101,15 @@ ffmpeg:
 
 test: ffmpeg test.act
 	../AMVmuxer/ffmpeg/ffmpeg -i test.act test.wav
+
+tests: all test_native test_orig 
+	./test_orig
+	./test_native
+
+test_native: g729a_native.c test.c
+	gcc $(CFLAGS) -lm -I. -o test_native $^
+
+test_orig: test.c $(LIBNAME)
+	gcc $(CFLAGS) -L. -I. -o test_orig $<  -lg729a
 
 .PHONY: prepare all clean distclean ffmpeg
