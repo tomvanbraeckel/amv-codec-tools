@@ -46,7 +46,7 @@ typedef struct {
 } DNXHDContext;
 
 #define DNXHD_VLC_BITS 9
-#define DNXHD_DC_VLC_BITS 7
+#define DNXHD_DC_VLC_BITS 6
 
 static int dnxhd_decode_init(AVCodecContext *avctx)
 {
@@ -72,7 +72,7 @@ static int dnxhd_init_vlc(DNXHDContext *ctx, int cid)
         init_vlc(&ctx->ac_vlc, DNXHD_VLC_BITS, 257,
                  ctx->cid_table->ac_bits, 1, 1,
                  ctx->cid_table->ac_codes, 2, 2, 0);
-        init_vlc(&ctx->dc_vlc, DNXHD_DC_VLC_BITS, ctx->cid_table->bit_depth+4,
+        init_vlc(&ctx->dc_vlc, DNXHD_DC_VLC_BITS, 12,
                  ctx->cid_table->dc_bits, 1, 1,
                  ctx->cid_table->dc_codes, 1, 1, 0);
         init_vlc(&ctx->run_vlc, DNXHD_VLC_BITS, 62,
@@ -108,7 +108,7 @@ static int dnxhd_decode_header(DNXHDContext *ctx, uint8_t *buf, int buf_size, in
 
     dprintf(ctx->avctx, "width %d, heigth %d\n", ctx->width, ctx->height);
 
-    if (buf[0x21] & 0x40) {
+    if (buf[0x21] & 0x80) {
         av_log(ctx->avctx, AV_LOG_ERROR, "10 bit per component\n");
         return -1;
     }
@@ -161,10 +161,10 @@ static void dnxhd_decode_dct_block(DNXHDContext *ctx, DCTELEM *block, int n, int
 
     if (n&2) {
         component = 1 + (n&1);
-        weigth_matrix = ctx->cid_table->chroma_weight;
+        weigth_matrix = ctx->cid_table->chroma_weigth;
     } else {
         component = 0;
-        weigth_matrix = ctx->cid_table->luma_weight;
+        weigth_matrix = ctx->cid_table->luma_weigth;
     }
 
     ctx->last_dc[component] += dnxhd_decode_dc(ctx);
@@ -189,26 +189,22 @@ static void dnxhd_decode_dct_block(DNXHDContext *ctx, DCTELEM *block, int n, int
             i += ctx->cid_table->run[index2];
         }
 
+        j = ctx->scantable.permutated[i];
+        //av_log(ctx->avctx, AV_LOG_DEBUG, "j %d\n", j);
+        //av_log(ctx->avctx, AV_LOG_DEBUG, "level %d, weigth %d\n", level, weigth_matrix[i]);
+        level = (2*level+1) * qscale * weigth_matrix[i];
+        if (weigth_matrix[i] != 32) // FIXME 10bit
+            level += 32;
+        level >>= 6;
+        level = (level^sign) - sign;
+
         if (i > 63) {
             av_log(ctx->avctx, AV_LOG_ERROR, "ac tex damaged %d, %d\n", n, i);
             return;
         }
 
-        j = ctx->scantable.permutated[i];
-        //av_log(ctx->avctx, AV_LOG_DEBUG, "j %d\n", j);
-        //av_log(ctx->avctx, AV_LOG_DEBUG, "level %d, weigth %d\n", level, weigth_matrix[i]);
-        level = (2*level+1) * qscale * weigth_matrix[i];
-        if (ctx->cid_table->bit_depth == 10) {
-            if (weigth_matrix[i] != 8)
-                level += 8;
-            level >>= 4;
-        } else {
-            if (weigth_matrix[i] != 32)
-                level += 32;
-            level >>= 6;
-        }
         //av_log(NULL, AV_LOG_DEBUG, "i %d, j %d, end level %d\n", i, j, level);
-        block[j] = (level^sign) - sign;
+        block[j] = level;
     }
 }
 
@@ -269,7 +265,7 @@ static int dnxhd_decode_macroblocks(DNXHDContext *ctx, uint8_t *buf, int buf_siz
     for (y = 0; y < ctx->mb_height; y++) {
         ctx->last_dc[0] =
         ctx->last_dc[1] =
-        ctx->last_dc[2] = 1<<(ctx->cid_table->bit_depth+2); // for levels +2^(bitdepth-1)
+        ctx->last_dc[2] = 1024; // 1024 for levels +128
         init_get_bits(&ctx->gb, buf + ctx->mb_scan_index[y], (buf_size - ctx->mb_scan_index[y]) << 3);
         for (x = 0; x < ctx->mb_width; x++) {
             //START_TIMER;

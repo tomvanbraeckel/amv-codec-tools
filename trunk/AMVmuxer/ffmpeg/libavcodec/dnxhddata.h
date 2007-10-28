@@ -19,8 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#ifndef FFMPEG_DNXHDDATA_H
-#define FFMPEG_DNXHDDATA_H
+#ifndef AVCODEC_DNXHDDATA_H
+#define AVCODEC_DNXHDDATA_H
 
 #include <stdint.h>
 
@@ -32,7 +32,7 @@ typedef struct {
     unsigned int coding_unit_size;
     int index_bits;
     int bit_depth;
-    const uint8_t *luma_weight, *chroma_weight;
+    const uint8_t *luma_weigth, *chroma_weigth;
     const uint8_t *dc_codes, *dc_bits;
     const uint16_t *ac_codes;
     const uint8_t *ac_bits, *ac_level;
@@ -45,4 +45,4 @@ extern const CIDEntry ff_dnxhd_cid_table[];
 
 int ff_dnxhd_get_cid_table(int cid);
 
-#endif /* FFMPEG_DNXHDDATA_H */
+#endif  // AVCODEC_DNXHDDATA_H

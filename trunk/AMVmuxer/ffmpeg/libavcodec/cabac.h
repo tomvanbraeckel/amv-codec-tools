@@ -24,8 +24,8 @@
  * Context Adaptive Binary Arithmetic Coder.
  */
 
-#ifndef FFMPEG_CABAC_H
-#define FFMPEG_CABAC_H
+#ifndef CABAC_H
+#define CABAC_H
 
 #include "bitstream.h"
 
@@ -90,7 +90,6 @@ static inline void renorm_cabac_encoder(CABACContext *c){
     }
 }
 
-#if 0
 static void put_cabac(CABACContext *c, uint8_t * const state, int bit){
     int RangeLPS= ff_h264_lps_range[2*(c->range&0xC0) + *state];
 
@@ -260,7 +259,6 @@ static void put_cabac_ueg(CABACContext *c, uint8_t * state, int v, int max, int 
             put_cabac_bypass(c, sign);
     }
 }
-#endif /* 0 */
 
 static void refill(CABACContext *c){
 #if CABAC_BITS == 16
@@ -272,7 +270,6 @@ static void refill(CABACContext *c){
     c->bytestream+= CABAC_BITS/8;
 }
 
-#if ! ( defined(ARCH_X86) && defined(HAVE_7REGS) && defined(HAVE_EBX_AVAILABLE) && !defined(BROKEN_RELOCATIONS) )
 static void refill2(CABACContext *c){
     int i, x;
 
@@ -290,7 +287,6 @@ static void refill2(CABACContext *c){
     c->low += x<<i;
     c->bytestream+= CABAC_BITS/8;
 }
-#endif
 
 static inline void renorm_cabac_decoder(CABACContext *c){
     while(c->range < 0x100){
@@ -809,7 +805,6 @@ static int get_cabac_terminate(CABACContext *c){
     }
 }
 
-#if 0
 /**
  * Get (truncated) unary binarization.
  */
@@ -865,6 +860,5 @@ static int get_cabac_ueg(CABACContext *c, uint8_t * state, int max, int is_signe
     }else
         return i;
 }
-#endif /* 0 */
 
-#endif /* FFMPEG_CABAC_H */
+#endif /* CABAC_H */

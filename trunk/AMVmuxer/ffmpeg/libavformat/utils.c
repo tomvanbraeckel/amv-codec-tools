@@ -647,6 +647,9 @@ static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
             pkt->dts += offset;
     }
 
+    if(is_intra_only(st->codec))
+        pkt->flags |= PKT_FLAG_KEY;
+
     /* do we have a video B frame ? */
     delay= st->codec->has_b_frames;
     presentation_delayed = 0;
@@ -723,9 +726,7 @@ static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
 //    av_log(NULL, AV_LOG_ERROR, "OUTdelayed:%d/%d pts:%"PRId64", dts:%"PRId64" cur_dts:%"PRId64"\n", presentation_delayed, delay, pkt->pts, pkt->dts, st->cur_dts);
 
     /* update flags */
-    if(is_intra_only(st->codec))
-        pkt->flags |= PKT_FLAG_KEY;
-    else if (pc) {
+    if (pc) {
         pkt->flags = 0;
         /* key frame computation */
             if (pc->pict_type == FF_I_TYPE)
@@ -2066,7 +2067,6 @@ void av_close_input_file(AVFormatContext *s)
     for(i=s->nb_programs-1; i>=0; i--) {
         av_freep(&s->programs[i]->provider_name);
         av_freep(&s->programs[i]->name);
-        av_freep(&s->programs[i]->stream_index);
         av_freep(&s->programs[i]);
     }
     flush_packet_queue(s);
@@ -2483,63 +2483,15 @@ fail:
     return ret;
 }
 
-void av_program_add_stream_index(AVFormatContext *ac, int progid, unsigned int idx)
-{
-    int i, j;
-    AVProgram *program=NULL;
-    void *tmp;
-
-    for(i=0; i<ac->nb_programs; i++){
-        if(ac->programs[i]->id != progid)
-            continue;
-        program = ac->programs[i];
-        for(j=0; j<program->nb_stream_indexes; j++)
-            if(program->stream_index[j] == idx)
-                return;
-
-        tmp = av_realloc(program->stream_index, sizeof(unsigned int)*(program->nb_stream_indexes+1));
-        if(!tmp)
-            return;
-        program->stream_index = tmp;
-        program->stream_index[program->nb_stream_indexes++] = idx;
-        return;
-    }
-}
-
 /* "user interface" functions */
-static void dump_stream_format(AVFormatContext *ic, int i, int index, int is_output)
-{
-    char buf[256];
-    int flags = (is_output ? ic->oformat->flags : ic->iformat->flags);
-    AVStream *st = ic->streams[i];
-    int g = ff_gcd(st->time_base.num, st->time_base.den);
-    avcodec_string(buf, sizeof(buf), st->codec, is_output);
-    av_log(NULL, AV_LOG_INFO, "    Stream #%d.%d", index, i);
-    /* the pid is an important information, so we display it */
-    /* XXX: add a generic system */
-    if (flags & AVFMT_SHOW_IDS)
-        av_log(NULL, AV_LOG_INFO, "[0x%x]", st->id);
-    if (strlen(st->language) > 0)
-        av_log(NULL, AV_LOG_INFO, "(%s)", st->language);
-    av_log(NULL, AV_LOG_DEBUG, ", %d/%d", st->time_base.num/g, st->time_base.den/g);
-    av_log(NULL, AV_LOG_INFO, ": %s", buf);
-    if(st->codec->codec_type == CODEC_TYPE_VIDEO){
-        if(st->r_frame_rate.den && st->r_frame_rate.num)
-            av_log(NULL, AV_LOG_INFO, ", %5.2f fps(r)", av_q2d(st->r_frame_rate));
-/*      else if(st->time_base.den && st->time_base.num)
-            av_log(NULL, AV_LOG_INFO, ", %5.2f fps(m)", 1/av_q2d(st->time_base));*/
-        else
-            av_log(NULL, AV_LOG_INFO, ", %5.2f fps(c)", 1/av_q2d(st->codec->time_base));
-    }
-    av_log(NULL, AV_LOG_INFO, "\n");
-}
 
 void dump_format(AVFormatContext *ic,
                  int index,
                  const char *url,
                  int is_output)
 {
-    int i;
+    int i, flags;
+    char buf[256];
 
     av_log(NULL, AV_LOG_INFO, "%s #%d, %s, %s '%s':\n",
             is_output ? "Output" : "Input",
@@ -2577,17 +2529,35 @@ void dump_format(AVFormatContext *ic,
         }
         av_log(NULL, AV_LOG_INFO, "\n");
     }
-    if(ic->nb_programs) {
-        int j, k;
-        for(j=0; j<ic->nb_programs; j++) {
-            av_log(NULL, AV_LOG_INFO, "  Program %d %s\n", ic->programs[j]->id,
-                   ic->programs[j]->name ? ic->programs[j]->name : "");
-            for(k=0; k<ic->programs[j]->nb_stream_indexes; k++)
-                dump_stream_format(ic, ic->programs[j]->stream_index[k], index, is_output);
-         }
-    } else
-    for(i=0;i<ic->nb_streams;i++)
-        dump_stream_format(ic, i, index, is_output);
+    for(i=0;i<ic->nb_streams;i++) {
+        AVStream *st = ic->streams[i];
+        int g= ff_gcd(st->time_base.num, st->time_base.den);
+        avcodec_string(buf, sizeof(buf), st->codec, is_output);
+        av_log(NULL, AV_LOG_INFO, "  Stream #%d.%d", index, i);
+        /* the pid is an important information, so we display it */
+        /* XXX: add a generic system */
+        if (is_output)
+            flags = ic->oformat->flags;
+        else
+            flags = ic->iformat->flags;
+        if (flags & AVFMT_SHOW_IDS) {
+            av_log(NULL, AV_LOG_INFO, "[0x%x]", st->id);
+        }
+        if (strlen(st->language) > 0) {
+            av_log(NULL, AV_LOG_INFO, "(%s)", st->language);
+        }
+        av_log(NULL, AV_LOG_DEBUG, ", %d/%d", st->time_base.num/g, st->time_base.den/g);
+        av_log(NULL, AV_LOG_INFO, ": %s", buf);
+        if(st->codec->codec_type == CODEC_TYPE_VIDEO){
+            if(st->r_frame_rate.den && st->r_frame_rate.num)
+                av_log(NULL, AV_LOG_INFO, ", %5.2f fps(r)", av_q2d(st->r_frame_rate));
+/*            else if(st->time_base.den && st->time_base.num)
+                av_log(NULL, AV_LOG_INFO, ", %5.2f fps(m)", 1/av_q2d(st->time_base));*/
+            else
+                av_log(NULL, AV_LOG_INFO, ", %5.2f fps(c)", 1/av_q2d(st->codec->time_base));
+        }
+        av_log(NULL, AV_LOG_INFO, "\n");
+    }
 }
 
 int parse_image_size(int *width_ptr, int *height_ptr, const char *str)
@@ -2905,7 +2875,7 @@ void url_split(char *proto, int proto_size,
                char *path, int path_size,
                const char *url)
 {
-    const char *p, *ls, *at, *col, *brk, *q;
+    const char *p, *ls, *at, *col, *brk;
 
     if (port_ptr)               *port_ptr = -1;
     if (proto_size > 0)         proto[0] = 0;
@@ -2926,12 +2896,9 @@ void url_split(char *proto, int proto_size,
     }
 
     /* separate path from hostname */
-    if ((ls = strchr(p, '/'))) {
-        if ((q = strchr(ls, '?')))
-            av_strlcpy(path, ls, FFMIN(path_size, q - ls + 1));
-        else
-            av_strlcpy(path, ls, path_size);
-    } else if (!(ls = strchr(p, '?')))
+    if ((ls = strchr(p, '/')))
+        av_strlcpy(path, ls, path_size);
+    else
         ls = &p[strlen(p)]; // XXX
 
     /* the rest is hostname, use that to parse auth/port */

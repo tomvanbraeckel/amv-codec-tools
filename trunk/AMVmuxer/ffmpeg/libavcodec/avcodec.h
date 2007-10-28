@@ -18,8 +18,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#ifndef FFMPEG_AVCODEC_H
-#define FFMPEG_AVCODEC_H
+#ifndef AVCODEC_H
+#define AVCODEC_H
 
 /**
  * @file avcodec.h
@@ -33,8 +33,8 @@
 #define AV_STRINGIFY(s)         AV_TOSTRING(s)
 #define AV_TOSTRING(s) #s
 
-#define LIBAVCODEC_VERSION_INT  ((51<<16)+(47<<8)+1)
-#define LIBAVCODEC_VERSION      51.47.1
+#define LIBAVCODEC_VERSION_INT  ((51<<16)+(44<<8)+0)
+#define LIBAVCODEC_VERSION      51.44.0
 #define LIBAVCODEC_BUILD        LIBAVCODEC_VERSION_INT
 
 #define LIBAVCODEC_IDENT        "Lavc" AV_STRINGIFY(LIBAVCODEC_VERSION)
@@ -168,7 +168,6 @@ enum CodecID {
     CODEC_ID_TXD,
     CODEC_ID_VP6A,
     CODEC_ID_AMV,
-    CODEC_ID_VB,
 
     /* various PCM "codecs" */
     CODEC_ID_PCM_S16LE= 0x10000,
@@ -211,9 +210,6 @@ enum CodecID {
     CODEC_ID_ADPCM_SBPRO_2,
     CODEC_ID_ADPCM_THP,
     CODEC_ID_ADPCM_IMA_AMV,
-    CODEC_ID_ADPCM_EA_R1,
-    CODEC_ID_ADPCM_EA_R3,
-    CODEC_ID_ADPCM_EA_R2,
 
     /* AMR */
     CODEC_ID_AMR_NB= 0x12000,
@@ -268,7 +264,7 @@ enum CodecID {
     CODEC_ID_ATRAC3,
     CODEC_ID_VOXWARE,
     CODEC_ID_APE,
-    CODEC_ID_NELLYMOSER,
+    CODEC_ID_G729A,
 
     /* subtitle codecs */
     CODEC_ID_DVD_SUBTITLE= 0x17000,
@@ -2440,7 +2436,7 @@ void avcodec_init(void);
 void register_avcodec(AVCodec *format);
 
 /**
- * Finds a registered encoder with a matching codec ID.
+ * Finds an encoder with a matching codec ID.
  *
  * @param id CodecID of the requested encoder
  * @return An encoder if one was found, NULL otherwise.
@@ -2448,7 +2444,7 @@ void register_avcodec(AVCodec *format);
 AVCodec *avcodec_find_encoder(enum CodecID id);
 
 /**
- * Finds a registered encoder with the specified name.
+ * Finds an encoder with the specified name.
  *
  * @param name name of the requested encoder
  * @return An encoder if one was found, NULL otherwise.
@@ -2456,7 +2452,7 @@ AVCodec *avcodec_find_encoder(enum CodecID id);
 AVCodec *avcodec_find_encoder_by_name(const char *name);
 
 /**
- * Finds a registered decoder with a matching codec ID.
+ * Finds a decoder with a matching codec ID.
  *
  * @param id CodecID of the requested decoder
  * @return A decoder if one was found, NULL otherwise.
@@ -2464,7 +2460,7 @@ AVCodec *avcodec_find_encoder_by_name(const char *name);
 AVCodec *avcodec_find_decoder(enum CodecID id);
 
 /**
- * Finds a registered decoder with the specified name.
+ * Finds an decoder with the specified name.
  *
  * @param name name of the requested decoder
  * @return A decoder if one was found, NULL otherwise.
@@ -2937,4 +2933,4 @@ int av_parse_video_frame_rate(AVRational *frame_rate, const char *str);
 #define AVERROR_NOENT       AVERROR(ENOENT)  /**< No such file or directory. */
 #define AVERROR_PATCHWELCOME    -MKTAG('P','A','W','E') /**< Not yet implemented in FFmpeg. Patches welcome. */
 
-#endif /* FFMPEG_AVCODEC_H */
+#endif /* AVCODEC_H */

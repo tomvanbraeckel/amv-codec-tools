@@ -187,7 +187,6 @@ static int opt_shortest = 0; //
 static int video_global_header = 0;
 static char *vstats_filename;
 static FILE *vstats_file;
-static int opt_programid = 0;
 
 static int rate_emu = 0;
 
@@ -1351,33 +1350,6 @@ static void print_sdp(AVFormatContext **avc, int n)
     printf("SDP:\n%s\n", sdp);
 }
 
-static int stream_index_from_inputs(AVFormatContext **input_files,
-                                    int nb_input_files,
-                                    AVInputFile *file_table,
-                                    AVInputStream **ist_table,
-                                    enum CodecType type,
-                                    int programid)
-{
-    int p, q, r, s, z;
-    AVInputStream *ist;
-    for(z=0; z<nb_input_files; z++) {
-        AVFormatContext *ic = input_files[z];
-        for(p=0; p<ic->nb_programs; p++) {
-            AVProgram *program = ic->programs[p];
-            if(program->id != programid)
-                continue;
-            for(q=0; q<program->nb_stream_indexes; q++) {
-                int sidx = program->stream_index[q];
-                int ris = file_table[z].ist_index + sidx;
-                if(ist_table[ris]->discard && ic->streams[sidx]->codec->codec_type == type)
-                    return ris;
-            }
-        }
-    }
-
-    return -1;
-}
-
 /*
  * The following code is the main loop of the file converter
  */
@@ -1504,36 +1476,25 @@ static int av_encode(AVFormatContext **output_files,
                 }
 
             } else {
-                if(opt_programid) {
-                    found = 0;
-                    j = stream_index_from_inputs(input_files, nb_input_files, file_table, ist_table, ost->st->codec->codec_type, opt_programid);
-                    if(j != -1) {
+                /* get corresponding input stream index : we select the first one with the right type */
+                found = 0;
+                for(j=0;j<nb_istreams;j++) {
+                    ist = ist_table[j];
+                    if (ist->discard &&
+                        ist->st->codec->codec_type == ost->st->codec->codec_type) {
                         ost->source_index = j;
                         found = 1;
-                    }
-                } else {
-                    /* get corresponding input stream index : we select the first one with the right type */
-                    found = 0;
-                    for(j=0;j<nb_istreams;j++) {
-                        ist = ist_table[j];
-                        if (ist->discard &&
-                            ist->st->codec->codec_type == ost->st->codec->codec_type) {
-                            ost->source_index = j;
-                            found = 1;
-                            break;
-                        }
+                        break;
                     }
                 }
 
                 if (!found) {
-                    if(! opt_programid) {
-                        /* try again and reuse existing stream */
-                        for(j=0;j<nb_istreams;j++) {
-                            ist = ist_table[j];
-                            if (ist->st->codec->codec_type == ost->st->codec->codec_type) {
-                                ost->source_index = j;
-                                found = 1;
-                            }
+                    /* try again and reuse existing stream */
+                    for(j=0;j<nb_istreams;j++) {
+                        ist = ist_table[j];
+                        if (ist->st->codec->codec_type == ost->st->codec->codec_type) {
+                            ost->source_index = j;
+                            found = 1;
                         }
                     }
                     if (!found) {
@@ -2629,12 +2590,6 @@ static void opt_input_file(const char *filename)
         print_error(filename, err);
         exit(1);
     }
-    if(opt_programid) {
-        int i;
-        for(i=0; i<ic->nb_programs; i++)
-            if(ic->programs[i]->id != opt_programid)
-                ic->programs[i]->discard = AVDISCARD_ALL;
-    }
 
     ic->loop_input = loop_input;
 
@@ -3575,7 +3530,7 @@ static void opt_vstats (void)
     opt_vstats_file(filename);
 }
 
-static void opt_bsf(const char *opt, const char *arg)
+static void opt_video_bsf(const char *arg)
 {
     AVBitStreamFilterContext *bsfc= av_bitstream_filter_init(arg); //FIXME split name and args for filter at '='
     AVBitStreamFilterContext **bsfp;
@@ -3585,7 +3540,25 @@ static void opt_bsf(const char *opt, const char *arg)
         exit(1);
     }
 
-    bsfp= *opt == 'v' ? &video_bitstream_filters : &audio_bitstream_filters;
+    bsfp= &video_bitstream_filters;
+    while(*bsfp)
+        bsfp= &(*bsfp)->next;
+
+    *bsfp= bsfc;
+}
+
+//FIXME avoid audio - video code duplication
+static void opt_audio_bsf(const char *arg)
+{
+    AVBitStreamFilterContext *bsfc= av_bitstream_filter_init(arg); //FIXME split name and args for filter at '='
+    AVBitStreamFilterContext **bsfp;
+
+    if(!bsfc){
+        fprintf(stderr, "Unknown bitstream filter %s\n", arg);
+        exit(1);
+    }
+
+    bsfp= &audio_bitstream_filters;
     while(*bsfp)
         bsfp= &(*bsfp)->next;
 
@@ -3680,7 +3653,6 @@ const OptionDef options[] = {
     { "copyts", OPT_BOOL | OPT_EXPERT, {(void*)&copy_ts}, "copy timestamps" },
     { "shortest", OPT_BOOL | OPT_EXPERT, {(void*)&opt_shortest}, "finish encoding within shortest input" }, //
     { "dts_delta_threshold", HAS_ARG | OPT_FLOAT | OPT_EXPERT, {(void*)&dts_delta_threshold}, "timestamp discontinuity delta threshold", "" },
-    { "programid", HAS_ARG | OPT_INT | OPT_EXPERT, {(void*)&opt_programid}, "desired program number", "" },
 
     /* video options */
     { "vframes", OPT_INT | HAS_ARG | OPT_VIDEO, {(void*)&max_frames[CODEC_TYPE_VIDEO]}, "set the number of video frames to record", "number" },
@@ -3755,8 +3727,8 @@ const OptionDef options[] = {
     { "muxdelay", OPT_FLOAT | HAS_ARG | OPT_EXPERT, {(void*)&mux_max_delay}, "set the maximum demux-decode delay", "seconds" },
     { "muxpreload", OPT_FLOAT | HAS_ARG | OPT_EXPERT, {(void*)&mux_preload}, "set the initial demux-decode delay", "seconds" },
 
-    { "absf", OPT_FUNC2 | HAS_ARG | OPT_AUDIO | OPT_EXPERT, {(void*)opt_bsf}, "", "bitstream filter" },
-    { "vbsf", OPT_FUNC2 | HAS_ARG | OPT_VIDEO | OPT_EXPERT, {(void*)opt_bsf}, "", "bitstream filter" },
+    { "absf", HAS_ARG | OPT_AUDIO | OPT_EXPERT, {(void*)opt_audio_bsf}, "", "bitstream filter" },
+    { "vbsf", HAS_ARG | OPT_VIDEO | OPT_EXPERT, {(void*)opt_video_bsf}, "", "bitstream filter" },
 
     { "default", OPT_FUNC2 | HAS_ARG | OPT_AUDIO | OPT_VIDEO | OPT_EXPERT, {(void*)opt_default}, "generic catch all option", "" },
     { NULL, },

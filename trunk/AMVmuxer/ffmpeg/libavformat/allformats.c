@@ -43,9 +43,9 @@ void av_register_rtp_dynamic_payload_handlers(void);
  */
 void av_register_all(void)
 {
-    static int inited;
+    static int inited = 0;
 
-    if (inited)
+    if (inited != 0)
         return;
     inited = 1;
 
@@ -54,9 +54,11 @@ void av_register_all(void)
 
     REGISTER_DEMUXER  (AAC, aac);
     REGISTER_MUXDEMUX (AC3, ac3);
+    REGISTER_MUXDEMUX (ACT, act);
     REGISTER_MUXER    (ADTS, adts);
     REGISTER_MUXDEMUX (AIFF, aiff);
     REGISTER_MUXDEMUX (AMR, amr);
+    REGISTER_MUXER    (AMV, amv);
     REGISTER_DEMUXER  (APC, apc);
     REGISTER_DEMUXER  (APE, ape);
     REGISTER_MUXDEMUX (ASF, asf);
@@ -94,7 +96,8 @@ void av_register_all(void)
     REGISTER_DEMUXER  (INGENIENT, ingenient);
     REGISTER_DEMUXER  (IPMOVIE, ipmovie);
     REGISTER_DEMUXER  (LIBDC1394, libdc1394);
-    REGISTER_MUXDEMUX (LIBNUT, libnut);
+    if (!ENABLE_NUT_DEMUXER) REGISTER_DEMUXER (LIBNUT, libnut);
+    if (!ENABLE_NUT_MUXER)   REGISTER_MUXER   (LIBNUT, libnut);
     REGISTER_MUXDEMUX (M4V, m4v);
     REGISTER_MUXDEMUX (MATROSKA, matroska);
     REGISTER_MUXER    (MATROSKA_AUDIO, matroska_audio);
@@ -147,7 +150,6 @@ void av_register_all(void)
 #endif
     REGISTER_DEMUXER  (SEGAFILM, segafilm);
     REGISTER_DEMUXER  (SHORTEN, shorten);
-    REGISTER_DEMUXER  (SIFF, siff);
     REGISTER_DEMUXER  (SMACKER, smacker);
     REGISTER_DEMUXER  (SOL, sol);
     REGISTER_DEMUXER  (STR, str);

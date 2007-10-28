@@ -18,8 +18,8 @@
  * License along with FFmpeg; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
-#ifndef FFMPEG_AVIO_H
-#define FFMPEG_AVIO_H
+#ifndef AVIO_H
+#define AVIO_H
 
 #include <stdint.h>
 
@@ -203,11 +203,6 @@ int url_fdopen(ByteIOContext *s, URLContext *h);
 
 /** @warning must be called before any I/O */
 int url_setbufsize(ByteIOContext *s, int buf_size);
-/** Reset the buffer for reading or writing.
- * @note Will drop any data currently in the buffer without transmitting it.
- * @param flags URL_RDONLY to set up the buffer for reading, or URL_WRONLY
- *        to set up the buffer for writing. */
-int url_resetbuf(ByteIOContext *s, int flags);
 
 /** @note when opened as read/write, the buffers are only used for
    writing */
@@ -266,4 +261,5 @@ int udp_set_remote_url(URLContext *h, const char *uri);
 int udp_get_local_port(URLContext *h);
 int udp_get_file_handle(URLContext *h);
 
-#endif /* FFMPEG_AVIO_H */
+#endif
+
