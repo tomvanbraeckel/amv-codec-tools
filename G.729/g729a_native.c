@@ -345,7 +345,7 @@ int g729_parity_check(int P1, int P0)
         P >>= 1;
     }
     S ^= 1;
-    return S;
+    return (!S);
 }
 /**
  * \brief Decode LP coefficients from L0-L3 (3.2.4)
