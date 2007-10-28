@@ -284,6 +284,36 @@ static inline uint16_t g729a_random(G729A_Context* ctx)
 }
 
 
+static void dmp_d(char* name, double* arr, int size)
+{
+    int i;
+    printf("%s: ",name);
+    for(i=0; i<size; i++)
+    {
+        printf("%9f ", arr[i]);
+    }
+    printf("\n");
+}
+static void dmp_fp16(char* name, short* arr, int size, int base)
+{
+    int i;
+    printf("%s: ",name);
+    for(i=0; i<size; i++)
+    {
+        printf("%9f ", (1.0*arr[i])/(1<<base));
+    }
+    printf("\n");
+}
+static void dmp_fp32(char* name, int* arr, int size, int base)
+{
+    int i;
+    printf("%s: ",name);
+    for(i=0; i<size; i++)
+    {
+        printf("%9f ", (1.0*arr[i])/(1<<base));
+    }
+    printf("\n");
+}
 /**
  * \brief Decode LP coefficients from L0-L3 
  * \param ctx private data structure
