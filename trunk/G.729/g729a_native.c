@@ -13,7 +13,7 @@
 typedef struct
 {
     int data_error;         ///< data error detected during decoding
-    int* exc_base;
+    int* exc_base;          ///< past excitation signal buffer
     int* exc;
     double *lq_prev[MA_NP]; ///< l[i], LSP quantizer output (3.2.4)
     double lsp_prev[10];    ///< q[i], LSP coefficients from previous frame (3.2.5)
