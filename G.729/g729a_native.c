@@ -486,6 +486,8 @@ static void g729a_decode_fc_vector(G729A_Context* ctx, int C, int S, double* fc_
  */
 static void g729a_fix_fc_vector(G729A_Context *ctx, int T, double* fc_v)
 {
+    int i;
+
     if(T>=40)
         return;
 
