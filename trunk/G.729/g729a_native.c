@@ -477,6 +477,13 @@ static void g729a_decode_fc_vector(G729A_Context* ctx, int C, int S, double* fc_
     fc_v[ ((accC>>1)&7) * 5 + 3 + accC&1 ] = (accS&1) ? 1 : -1;
 }
 
+/**
+ * \brief fixed codebook vector modification if delay is less than 40
+ * \param T pitch delay to check
+ * \param fc_v [in/out] fixed codebook vector to change
+ *
+ * \remark if T>=40 no changes to vector are made
+ */
 static void g729a_fix_fc_vector(G729A_Context *ctx, int T, double* fc_v)
 {
     if(T>=40)
@@ -533,7 +540,6 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
             lsfq[i] += (ctx->lq_prev[k][i] * ma_predictor[L0][k][i])*4;
     }
 
-
     /* Rotate lq_prev */
     tmp=ctx->lq_prev[0];
     for(k=1; k<MA_NP; k++)
@@ -566,7 +572,6 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
         FFSWAP(double, lsfq[i], lsfq[mini]);
         FFSWAP(double, lsfq[10-i-1], lsfq[maxi]);
     }
-
 
     /* checking for stability */
     for(i=0;i<10; i++)
@@ -662,8 +667,8 @@ dmp_d("a2", a1, 10);
     /* saving LSP coefficients for using in next frame */
     for(i=0;i<10;i++)
         ctx->lsp_prev[i]=lspq[i];
-
 }
+
 /*
 -------------------------------------------------------------------------------
           API
