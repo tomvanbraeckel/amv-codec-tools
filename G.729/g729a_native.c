@@ -16,9 +16,9 @@ typedef struct
     short* exc;
     double *lq_prev[MA_NP]; ///< l[i], LSP quantizer output (3.2.4)
     double lsp_prev[10];    ///< q[i], LSP coefficients from previous frame (3.2.5)
-    float betta;         ///< betta, Pitch gain (3.8)
-    float g[40];         ///< gain coefficient (4.2.4)
-    int rand_seed;       ///< seed for random number generator (4.4.4)
+    float betta;            ///< betta, Pitch gain (3.8)
+    float g[40];            ///< gain coefficient (4.2.4)
+    int rand_seed;          ///< seed for random number generator (4.4.4)
     int prev_mode;
 }  G729A_Context;
 
@@ -314,16 +314,15 @@ static void dmp_fp32(char* name, int* arr, int size, int base)
     }
     printf("\n");
 }
+
 /**
- * \brief Decode LP coefficients from L0-L3 
+ * \brief Decode LP coefficients from L0-L3 (3.2.4)
  * \param ctx private data structure
  * \param L0 Switched MA predictor of LSP quantizer
  * \param L1 First stage vector of quantizer
  * \param L2 Second stage lower vector of LSP quantizer
  * \param L3 Second stage higher vector of LSP quantizer
  * \param lsfq Decoded LSP coefficients
- *
- * 3.2.4
  */
 static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t L2, int16_t L3, double* lsfq)
 {
@@ -398,6 +397,7 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
     }
 
 
+//Stability constants (3.2.4)
 #define LSFQ_MIN 0.005
 #define LSFQ_MAX 3.135
 #define LSFQ_DIFF_MIN 0.0391
@@ -415,12 +415,10 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
 }
 
 /**
- * \brief LSP to LP conversion
+ * \brief LSP to LP conversion (3.2.6)
  * \param ctx private data structure
  * \param q LSP coefficients
  * \param a decoded LP coefficients
- *
- * 3.2.6
  */
 static void g729a_lsp2a(G729A_Context* ctx, double* q, double* a)
 {
@@ -452,26 +450,25 @@ static void g729a_lsp2a(G729A_Context* ctx, double* q, double* a)
         qidx+=2;
     }
 
+    /* 3.2.6, Equation 25*/
     for(i=0;i<5;i++)
     {
         ff1[i]=f1[i+1]+f1[i];
         ff2[i]=f2[i+1]-f2[i];
     }
 
+    /* 3.2.6, Equation 26*/
     for(i=0;i<5;i++)
     {
         a[i]=(ff1[i]+ff2[i])/2;
         a[i+5]=(ff1[4-i]-ff2[4-i])/2;
     }
-    
 }
 
 /**
- * \brief interpolate LSP end decode LP for both first and second subframes
+ * \brief interpolate LSP end decode LP for both first and second subframes (3.2.5 and 3.2.6)
  * \param ctx private data structure
  * \param lspq current LSP coefficients
- *
- * 3.2.5 and 3.2.6
  */
 static void g729a_lp_decode(G729A_Context* ctx, double* lspq)
 {
@@ -479,7 +476,7 @@ static void g729a_lp_decode(G729A_Context* ctx, double* lspq)
     double a1[10],a2[10];
     int i;
 
-    /* LSP values for first subframe (3.2.5)*/
+    /* LSP values for first subframe (3.2.5, Equation 24)*/
     for(i=0;i<10;i++)
     {
         lsp[i]=(lspq[i]+ctx->lsp_prev[i])/2;
@@ -535,12 +532,19 @@ void* g729a_decoder_init()
         ctx->lq_prev[k]=malloc(sizeof(double)*frame_size);
 
 #if 0
+    /*
+     This is initialization from specification. But it produces different result from
+     reference decoder
+    */
     for(i=0; i<frame_size;i++)
     {
         ctx->lq_prev[0][i]=(i+1)*M_PI/(frame_size+1);
         ctx->lsp_prev[i]=cos(d);
     }
 #else
+    /* 
+      This is code from reference decoder. Have to be reimplemented 
+    */
     ctx->lq_prev[0][0]=FP2FL(2339);
     ctx->lq_prev[0][1]=FP2FL(4679);
     ctx->lq_prev[0][2]=FP2FL(7018);
