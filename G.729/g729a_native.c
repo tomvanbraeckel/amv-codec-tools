@@ -12,6 +12,7 @@
 
 typedef struct
 {
+    int data_error;         ///< data error detected during decoding
     short* exc_base;
     short* exc;
     double *lq_prev[MA_NP]; ///< l[i], LSP quantizer output (3.2.4)
@@ -321,6 +322,26 @@ static void dmp_fp32(char* name, int* arr, int size, int base)
 }
 
 /**
+ * \brief Check parity bit (3.7.2)
+ * \param P1 Pitch delay first subframe
+ * \param P0 Parity bit for Pitch delay
+ *
+ * \return 1 if parity check is ok, 0 - otherwise
+ */
+int g729_parity_check(int P1, int P0)
+{
+    int P=P1>>2;
+    int S=P0&1;
+
+    for(i=0; i<6; i++)
+    {
+        S ^= P&1;
+        P >>= 1;
+    }
+    S ^= 1;
+    return S;
+}
+/**
  * \brief Decode LP coefficients from L0-L3 (3.2.4)
  * \param ctx private data structure
  * \param L0 Switched MA predictor of LSP quantizer
@@ -621,6 +642,8 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     double lsp[10];
     int vector_bits[VECTOR_SIZE]={1,7,5,5,8,1,13, 4,3,4,5,13, 4,3,4};
 
+    ctx->data_error=0;
+
     for(i=0; i<VECTOR_SIZE; i++)
     {
         if(vector_bits[i]>16)
@@ -632,6 +655,13 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
             parm[i] |= serial[idx++]==0x81?1:0;
         }
     }
+
+    if(!g729_parity_check(parm[4], parm[5]))
+        ctx->data_errorr=1;
+
+    /* stub: error concealment routine required */
+    if(ctx->data_error)
+        return 0;
 
     g729a_lsp_decode(ctx, parm[0], parm[1], parm[2], parm[3], lsp);
     g729a_lp_decode(ctx, lsp);
