@@ -28,6 +28,10 @@ typedef struct
 #define LSFQ_MAX 3.135
 #define LSFQ_DIFF_MIN 0.0391
 
+#define PITCH_MIN 20
+#define PITCH_MAX 143
+#define INTERPOL_LEN 11
+
 /**
  * L1 codebook (10-dimensional, with 128 entries (3.2.4)
  */
@@ -535,7 +539,6 @@ dmp_d("a2", a1, 10);
 void* g729a_decoder_init()
 {
     G729A_Context* ctx=calloc(1, sizeof(G729A_Context));
-    int pitch_max=143;
     int interpol_filt_len=11;
     int frame_size=10;
     int i,k;
@@ -596,11 +599,11 @@ void* g729a_decoder_init()
         for(i=0;i<frame_size; i++)
             ctx->lq_prev[k][i]=ctx->lq_prev[0][i];
 
-    ctx->exc_base=calloc(sizeof(int), frame_size*8+pitch_max+interpol_filt_len);
+    ctx->exc_base=calloc(sizeof(int), frame_size*8+PITCH_MAX+INTERPOL_LEN);
     if(!ctx->exc_base)
         return NULL;
 
-    ctx->exc=ctx->exc_base+pitch_max+interpol_filt_len;
+    ctx->exc=ctx->exc_base+PITCH_MAX+INTERPOL_LEN;
     
     /* random seed initialization (4.4.4) */
     ctx->rand_seed=21845;
