@@ -177,7 +177,7 @@ static void fill_caches(H264Context *h, int mb_type, int for_deblock){
 
     //wow what a mess, why didn't they simplify the interlacing&intra stuff, i can't imagine that these complex rules are worth it
 
-    top_xy     = mb_xy  - (s->mb_stride << FIELD_PICTURE);
+    top_xy     = mb_xy  - s->mb_stride;
     topleft_xy = top_xy - 1;
     topright_xy= top_xy + 1;
     left_xy[1] = left_xy[0] = mb_xy-1;
@@ -1703,7 +1703,7 @@ static inline void mc_dir_part(H264Context *h, Picture *pic, int n, int square, 
     const int full_mx= mx>>2;
     const int full_my= my>>2;
     const int pic_width  = 16*s->mb_width;
-    const int pic_height = 16*s->mb_height >> MB_FIELD;
+    const int pic_height = 16*s->mb_height >> MB_MBAFF;
 
     if(!pic->data[0]) //FIXME this is unacceptable, some senseable error concealment must be done for missing reference frames
         return;
@@ -1727,9 +1727,9 @@ static inline void mc_dir_part(H264Context *h, Picture *pic, int n, int square, 
 
     if(ENABLE_GRAY && s->flags&CODEC_FLAG_GRAY) return;
 
-    if(MB_FIELD){
+    if(MB_MBAFF){
         // chroma offset when predicting from a field of opposite parity
-        my += 2 * ((s->mb_y & 1) - (pic->reference - 1));
+        my += 2 * ((s->mb_y & 1) - (h->ref_cache[list][scan8[n]] & 1));
         emu |= (my>>3) < 0 || (my>>3) + 8 >= (pic_height>>1);
     }
     src_cb= pic->data[1] + (mx>>3) + (my>>3)*h->mb_uvlinesize;
@@ -1762,7 +1762,7 @@ static inline void mc_part_std(H264Context *h, int n, int square, int chroma_hei
     dest_cb +=   x_offset +   y_offset*h->mb_uvlinesize;
     dest_cr +=   x_offset +   y_offset*h->mb_uvlinesize;
     x_offset += 8*s->mb_x;
-    y_offset += 8*(s->mb_y >> MB_FIELD);
+    y_offset += 8*(s->mb_y >> MB_MBAFF);
 
     if(list0){
         Picture *ref= &h->ref_list[0][ h->ref_cache[0][ scan8[n] ] ];
@@ -1795,7 +1795,7 @@ static inline void mc_part_weighted(H264Context *h, int n, int square, int chrom
     dest_cb +=   x_offset +   y_offset*h->mb_uvlinesize;
     dest_cr +=   x_offset +   y_offset*h->mb_uvlinesize;
     x_offset += 8*s->mb_x;
-    y_offset += 8*(s->mb_y >> MB_FIELD);
+    y_offset += 8*(s->mb_y >> MB_MBAFF);
 
     if(list0 && list1){
         /* don't optimize for luma-only case, since B-frames usually
@@ -2249,13 +2249,6 @@ static int frame_start(H264Context *h){
     if(MPV_frame_start(s, s->avctx) < 0)
         return -1;
     ff_er_frame_start(s);
-    /*
-     * MPV_frame_start uses pict_type to derive key_frame.
-     * This is incorrect for H.264; IDR markings must be used.
-     * Zero here; IDR markings per slice in frame or fields are OR'd in later.
-     * See decode_nal_units().
-     */
-    s->current_picture_ptr->key_frame= 0;
 
     assert(s->linesize && s->uvlinesize);
 
@@ -2764,105 +2757,6 @@ static void hl_decode_mb(H264Context *h){
     else hl_decode_mb_simple(h);
 }
 
-static void pic_as_field(Picture *pic, const int parity){
-    int i;
-    for (i = 0; i < 4; ++i) {
-        if (parity == PICT_BOTTOM_FIELD)
-            pic->data[i] += pic->linesize[i];
-        pic->reference = parity;
-        pic->linesize[i] *= 2;
-    }
-}
-
-static int split_field_copy(Picture *dest, Picture *src,
-                            int parity, int id_add){
-    int match = !!(src->reference & parity);
-
-    if (match) {
-        *dest = *src;
-        pic_as_field(dest, parity);
-        dest->pic_id *= 2;
-        dest->pic_id += id_add;
-    }
-
-    return match;
-}
-
-/**
- * Split one reference list into field parts, interleaving by parity
- * as per H.264 spec section 8.2.4.2.5. Output fields have their data pointers
- * set to look at the actual start of data for that field.
- *
- * @param dest output list
- * @param dest_len maximum number of fields to put in dest
- * @param src the source reference list containing fields and/or field pairs
- *            (aka short_ref/long_ref, or
- *             refFrameListXShortTerm/refFrameListLongTerm in spec-speak)
- * @param src_len number of Picture's in source (pairs and unmatched fields)
- * @param parity the parity of the picture being decoded/needing
- *        these ref pics (PICT_{TOP,BOTTOM}_FIELD)
- * @return number of fields placed in dest
- */
-static int split_field_half_ref_list(Picture *dest, int dest_len,
-                                     Picture *src,  int src_len,  int parity){
-    int same_parity   = 1;
-    int same_i        = 0;
-    int opp_i         = 0;
-    int out_i;
-    int field_output;
-
-    for (out_i = 0; out_i < dest_len; out_i += field_output) {
-        if (same_parity && same_i < src_len) {
-            field_output = split_field_copy(dest + out_i, src + same_i,
-                                            parity, 1);
-            same_parity = !field_output;
-            same_i++;
-
-        } else if (opp_i < src_len) {
-            field_output = split_field_copy(dest + out_i, src + opp_i,
-                                            PICT_FRAME - parity, 0);
-            same_parity = field_output;
-            opp_i++;
-
-        } else {
-            break;
-        }
-    }
-
-    return out_i;
-}
-
-/**
- * Split the reference frame list into a reference field list.
- * This implements H.264 spec 8.2.4.2.5 for a combined input list.
- * The input list contains both reference field pairs and
- * unmatched reference fields; it is ordered as spec describes
- * RefPicListX for frames in 8.2.4.2.1 and 8.2.4.2.3, except that
- * unmatched field pairs are also present. Conceptually this is equivalent
- * to concatenation of refFrameListXShortTerm with refFrameListLongTerm.
- *
- * @param dest output reference list where ordered fields are to be placed
- * @param dest_len max number of fields to place at dest
- * @param src source reference list, as described above
- * @param src_len number of pictures (pairs and unmatched fields) in src
- * @param parity parity of field being currently decoded
- *        (one of PICT_{TOP,BOTTOM}_FIELD)
- * @param long_i index into src array that holds first long reference picture,
- *        or src_len if no long refs present.
- */
-static int split_field_ref_list(Picture *dest, int dest_len,
-                                Picture *src,  int src_len,
-                                int parity,    int long_i){
-
-    int i = split_field_half_ref_list(dest, dest_len, src, long_i, parity);
-    dest += i;
-    dest_len -= i;
-
-    i += split_field_half_ref_list(dest, dest_len, src + long_i,
-                                   src_len - long_i, parity);
-    return i;
-}
-
 /**
  * fills the default_ref_list.
  */
@@ -2870,25 +2764,9 @@ static int fill_default_ref_list(H264Context *h){
     MpegEncContext * const s = &h->s;
     int i;
     int smallest_poc_greater_than_current = -1;
-    int structure_sel;
     Picture sorted_short_ref[32];
-    Picture field_entry_list[2][32];
-    Picture *frame_list[2];
-
-    if (FIELD_PICTURE) {
-        structure_sel = PICT_FRAME;
-        frame_list[0] = field_entry_list[0];
-        frame_list[1] = field_entry_list[1];
-    } else {
-        structure_sel = 0;
-        frame_list[0] = h->default_ref_list[0];
-        frame_list[1] = h->default_ref_list[1];
-    }
 
     if(h->slice_type==B_TYPE){
-        int list;
-        int len[2];
-        int short_len[2];
         int out_i;
         int limit= INT_MIN;
 
@@ -2916,93 +2794,71 @@ static int fill_default_ref_list(H264Context *h){
                 }
             }
         }
+    }
 
-        tprintf(h->s.avctx, "current poc: %d, smallest_poc_greater_than_current: %d\n", s->current_picture_ptr->poc, smallest_poc_greater_than_current);
+    if(s->picture_structure == PICT_FRAME){
+        if(h->slice_type==B_TYPE){
+            int list;
+            tprintf(h->s.avctx, "current poc: %d, smallest_poc_greater_than_current: %d\n", s->current_picture_ptr->poc, smallest_poc_greater_than_current);
 
-        // find the largest poc
-        for(list=0; list<2; list++){
-            int index = 0;
-            int j= -99;
-            int step= list ? -1 : 1;
+            // find the largest poc
+            for(list=0; list<2; list++){
+                int index = 0;
+                int j= -99;
+                int step= list ? -1 : 1;
 
-            for(i=0; i<h->short_ref_count && index < h->ref_count[list]; i++, j+=step) {
-                int sel;
-                while(j<0 || j>= h->short_ref_count){
-                    if(j != -99 && step == (list ? -1 : 1))
-                        return -1;
-                    step = -step;
-                    j= smallest_poc_greater_than_current + (step>>1);
+                for(i=0; i<h->short_ref_count && index < h->ref_count[list]; i++, j+=step) {
+                    while(j<0 || j>= h->short_ref_count){
+                        if(j != -99 && step == (list ? -1 : 1))
+                            return -1;
+                        step = -step;
+                        j= smallest_poc_greater_than_current + (step>>1);
+                    }
+                    if(sorted_short_ref[j].reference != 3) continue;
+                    h->default_ref_list[list][index  ]= sorted_short_ref[j];
+                    h->default_ref_list[list][index++].pic_id= sorted_short_ref[j].frame_num;
                 }
-                sel = sorted_short_ref[j].reference | structure_sel;
-                if(sel != PICT_FRAME) continue;
-                frame_list[list][index  ]= sorted_short_ref[j];
-                frame_list[list][index++].pic_id= sorted_short_ref[j].frame_num;
-            }
-            short_len[list] = index;
 
-            for(i = 0; i < 16 && index < h->ref_count[ list ]; i++){
-                int sel;
+                for(i = 0; i < 16 && index < h->ref_count[ list ]; i++){
+                    if(h->long_ref[i] == NULL) continue;
+                    if(h->long_ref[i]->reference != 3) continue;
+
+                    h->default_ref_list[ list ][index  ]= *h->long_ref[i];
+                    h->default_ref_list[ list ][index++].pic_id= i;;
+                }
+
+                if(list && (smallest_poc_greater_than_current<=0 || smallest_poc_greater_than_current>=h->short_ref_count) && (1 < index)){
+                    // swap the two first elements of L1 when
+                    // L0 and L1 are identical
+                    Picture temp= h->default_ref_list[1][0];
+                    h->default_ref_list[1][0] = h->default_ref_list[1][1];
+                    h->default_ref_list[1][1] = temp;
+                }
+
+                if(index < h->ref_count[ list ])
+                    memset(&h->default_ref_list[list][index], 0, sizeof(Picture)*(h->ref_count[ list ] - index));
+            }
+        }else{
+            int index=0;
+            for(i=0; i<h->short_ref_count; i++){
+                if(h->short_ref[i]->reference != 3) continue; //FIXME refernce field shit
+                h->default_ref_list[0][index  ]= *h->short_ref[i];
+                h->default_ref_list[0][index++].pic_id= h->short_ref[i]->frame_num;
+            }
+            for(i = 0; i < 16; i++){
                 if(h->long_ref[i] == NULL) continue;
-                sel = h->long_ref[i]->reference | structure_sel;
-                if(sel != PICT_FRAME) continue;
-
-                frame_list[ list ][index  ]= *h->long_ref[i];
-                frame_list[ list ][index++].pic_id= i;;
+                if(h->long_ref[i]->reference != 3) continue;
+                h->default_ref_list[0][index  ]= *h->long_ref[i];
+                h->default_ref_list[0][index++].pic_id= i;;
             }
-            len[list] = index;
-
-            if(list && (smallest_poc_greater_than_current<=0 || smallest_poc_greater_than_current>=h->short_ref_count) && (1 < index)){
-                // swap the two first elements of L1 when
-                // L0 and L1 are identical
-                Picture temp= frame_list[1][0];
-                frame_list[1][0] = frame_list[1][1];
-                frame_list[1][1] = temp;
-            }
-
+            if(index < h->ref_count[0])
+                memset(&h->default_ref_list[0][index], 0, sizeof(Picture)*(h->ref_count[0] - index));
         }
-
-        for(list=0; list<2; list++){
-            if (FIELD_PICTURE)
-                len[list] = split_field_ref_list(h->default_ref_list[list],
-                                                 h->ref_count[list],
-                                                 frame_list[list],
-                                                 len[list],
-                                                 s->picture_structure,
-                                                 short_len[list]);
-
-            if(len[list] < h->ref_count[ list ])
-                memset(&h->default_ref_list[list][len[list]], 0, sizeof(Picture)*(h->ref_count[ list ] - len[list]));
+    }else{ //FIELD
+        if(h->slice_type==B_TYPE){
+        }else{
+            //FIXME second field balh
         }
-
-
-    }else{
-        int index=0;
-        int short_len;
-        for(i=0; i<h->short_ref_count; i++){
-            int sel;
-            sel = h->short_ref[i]->reference | structure_sel;
-            if(sel != PICT_FRAME) continue;
-            frame_list[0][index  ]= *h->short_ref[i];
-            frame_list[0][index++].pic_id= h->short_ref[i]->frame_num;
-        }
-        short_len = index;
-        for(i = 0; i < 16; i++){
-            int sel;
-            if(h->long_ref[i] == NULL) continue;
-            sel = h->long_ref[i]->reference | structure_sel;
-            if(sel != PICT_FRAME) continue;
-            frame_list[0][index  ]= *h->long_ref[i];
-            frame_list[0][index++].pic_id= i;;
-        }
-
-        if (FIELD_PICTURE)
-            index = split_field_ref_list(h->default_ref_list[0],
-                                         h->ref_count[0], frame_list[0],
-                                         index, s->picture_structure,
-                                         short_len);
-
-        if(index < h->ref_count[0])
-            memset(&h->default_ref_list[0][index], 0, sizeof(Picture)*(h->ref_count[0] - index));
     }
 #ifdef TRACE
     for (i=0; i<h->ref_count[0]; i++) {
@@ -3020,33 +2876,9 @@ static int fill_default_ref_list(H264Context *h){
 static void print_short_term(H264Context *h);
 static void print_long_term(H264Context *h);
 
-/**
- * Extract structure information about the picture described by pic_num in
- * the current decoding context (frame or field). Note that pic_num is
- * picture number without wrapping (so, 0<=pic_num<max_pic_num).
- * @param pic_num picture number for which to extract structure information
- * @param structure one of PICT_XXX describing structure of picture
- *                      with pic_num
- * @return frame number (short term) or long term index of picture
- *         described by pic_num
- */
-static int pic_num_extract(H264Context *h, int pic_num, int *structure){
-    MpegEncContext * const s = &h->s;
-
-    *structure = s->picture_structure;
-    if(FIELD_PICTURE){
-        if (!(pic_num & 1))
-            /* opposite field */
-            *structure ^= PICT_FRAME;
-        pic_num >>= 1;
-    }
-
-    return pic_num;
-}
-
 static int decode_ref_pic_list_reordering(H264Context *h){
     MpegEncContext * const s = &h->s;
-    int list, index, pic_structure;
+    int list, index;
 
     print_short_term(h);
     print_long_term(h);
@@ -3075,9 +2907,8 @@ static int decode_ref_pic_list_reordering(H264Context *h){
                 if(reordering_of_pic_nums_idc<3){
                     if(reordering_of_pic_nums_idc<2){
                         const unsigned int abs_diff_pic_num= get_ue_golomb(&s->gb) + 1;
-                        int frame_num;
 
-                        if(abs_diff_pic_num > h->max_pic_num){
+                        if(abs_diff_pic_num >= h->max_pic_num){
                             av_log(h->s.avctx, AV_LOG_ERROR, "abs_diff_pic_num overflow\n");
                             return -1;
                         }
@@ -3086,34 +2917,25 @@ static int decode_ref_pic_list_reordering(H264Context *h){
                         else                                pred+= abs_diff_pic_num;
                         pred &= h->max_pic_num - 1;
 
-                        frame_num = pic_num_extract(h, pred, &pic_structure);
-
                         for(i= h->short_ref_count-1; i>=0; i--){
                             ref = h->short_ref[i];
-                            assert(ref->reference);
+                            assert(ref->reference == 3);
                             assert(!ref->long_ref);
-                            if(ref->data[0] != NULL &&
-                                   ref->frame_num == frame_num &&
-                                   (ref->reference & pic_structure) &&
-                                   ref->long_ref == 0) // ignore non existing pictures by testing data[0] pointer
+                            if(ref->data[0] != NULL && ref->frame_num == pred && ref->long_ref == 0) // ignore non existing pictures by testing data[0] pointer
                                 break;
                         }
                         if(i>=0)
-                            ref->pic_id= pred;
+                            ref->pic_id= ref->frame_num;
                     }else{
-                        int long_idx;
                         pic_id= get_ue_golomb(&s->gb); //long_term_pic_idx
-
-                        long_idx= pic_num_extract(h, pic_id, &pic_structure);
-
-                        if(long_idx>31){
+                        if(pic_id>31){
                             av_log(h->s.avctx, AV_LOG_ERROR, "long_term_pic_idx overflow\n");
                             return -1;
                         }
-                        ref = h->long_ref[long_idx];
-                        assert(!(ref && !ref->reference));
-                        if(ref && (ref->reference & pic_structure)){
+                        ref = h->long_ref[pic_id];
+                        if(ref){
                             ref->pic_id= pic_id;
+                            assert(ref->reference == 3);
                             assert(ref->long_ref);
                             i=0;
                         }else{
@@ -3133,9 +2955,6 @@ static int decode_ref_pic_list_reordering(H264Context *h){
                             h->ref_list[list][i]= h->ref_list[list][i-1];
                         }
                         h->ref_list[list][index]= *ref;
-                        if (FIELD_PICTURE){
-                            pic_as_field(&h->ref_list[list][index], pic_structure);
-                        }
                     }
                 }else{
                     av_log(h->s.avctx, AV_LOG_ERROR, "illegal reordering_of_pic_nums_idc\n");
@@ -3166,11 +2985,9 @@ static void fill_mbaff_ref_list(H264Context *h){
             field[0] = *frame;
             for(j=0; j<3; j++)
                 field[0].linesize[j] <<= 1;
-            field[0].reference = PICT_TOP_FIELD;
             field[1] = field[0];
             for(j=0; j<3; j++)
                 field[1].data[j] += frame->linesize[j];
-            field[1].reference = PICT_BOTTOM_FIELD;
 
             h->luma_weight[list][16+2*i] = h->luma_weight[list][16+2*i+1] = h->luma_weight[list][i];
             h->luma_offset[list][16+2*i] = h->luma_offset[list][16+2*i+1] = h->luma_offset[list][i];
@@ -3276,32 +3093,17 @@ static void implicit_weight_table(H264Context *h){
     }
 }
 
-/**
- * Mark a picture as no longer needed for reference. The refmask
- * argument allows unreferencing of individual fields or the whole frame.
- * If the picture becomes entirely unreferenced, but is being held for
- * display purposes, it is marked as such.
- * @param refmask mask of fields to unreference; the mask is bitwise
- *                anded with the reference marking of pic
- * @return non-zero if pic becomes entirely unreferenced (except possibly
- *         for display purposes) zero if one of the fields remains in
- *         reference
- */
-static inline int unreference_pic(H264Context *h, Picture *pic, int refmask){
+static inline void unreference_pic(H264Context *h, Picture *pic){
     int i;
-    if (pic->reference &= refmask) {
-        return 0;
-    } else {
-        if(pic == h->delayed_output_pic)
-            pic->reference=DELAYED_PIC_REF;
-        else{
-            for(i = 0; h->delayed_pic[i]; i++)
-                if(pic == h->delayed_pic[i]){
-                    pic->reference=DELAYED_PIC_REF;
-                    break;
-                }
-        }
-        return 1;
+    pic->reference=0;
+    if(pic == h->delayed_output_pic)
+        pic->reference=DELAYED_PIC_REF;
+    else{
+        for(i = 0; h->delayed_pic[i]; i++)
+            if(pic == h->delayed_pic[i]){
+                pic->reference=DELAYED_PIC_REF;
+                break;
+            }
     }
 }
 
@@ -3313,14 +3115,14 @@ static void idr(H264Context *h){
 
     for(i=0; i<16; i++){
         if (h->long_ref[i] != NULL) {
-            unreference_pic(h, h->long_ref[i], 0);
+            unreference_pic(h, h->long_ref[i]);
             h->long_ref[i]= NULL;
         }
     }
     h->long_ref_count=0;
 
     for(i=0; i<h->short_ref_count; i++){
-        unreference_pic(h, h->short_ref[i], 0);
+        unreference_pic(h, h->short_ref[i]);
         h->short_ref[i]= NULL;
     }
     h->short_ref_count=0;
@@ -3341,44 +3143,6 @@ static void flush_dpb(AVCodecContext *avctx){
     idr(h);
     if(h->s.current_picture_ptr)
         h->s.current_picture_ptr->reference= 0;
-    h->s.first_field= 0;
-}
-
-/**
- * Find a Picture in the short term reference list by frame number.
- * @param frame_num frame number to search for
- * @param idx the index into h->short_ref where returned picture is found
- *            undefined if no picture found.
- * @return pointer to the found picture, or NULL if no pic with the provided
- *                 frame number is found
- */
-static Picture * find_short(H264Context *h, int frame_num, int *idx){
-    MpegEncContext * const s = &h->s;
-    int i;
-
-    for(i=0; i<h->short_ref_count; i++){
-        Picture *pic= h->short_ref[i];
-        if(s->avctx->debug&FF_DEBUG_MMCO)
-            av_log(h->s.avctx, AV_LOG_DEBUG, "%d %d %p\n", i, pic->frame_num, pic);
-        if(pic->frame_num == frame_num) {
-            *idx = i;
-            return pic;
-        }
-    }
-    return NULL;
-}
-
-/**
- * Remove a picture from the short term reference list by its index in
- * that list.  This does no checking on the provided index; it is assumed
- * to be valid. Other list entries are shifted down.
- * @param i index into h->short_ref of picture to remove.
- */
-static void remove_short_at_index(H264Context *h, int i){
-    assert(i > 0 && i < h->short_ref_count);
-    h->short_ref[i]= NULL;
-    if (--h->short_ref_count)
-        memmove(&h->short_ref[i], &h->short_ref[i+1], (h->short_ref_count - i)*sizeof(Picture*));
 }
 
 /**
@@ -3387,28 +3151,23 @@ static void remove_short_at_index(H264Context *h, int i){
  */
 static Picture * remove_short(H264Context *h, int frame_num){
     MpegEncContext * const s = &h->s;
-    Picture *pic;
     int i;
 
     if(s->avctx->debug&FF_DEBUG_MMCO)
         av_log(h->s.avctx, AV_LOG_DEBUG, "remove short %d count %d\n", frame_num, h->short_ref_count);
 
-    pic = find_short(h, frame_num, &i);
-    if (pic)
-        remove_short_at_index(h, i);
-
-    return pic;
-}
-
-/**
- * Remove a picture from the long term reference list by its index in
- * that list.  This does no checking on the provided index; it is assumed
- * to be valid. The removed entry is set to NULL. Other entries are unaffected.
- * @param i index into h->long_ref of picture to remove.
- */
-static void remove_long_at_index(H264Context *h, int i){
-    h->long_ref[i]= NULL;
-    h->long_ref_count--;
+    for(i=0; i<h->short_ref_count; i++){
+        Picture *pic= h->short_ref[i];
+        if(s->avctx->debug&FF_DEBUG_MMCO)
+            av_log(h->s.avctx, AV_LOG_DEBUG, "%d %d %p\n", i, pic->frame_num, pic);
+        if(pic->frame_num == frame_num){
+            h->short_ref[i]= NULL;
+            if (--h->short_ref_count)
+                memmove(&h->short_ref[i], &h->short_ref[i+1], (h->short_ref_count - i)*sizeof(Picture*));
+            return pic;
+        }
+    }
+    return NULL;
 }
 
 /**
@@ -3419,8 +3178,8 @@ static Picture * remove_long(H264Context *h, int i){
     Picture *pic;
 
     pic= h->long_ref[i];
-    if (pic)
-        remove_long_at_index(h, i);
+    h->long_ref[i]= NULL;
+    if(pic) h->long_ref_count--;
 
     return pic;
 }
@@ -3461,143 +3220,77 @@ static void print_long_term(H264Context *h) {
 static int execute_ref_pic_marking(H264Context *h, MMCO *mmco, int mmco_count){
     MpegEncContext * const s = &h->s;
     int i, j;
-    int current_ref_assigned=0;
+    int current_is_long=0;
     Picture *pic;
 
     if((s->avctx->debug&FF_DEBUG_MMCO) && mmco_count==0)
         av_log(h->s.avctx, AV_LOG_DEBUG, "no mmco here\n");
 
     for(i=0; i<mmco_count; i++){
-        int structure, frame_num, unref_pic;
         if(s->avctx->debug&FF_DEBUG_MMCO)
             av_log(h->s.avctx, AV_LOG_DEBUG, "mmco:%d %d %d\n", h->mmco[i].opcode, h->mmco[i].short_pic_num, h->mmco[i].long_arg);
 
         switch(mmco[i].opcode){
         case MMCO_SHORT2UNUSED:
-            if(s->avctx->debug&FF_DEBUG_MMCO)
-                av_log(h->s.avctx, AV_LOG_DEBUG, "mmco: unref short %d count %d\n", h->mmco[i].short_pic_num, h->short_ref_count);
-            frame_num = pic_num_extract(h, mmco[i].short_pic_num, &structure);
-            pic = find_short(h, frame_num, &j);
-            if (pic) {
-                if (unreference_pic(h, pic, structure ^ PICT_FRAME))
-                    remove_short_at_index(h, j);
-            } else if(s->avctx->debug&FF_DEBUG_MMCO)
-                av_log(h->s.avctx, AV_LOG_DEBUG, "mmco: unref short failure\n");
+            pic= remove_short(h, mmco[i].short_pic_num);
+            if(pic)
+                unreference_pic(h, pic);
+            else if(s->avctx->debug&FF_DEBUG_MMCO)
+                av_log(h->s.avctx, AV_LOG_DEBUG, "mmco: remove_short() failure\n");
             break;
         case MMCO_SHORT2LONG:
-            if (FIELD_PICTURE && mmco[i].long_arg < h->long_ref_count &&
-                    h->long_ref[mmco[i].long_arg]->frame_num ==
-                                              mmco[i].short_pic_num / 2) {
-                /* do nothing, we've already moved this field pair. */
-            } else {
-                int frame_num = mmco[i].short_pic_num >> FIELD_PICTURE;
+            pic= remove_long(h, mmco[i].long_arg);
+            if(pic) unreference_pic(h, pic);
 
-                pic= remove_long(h, mmco[i].long_arg);
-                if(pic) unreference_pic(h, pic, 0);
-
-                h->long_ref[ mmco[i].long_arg ]= remove_short(h, frame_num);
-                if (h->long_ref[ mmco[i].long_arg ]){
-                    h->long_ref[ mmco[i].long_arg ]->long_ref=1;
-                    h->long_ref_count++;
-                }
-            }
-            break;
-        case MMCO_LONG2UNUSED:
-            j = pic_num_extract(h, mmco[i].long_arg, &structure);
-            pic = h->long_ref[j];
-            if (pic) {
-                if (unreference_pic(h, pic, structure ^ PICT_FRAME))
-                    remove_long_at_index(h, j);
-            } else if(s->avctx->debug&FF_DEBUG_MMCO)
-                av_log(h->s.avctx, AV_LOG_DEBUG, "mmco: unref long failure\n");
-            break;
-        case MMCO_LONG:
-            unref_pic = 1;
-            if (FIELD_PICTURE && !s->first_field) {
-                if (h->long_ref[mmco[i].long_arg] == s->current_picture_ptr) {
-                    /* Just mark second field as referenced */
-                    unref_pic = 0;
-                } else if (s->current_picture_ptr->reference) {
-                    /* First field in pair is in short term list or
-                     * at a different long term index.
-                     * This is not allowed; see 7.4.3, notes 2 and 3.
-                     * Report the problem and keep the pair where it is,
-                     * and mark this field valid.
-                     */
-                    av_log(h->s.avctx, AV_LOG_ERROR,
-                        "illegal long term reference assignment for second "
-                        "field in complementary field pair (first field is "
-                        "short term or has non-matching long index)\n");
-                    unref_pic = 0;
-                }
-            }
-
-            if (unref_pic) {
-                pic= remove_long(h, mmco[i].long_arg);
-                if(pic) unreference_pic(h, pic, 0);
-
-                h->long_ref[ mmco[i].long_arg ]= s->current_picture_ptr;
+            h->long_ref[ mmco[i].long_arg ]= remove_short(h, mmco[i].short_pic_num);
+            if (h->long_ref[ mmco[i].long_arg ]){
                 h->long_ref[ mmco[i].long_arg ]->long_ref=1;
                 h->long_ref_count++;
             }
+            break;
+        case MMCO_LONG2UNUSED:
+            pic= remove_long(h, mmco[i].long_arg);
+            if(pic)
+                unreference_pic(h, pic);
+            else if(s->avctx->debug&FF_DEBUG_MMCO)
+                av_log(h->s.avctx, AV_LOG_DEBUG, "mmco: remove_long() failure\n");
+            break;
+        case MMCO_LONG:
+            pic= remove_long(h, mmco[i].long_arg);
+            if(pic) unreference_pic(h, pic);
 
-            s->current_picture_ptr->reference |= s->picture_structure;
-            current_ref_assigned=1;
+            h->long_ref[ mmco[i].long_arg ]= s->current_picture_ptr;
+            h->long_ref[ mmco[i].long_arg ]->long_ref=1;
+            h->long_ref_count++;
+
+            current_is_long=1;
             break;
         case MMCO_SET_MAX_LONG:
             assert(mmco[i].long_arg <= 16);
             // just remove the long term which index is greater than new max
             for(j = mmco[i].long_arg; j<16; j++){
                 pic = remove_long(h, j);
-                if (pic) unreference_pic(h, pic, 0);
+                if (pic) unreference_pic(h, pic);
             }
             break;
         case MMCO_RESET:
             while(h->short_ref_count){
                 pic= remove_short(h, h->short_ref[0]->frame_num);
-                if(pic) unreference_pic(h, pic, 0);
+                if(pic) unreference_pic(h, pic);
             }
             for(j = 0; j < 16; j++) {
                 pic= remove_long(h, j);
-                if(pic) unreference_pic(h, pic, 0);
+                if(pic) unreference_pic(h, pic);
             }
             break;
         default: assert(0);
         }
     }
 
-    if (!current_ref_assigned && FIELD_PICTURE &&
-            !s->first_field && s->current_picture_ptr->reference) {
-
-        /* Second field of complementary field pair; the first field of
-         * which is already referenced. If short referenced, it
-         * should be first entry in short_ref. If not, it must exist
-         * in long_ref; trying to put it on the short list here is an
-         * error in the encoded bit stream (ref: 7.4.3, NOTE 2 and 3).
-         */
-        if (h->short_ref_count && h->short_ref[0] == s->current_picture_ptr) {
-            /* Just mark the second field valid */
-            s->current_picture_ptr->reference = PICT_FRAME;
-        } else if (s->current_picture_ptr->long_ref) {
-            av_log(h->s.avctx, AV_LOG_ERROR, "illegal short term reference "
-                                             "assignment for second field "
-                                             "in complementary field pair "
-                                             "(first field is long term)\n");
-        } else {
-            /*
-             * First field in reference, but not in any sensible place on our
-             * reference lists. This shouldn't happen unless reference
-             * handling somewhere else is wrong.
-             */
-            assert(0);
-        }
-        current_ref_assigned = 1;
-    }
-
-    if(!current_ref_assigned){
+    if(!current_is_long){
         pic= remove_short(h, s->current_picture_ptr->frame_num);
         if(pic){
-            unreference_pic(h, pic, 0);
+            unreference_pic(h, pic);
             av_log(h->s.avctx, AV_LOG_ERROR, "illegal short term buffer state detected\n");
         }
 
@@ -3607,7 +3300,6 @@ static int execute_ref_pic_marking(H264Context *h, MMCO *mmco, int mmco_count){
         h->short_ref[0]= s->current_picture_ptr;
         h->short_ref[0]->long_ref=0;
         h->short_ref_count++;
-        s->current_picture_ptr->reference |= s->picture_structure;
     }
 
     print_short_term(h);
@@ -3635,19 +3327,19 @@ static int decode_ref_pic_marking(H264Context *h, GetBitContext *gb){
 
                 h->mmco[i].opcode= opcode;
                 if(opcode==MMCO_SHORT2UNUSED || opcode==MMCO_SHORT2LONG){
-                    h->mmco[i].short_pic_num= (h->curr_pic_num - get_ue_golomb(gb) - 1) & (h->max_pic_num - 1);
+                    h->mmco[i].short_pic_num= (h->frame_num - get_ue_golomb(gb) - 1) & ((1<<h->sps.log2_max_frame_num)-1); //FIXME fields
 /*                    if(h->mmco[i].short_pic_num >= h->short_ref_count || h->short_ref[ h->mmco[i].short_pic_num ] == NULL){
                         av_log(s->avctx, AV_LOG_ERROR, "illegal short ref in memory management control operation %d\n", mmco);
                         return -1;
                     }*/
                 }
                 if(opcode==MMCO_SHORT2LONG || opcode==MMCO_LONG2UNUSED || opcode==MMCO_LONG || opcode==MMCO_SET_MAX_LONG){
-                    unsigned int long_arg= get_ue_golomb(gb);
-                    if(long_arg >= 32 || (long_arg >= 16 && !(opcode == MMCO_LONG2UNUSED && FIELD_PICTURE))){
+                    unsigned int long_index= get_ue_golomb(gb);
+                    if(/*h->mmco[i].long_arg >= h->long_ref_count || h->long_ref[ h->mmco[i].long_arg ] == NULL*/ long_index >= 16){
                         av_log(h->s.avctx, AV_LOG_ERROR, "illegal long ref in memory management control operation %d\n", opcode);
                         return -1;
                     }
-                    h->mmco[i].long_arg= long_arg;
+                    h->mmco[i].long_arg= long_index;
                 }
 
                 if(opcode > (unsigned)MMCO_LONG){
@@ -3661,17 +3353,10 @@ static int decode_ref_pic_marking(H264Context *h, GetBitContext *gb){
         }else{
             assert(h->long_ref_count + h->short_ref_count <= h->sps.ref_frame_count);
 
-            if(h->long_ref_count + h->short_ref_count == h->sps.ref_frame_count &&
-                    !(FIELD_PICTURE && !s->first_field && s->current_picture_ptr->reference)) {
+            if(h->long_ref_count + h->short_ref_count == h->sps.ref_frame_count){ //FIXME fields
                 h->mmco[0].opcode= MMCO_SHORT2UNUSED;
                 h->mmco[0].short_pic_num= h->short_ref[ h->short_ref_count - 1 ]->frame_num;
                 h->mmco_index= 1;
-                if (FIELD_PICTURE) {
-                    h->mmco[0].short_pic_num *= 2;
-                    h->mmco[1].opcode= MMCO_SHORT2UNUSED;
-                    h->mmco[1].short_pic_num= h->mmco[0].short_pic_num + 1;
-                    h->mmco_index= 2;
-                }
             }else
                 h->mmco_index= 0;
         }
@@ -3759,15 +3444,11 @@ static int init_poc(H264Context *h){
         field_poc[1]= poc;
     }
 
-    if(s->picture_structure != PICT_BOTTOM_FIELD) {
+    if(s->picture_structure != PICT_BOTTOM_FIELD)
         s->current_picture_ptr->field_poc[0]= field_poc[0];
-        s->current_picture_ptr->poc = field_poc[0];
-    }
-    if(s->picture_structure != PICT_TOP_FIELD) {
+    if(s->picture_structure != PICT_TOP_FIELD)
         s->current_picture_ptr->field_poc[1]= field_poc[1];
-        s->current_picture_ptr->poc = field_poc[1];
-    }
-    if(!FIELD_PICTURE || !s->first_field)
+    if(s->picture_structure == PICT_FRAME) // FIXME field pix?
         s->current_picture_ptr->poc= FFMIN(field_poc[0], field_poc[1]);
 
     return 0;
@@ -3833,7 +3514,6 @@ static void clone_slice(H264Context *dst, H264Context *src)
     dst->s.current_picture      = src->s.current_picture;
     dst->s.linesize             = src->s.linesize;
     dst->s.uvlinesize           = src->s.uvlinesize;
-    dst->s.first_field          = src->s.first_field;
 
     dst->prev_poc_msb           = src->prev_poc_msb;
     dst->prev_poc_lsb           = src->prev_poc_lsb;
@@ -3861,14 +3541,12 @@ static void clone_slice(H264Context *dst, H264Context *src)
  */
 static int decode_slice_header(H264Context *h, H264Context *h0){
     MpegEncContext * const s = &h->s;
-    MpegEncContext * const s0 = &h0->s;
     unsigned int first_mb_in_slice;
     unsigned int pps_id;
     int num_ref_idx_active_override_flag;
     static const uint8_t slice_type_map[5]= {P_TYPE, B_TYPE, I_TYPE, SP_TYPE, SI_TYPE};
     unsigned int slice_type, tmp, i;
     int default_ref_list_done = 0;
-    int last_pic_structure;
 
     s->dropable= h->nal_ref_idc == 0;
 
@@ -3876,8 +3554,7 @@ static int decode_slice_header(H264Context *h, H264Context *h0){
 
     if((s->flags2 & CODEC_FLAG2_CHUNKS) && first_mb_in_slice == 0){
         h0->current_slice = 0;
-        if (!s0->first_field)
-            s->current_picture_ptr= NULL;
+        s->current_picture_ptr= NULL;
     }
 
     slice_type= get_ue_golomb(&s->gb);
@@ -3946,7 +3623,6 @@ static int decode_slice_header(H264Context *h, H264Context *h0){
             return -1;  // we cant (re-)initialize context during parallel decoding
         if (MPV_common_init(s) < 0)
             return -1;
-        s->first_field = 0;
 
         init_scan_tables(h);
         alloc_tables(h);
@@ -3985,12 +3661,12 @@ static int decode_slice_header(H264Context *h, H264Context *h0){
 
     h->mb_mbaff = 0;
     h->mb_aff_frame = 0;
-    last_pic_structure = s0->picture_structure;
     if(h->sps.frame_mbs_only_flag){
         s->picture_structure= PICT_FRAME;
     }else{
         if(get_bits1(&s->gb)) { //field_pic_flag
             s->picture_structure= PICT_TOP_FIELD + get_bits1(&s->gb); //bottom_field_flag
+            av_log(h->s.avctx, AV_LOG_ERROR, "PAFF interlacing is not implemented\n");
         } else {
             s->picture_structure= PICT_FRAME;
             h->mb_aff_frame = h->sps.mb_aff;
@@ -3998,50 +3674,8 @@ static int decode_slice_header(H264Context *h, H264Context *h0){
     }
 
     if(h0->current_slice == 0){
-        /* See if we have a decoded first field looking for a pair... */
-        if (s0->first_field) {
-            assert(s0->current_picture_ptr);
-            assert(s0->current_picture_ptr->data[0]);
-            assert(s0->current_picture_ptr->reference != DELAYED_PIC_REF);
-
-            /* figure out if we have a complementary field pair */
-            if (!FIELD_PICTURE || s->picture_structure == last_pic_structure) {
-                /*
-                 * Previous field is unmatched. Don't display it, but let it
-                 * remain for reference if marked as such.
-                 */
-                s0->current_picture_ptr = NULL;
-                s0->first_field = FIELD_PICTURE;
-
-            } else {
-                if (h->nal_ref_idc &&
-                        s0->current_picture_ptr->reference &&
-                        s0->current_picture_ptr->frame_num != h->frame_num) {
-                    /*
-                     * This and previous field were reference, but had
-                     * different frame_nums. Consider this field first in
-                     * pair. Throw away previous field except for reference
-                     * purposes.
-                     */
-                    s0->first_field = 1;
-                    s0->current_picture_ptr = NULL;
-
-                } else {
-                    /* Second field in complementary pair */
-                    s0->first_field = 0;
-                }
-            }
-
-        } else {
-            /* Frame or first field in a potentially complementary pair */
-            assert(!s0->current_picture_ptr);
-            s0->first_field = FIELD_PICTURE;
-        }
-
-        if((!FIELD_PICTURE || s0->first_field) && frame_start(h) < 0) {
-            s0->first_field = 0;
+        if(frame_start(h) < 0)
             return -1;
-        }
     }
     if(h != h0)
         clone_slice(h, h0);
@@ -4049,22 +3683,20 @@ static int decode_slice_header(H264Context *h, H264Context *h0){
     s->current_picture_ptr->frame_num= h->frame_num; //FIXME frame_num cleanup
 
     assert(s->mb_num == s->mb_width * s->mb_height);
-    if(first_mb_in_slice << FIELD_OR_MBAFF_PICTURE >= s->mb_num ||
+    if(first_mb_in_slice << h->mb_aff_frame >= s->mb_num ||
        first_mb_in_slice                    >= s->mb_num){
         av_log(h->s.avctx, AV_LOG_ERROR, "first_mb_in_slice overflow\n");
         return -1;
     }
     s->resync_mb_x = s->mb_x = first_mb_in_slice % s->mb_width;
-    s->resync_mb_y = s->mb_y = (first_mb_in_slice / s->mb_width) << FIELD_OR_MBAFF_PICTURE;
-    if (s->picture_structure == PICT_BOTTOM_FIELD)
-        s->resync_mb_y = s->mb_y = s->mb_y + 1;
+    s->resync_mb_y = s->mb_y = (first_mb_in_slice / s->mb_width) << h->mb_aff_frame;
     assert(s->mb_y < s->mb_height);
 
     if(s->picture_structure==PICT_FRAME){
         h->curr_pic_num=   h->frame_num;
         h->max_pic_num= 1<< h->sps.log2_max_frame_num;
     }else{
-        h->curr_pic_num= 2*h->frame_num + 1;
+        h->curr_pic_num= 2*h->frame_num;
         h->max_pic_num= 1<<(h->sps.log2_max_frame_num + 1);
     }
 
@@ -4100,8 +3732,8 @@ static int decode_slice_header(H264Context *h, H264Context *h0){
     if(h->slice_type == P_TYPE || h->slice_type == SP_TYPE || h->slice_type == B_TYPE){
         if(h->slice_type == B_TYPE){
             h->direct_spatial_mv_pred= get_bits1(&s->gb);
-            if(FIELD_OR_MBAFF_PICTURE && h->direct_spatial_mv_pred)
-                av_log(h->s.avctx, AV_LOG_ERROR, "Interlaced pictures + spatial direct mode is not implemented\n");
+            if(h->sps.mb_aff && h->direct_spatial_mv_pred)
+                av_log(h->s.avctx, AV_LOG_ERROR, "MBAFF + spatial direct mode is not implemented\n");
         }
         num_ref_idx_active_override_flag= get_bits1(&s->gb);
 
@@ -4220,7 +3852,7 @@ static int decode_slice_header(H264Context *h, H264Context *h0){
     h->slice_num = ++h0->current_slice;
 
     h->emu_edge_width= (s->flags&CODEC_FLAG_EMU_EDGE) ? 0 : 16;
-    h->emu_edge_height= (FRAME_MBAFF || FIELD_PICTURE) ? 0 : h->emu_edge_width;
+    h->emu_edge_height= FRAME_MBAFF ? 0 : h->emu_edge_width;
 
     if(s->avctx->debug&FF_DEBUG_PICT_INFO){
         av_log(h->s.avctx, AV_LOG_DEBUG, "slice:%d %s mb:%d %c pps:%u frame:%d poc:%d/%d ref:%d/%d qp:%d loop:%d:%d:%d weight:%d%s\n",
@@ -5117,7 +4749,7 @@ static int decode_cabac_mb_skip( H264Context *h, int mb_x, int mb_y ) {
     }else{
         int mb_xy = mb_x + mb_y*s->mb_stride;
         mba_xy = mb_xy - 1;
-        mbb_xy = mb_xy - (s->mb_stride << FIELD_PICTURE);
+        mbb_xy = mb_xy - s->mb_stride;
     }
 
     if( h->slice_table[mba_xy] == h->slice_num && !IS_SKIP( s->current_picture.mb_type[mba_xy] ))
@@ -5561,8 +5193,6 @@ static inline void compute_mb_neighbors(H264Context *h)
         if (left_mb_frame_flag != curr_mb_frame_flag) {
             h->left_mb_xy[0] = pair_xy - 1;
         }
-    } else if (FIELD_PICTURE) {
-        h->top_mb_xy -= s->mb_stride;
     }
     return;
 }
@@ -6401,18 +6031,17 @@ static void filter_mb_fast( H264Context *h, int mb_x, int mb_y, uint8_t *img_y, 
     if( IS_INTRA(mb_type) ) {
         int16_t bS4[4] = {4,4,4,4};
         int16_t bS3[4] = {3,3,3,3};
-        int16_t *bSH = FIELD_PICTURE ? bS3 : bS4;
         if( IS_8x8DCT(mb_type) ) {
             filter_mb_edgev( h, &img_y[4*0], linesize, bS4, qp0 );
             filter_mb_edgev( h, &img_y[4*2], linesize, bS3, qp );
-            filter_mb_edgeh( h, &img_y[4*0*linesize], linesize, bSH, qp1 );
+            filter_mb_edgeh( h, &img_y[4*0*linesize], linesize, bS4, qp1 );
             filter_mb_edgeh( h, &img_y[4*2*linesize], linesize, bS3, qp );
         } else {
             filter_mb_edgev( h, &img_y[4*0], linesize, bS4, qp0 );
             filter_mb_edgev( h, &img_y[4*1], linesize, bS3, qp );
             filter_mb_edgev( h, &img_y[4*2], linesize, bS3, qp );
             filter_mb_edgev( h, &img_y[4*3], linesize, bS3, qp );
-            filter_mb_edgeh( h, &img_y[4*0*linesize], linesize, bSH, qp1 );
+            filter_mb_edgeh( h, &img_y[4*0*linesize], linesize, bS4, qp1 );
             filter_mb_edgeh( h, &img_y[4*1*linesize], linesize, bS3, qp );
             filter_mb_edgeh( h, &img_y[4*2*linesize], linesize, bS3, qp );
             filter_mb_edgeh( h, &img_y[4*3*linesize], linesize, bS3, qp );
@@ -6421,9 +6050,9 @@ static void filter_mb_fast( H264Context *h, int mb_x, int mb_y, uint8_t *img_y, 
         filter_mb_edgecv( h, &img_cb[2*2], uvlinesize, bS3, qpc );
         filter_mb_edgecv( h, &img_cr[2*0], uvlinesize, bS4, qpc0 );
         filter_mb_edgecv( h, &img_cr[2*2], uvlinesize, bS3, qpc );
-        filter_mb_edgech( h, &img_cb[2*0*uvlinesize], uvlinesize, bSH, qpc1 );
+        filter_mb_edgech( h, &img_cb[2*0*uvlinesize], uvlinesize, bS4, qpc1 );
         filter_mb_edgech( h, &img_cb[2*2*uvlinesize], uvlinesize, bS3, qpc );
-        filter_mb_edgech( h, &img_cr[2*0*uvlinesize], uvlinesize, bSH, qpc1 );
+        filter_mb_edgech( h, &img_cr[2*0*uvlinesize], uvlinesize, bS4, qpc1 );
         filter_mb_edgech( h, &img_cr[2*2*uvlinesize], uvlinesize, bS3, qpc );
         return;
     } else {
@@ -6447,7 +6076,7 @@ static void filter_mb_fast( H264Context *h, int mb_x, int mb_y, uint8_t *img_y, 
         if( IS_INTRA(s->current_picture.mb_type[mb_xy-1]) )
             bSv[0][0] = 0x0004000400040004ULL;
         if( IS_INTRA(s->current_picture.mb_type[h->top_mb_xy]) )
-            bSv[1][0] = FIELD_PICTURE ? 0x0003000300030003ULL : 0x0004000400040004ULL;
+            bSv[1][0] = 0x0004000400040004ULL;
 
 #define FILTER(hv,dir,edge)\
         if(bSv[dir][edge]) {\
@@ -6799,7 +6428,7 @@ static int decode_slice(struct AVCodecContext *avctx, H264Context *h){
                 s->mb_x = 0;
                 ff_draw_horiz_band(s, 16*s->mb_y, 16);
                 ++s->mb_y;
-                if(FIELD_OR_MBAFF_PICTURE) {
+                if(FRAME_MBAFF) {
                     ++s->mb_y;
                 }
             }
@@ -6836,7 +6465,7 @@ static int decode_slice(struct AVCodecContext *avctx, H264Context *h){
                 s->mb_x=0;
                 ff_draw_horiz_band(s, 16*s->mb_y, 16);
                 ++s->mb_y;
-                if(FIELD_OR_MBAFF_PICTURE) {
+                if(FRAME_MBAFF) {
                     ++s->mb_y;
                 }
                 if(s->mb_y >= s->mb_height){
@@ -7413,8 +7042,6 @@ static void execute_decode_slices(H264Context *h, int context_count){
         hx = h->thread_context[context_count - 1];
         s->mb_x = hx->s.mb_x;
         s->mb_y = hx->s.mb_y;
-        s->dropable = hx->s.dropable;
-        s->picture_structure = hx->s.picture_structure;
         for(i = 1; i < context_count; i++)
             h->s.error_count += h->thread_context[i]->s.error_count;
     }
@@ -7437,8 +7064,7 @@ static int decode_nal_units(H264Context *h, uint8_t *buf, int buf_size){
 #endif
     if(!(s->flags2 & CODEC_FLAG2_CHUNKS)){
         h->current_slice = 0;
-        if (!s->first_field)
-            s->current_picture_ptr= NULL;
+        s->current_picture_ptr= NULL;
     }
 
     for(;;){
@@ -7517,7 +7143,7 @@ static int decode_nal_units(H264Context *h, uint8_t *buf, int buf_size){
             if((err = decode_slice_header(hx, h)))
                break;
 
-            s->current_picture_ptr->key_frame|= (hx->nal_unit_type == NAL_IDR_SLICE);
+            s->current_picture_ptr->key_frame= (hx->nal_unit_type == NAL_IDR_SLICE);
             if(hx->redundant_pic_count==0 && hx->s.hurry_up < 5
                && (avctx->skip_frame < AVDISCARD_NONREF || hx->nal_ref_idc)
                && (avctx->skip_frame < AVDISCARD_BIDIR  || hx->slice_type!=B_TYPE)
@@ -7735,105 +7361,86 @@ static int decode_frame(AVCodecContext *avctx,
 
         h->prev_frame_num_offset= h->frame_num_offset;
         h->prev_frame_num= h->frame_num;
-        if(!s->dropable) {
+        if(s->current_picture_ptr->reference & s->picture_structure){
             h->prev_poc_msb= h->poc_msb;
             h->prev_poc_lsb= h->poc_lsb;
             execute_ref_pic_marking(h, h->mmco, h->mmco_index);
         }
 
-        /*
-         * FIXME: Error handling code does not seem to support interlaced
-         * when slices span multiple rows
-         * The ff_er_add_slice calls don't work right for bottom
-         * fields; they cause massive erroneous error concealing
-         * Error marking covers both fields (top and bottom).
-         * This causes a mismatched s->error_count
-         * and a bad error table. Further, the error count goes to
-         * INT_MAX when called for bottom field, because mb_y is
-         * past end by one (callers fault) and resync_mb_y != 0
-         * causes problems for the first MB line, too.
-         */
-        if (!FIELD_PICTURE)
-            ff_er_frame_end(s);
+        ff_er_frame_end(s);
 
         MPV_frame_end(s);
 
-        if (s->first_field) {
-            /* Wait for second field. */
-            *data_size = 0;
-
-        } else {
-        //FIXME do something with unavailable reference frames
+    //FIXME do something with unavailable reference frames
 
 #if 0 //decode order
-            *data_size = sizeof(AVFrame);
+        *data_size = sizeof(AVFrame);
 #else
-            /* Sort B-frames into display order */
+        /* Sort B-frames into display order */
 
-            if(h->sps.bitstream_restriction_flag
-               && s->avctx->has_b_frames < h->sps.num_reorder_frames){
-                s->avctx->has_b_frames = h->sps.num_reorder_frames;
-                s->low_delay = 0;
+        if(h->sps.bitstream_restriction_flag
+           && s->avctx->has_b_frames < h->sps.num_reorder_frames){
+            s->avctx->has_b_frames = h->sps.num_reorder_frames;
+            s->low_delay = 0;
+        }
+
+        pics = 0;
+        while(h->delayed_pic[pics]) pics++;
+
+        assert(pics+1 < sizeof(h->delayed_pic) / sizeof(h->delayed_pic[0]));
+
+        h->delayed_pic[pics++] = cur;
+        if(cur->reference == 0)
+            cur->reference = DELAYED_PIC_REF;
+
+        cross_idr = 0;
+        for(i=0; h->delayed_pic[i]; i++)
+            if(h->delayed_pic[i]->key_frame || h->delayed_pic[i]->poc==0)
+                cross_idr = 1;
+
+        out = h->delayed_pic[0];
+        out_idx = 0;
+        for(i=1; h->delayed_pic[i] && !h->delayed_pic[i]->key_frame; i++)
+            if(h->delayed_pic[i]->poc < out->poc){
+                out = h->delayed_pic[i];
+                out_idx = i;
             }
 
-            pics = 0;
-            while(h->delayed_pic[pics]) pics++;
+        out_of_order = !cross_idr && prev && out->poc < prev->poc;
+        if(h->sps.bitstream_restriction_flag && s->avctx->has_b_frames >= h->sps.num_reorder_frames)
+            { }
+        else if(prev && pics <= s->avctx->has_b_frames)
+            out = prev;
+        else if((out_of_order && pics-1 == s->avctx->has_b_frames && pics < 15)
+           || (s->low_delay &&
+            ((!cross_idr && prev && out->poc > prev->poc + 2)
+             || cur->pict_type == B_TYPE)))
+        {
+            s->low_delay = 0;
+            s->avctx->has_b_frames++;
+            out = prev;
+        }
+        else if(out_of_order)
+            out = prev;
 
-            assert(pics+1 < sizeof(h->delayed_pic) / sizeof(h->delayed_pic[0]));
+        if(out_of_order || pics > s->avctx->has_b_frames){
+            for(i=out_idx; h->delayed_pic[i]; i++)
+                h->delayed_pic[i] = h->delayed_pic[i+1];
+        }
 
-            h->delayed_pic[pics++] = cur;
-            if(cur->reference == 0)
-                cur->reference = DELAYED_PIC_REF;
-
-            cross_idr = 0;
-            for(i=0; h->delayed_pic[i]; i++)
-                if(h->delayed_pic[i]->key_frame || h->delayed_pic[i]->poc==0)
-                    cross_idr = 1;
-
-            out = h->delayed_pic[0];
-            out_idx = 0;
-            for(i=1; h->delayed_pic[i] && !h->delayed_pic[i]->key_frame; i++)
-                if(h->delayed_pic[i]->poc < out->poc){
-                    out = h->delayed_pic[i];
-                    out_idx = i;
-                }
-
-            out_of_order = !cross_idr && prev && out->poc < prev->poc;
-            if(h->sps.bitstream_restriction_flag && s->avctx->has_b_frames >= h->sps.num_reorder_frames)
-                { }
-            else if(prev && pics <= s->avctx->has_b_frames)
-                out = prev;
-            else if((out_of_order && pics-1 == s->avctx->has_b_frames && pics < 15)
-               || (s->low_delay &&
-                ((!cross_idr && prev && out->poc > prev->poc + 2)
-                 || cur->pict_type == B_TYPE)))
-            {
-                s->low_delay = 0;
-                s->avctx->has_b_frames++;
-                out = prev;
-            }
-            else if(out_of_order)
-                out = prev;
-
-            if(out_of_order || pics > s->avctx->has_b_frames){
-                for(i=out_idx; h->delayed_pic[i]; i++)
-                    h->delayed_pic[i] = h->delayed_pic[i+1];
-            }
-
-            if(prev == out)
-                *data_size = 0;
-            else
-                *data_size = sizeof(AVFrame);
-            if(prev && prev != out && prev->reference == DELAYED_PIC_REF)
-                prev->reference = 0;
-            h->delayed_output_pic = out;
+        if(prev == out)
+            *data_size = 0;
+        else
+            *data_size = sizeof(AVFrame);
+        if(prev && prev != out && prev->reference == DELAYED_PIC_REF)
+            prev->reference = 0;
+        h->delayed_output_pic = out;
 #endif
 
-            if(out)
-                *pict= *(AVFrame*)out;
-            else
-                av_log(avctx, AV_LOG_DEBUG, "no picture\n");
-        }
+        if(out)
+            *pict= *(AVFrame*)out;
+        else
+            av_log(avctx, AV_LOG_DEBUG, "no picture\n");
     }
 
     assert(pict->data[0] || !*data_size);
@@ -7845,7 +7452,6 @@ static int decode_frame(AVCodecContext *avctx,
     /* we substract 1 because it is added on utils.c    */
     avctx->frame_number = s->picture_number - 1;
 #endif
-    pict->interlaced_frame = FIELD_OR_MBAFF_PICTURE;
     return get_consumed_bytes(s, buf_index, buf_size);
 }
 #if 0

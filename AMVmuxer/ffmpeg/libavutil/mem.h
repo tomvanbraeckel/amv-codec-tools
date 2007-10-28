@@ -23,8 +23,8 @@
  * Memory handling functions.
  */
 
-#ifndef FFMPEG_MEM_H
-#define FFMPEG_MEM_H
+#ifndef AV_MEM_H
+#define AV_MEM_H
 
 #ifdef __GNUC__
   #define DECLARE_ALIGNED(n,t,v)       t v __attribute__ ((aligned (n)))
@@ -33,14 +33,14 @@
 #endif
 
 /**
- * Memory allocation of size bytes with alignment suitable for all
+ * Memory allocation of size byte with alignment suitable for all
  * memory accesses (including vectors if available on the
- * CPU). av_malloc(0) must return a non-NULL pointer.
+ * CPU). av_malloc(0) must return a non NULL pointer.
  */
 void *av_malloc(unsigned int size);
 
 /**
- * av_realloc semantics (same as glibc): If ptr is NULL and size > 0,
+ * av_realloc semantics (same as glibc): if ptr is NULL and size > 0,
  * identical to malloc(size). If size is zero, it is identical to
  * free(ptr) and NULL is returned.
  */
@@ -48,25 +48,25 @@ void *av_realloc(void *ptr, unsigned int size);
 
 /**
  * Free memory which has been allocated with av_malloc(z)() or av_realloc().
- * NOTE: ptr = NULL is explicitly allowed.
- * Note2: It is recommended that you use av_freep() instead.
+ * NOTE: ptr = NULL is explicetly allowed
+ * Note2: it is recommended that you use av_freep() instead
  */
 void av_free(void *ptr);
 
 void *av_mallocz(unsigned int size);
 
 /**
- * Duplicate the string \p s.
+ * Duplicates the string \p s.
  * @param s String to be duplicated.
  * @return Pointer to a newly allocated string containing a
- * copy of \p s or NULL if it cannot be allocated.
+ * copy of \p s or NULL if it cannot allocate it.
  */
 char *av_strdup(const char *s);
 
 /**
- * Free memory and set the pointer to NULL.
- * @param ptr pointer to the pointer which should be freed.
+ * Frees memory and sets the pointer to NULL.
+ * @param ptr pointer to the pointer which should be freed
  */
 void av_freep(void *ptr);
 
-#endif /* FFMPEG_MEM_H */
+#endif /* AV_MEM_H */

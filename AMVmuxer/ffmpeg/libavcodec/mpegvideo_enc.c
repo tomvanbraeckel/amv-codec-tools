@@ -66,7 +66,7 @@ static uint8_t default_fcode_tab[MAX_MV*2+1];
 
 enum PixelFormat ff_yuv420p_list[2]= {PIX_FMT_YUV420P, -1};
 
-void ff_convert_matrix(DSPContext *dsp, int (*qmat)[64], uint16_t (*qmat16)[2][64],
+static void convert_matrix(DSPContext *dsp, int (*qmat)[64], uint16_t (*qmat16)[2][64],
                            const uint16_t *quant_matrix, int bias, int qmin, int qmax, int intra)
 {
     int qscale;
@@ -248,6 +248,7 @@ int MPV_encode_init(AVCodecContext *avctx)
         break;
     case CODEC_ID_LJPEG:
     case CODEC_ID_MJPEG:
+    case CODEC_ID_AMV:
         if(avctx->pix_fmt != PIX_FMT_YUVJ420P && avctx->pix_fmt != PIX_FMT_YUVJ422P &&
            ((avctx->pix_fmt != PIX_FMT_YUV420P && avctx->pix_fmt != PIX_FMT_YUV422P) || avctx->strict_std_compliance>FF_COMPLIANCE_INOFFICIAL)){
             av_log(avctx, AV_LOG_ERROR, "colorspace not supported in jpeg\n");
@@ -488,6 +489,11 @@ int MPV_encode_init(AVCodecContext *avctx)
     if(s->codec_id==CODEC_ID_MJPEG){
         s->intra_quant_bias= 1<<(QUANT_BIAS_SHIFT-1); //(a + x/2)/x
         s->inter_quant_bias= 0;
+    }else if(s->codec_id==CODEC_ID_AMV){
+        s->intra_quant_bias= 0;
+        s->inter_quant_bias= 0;
+        s->fixed_qscale = 1;
+        s->adaptive_quant = 0;
     }else if(s->mpeg_quant || s->codec_id==CODEC_ID_MPEG1VIDEO || s->codec_id==CODEC_ID_MPEG2VIDEO){
         s->intra_quant_bias= 3<<(QUANT_BIAS_SHIFT-3); //(a + x*3/8)/x
         s->inter_quant_bias= 0;
@@ -500,6 +506,8 @@ int MPV_encode_init(AVCodecContext *avctx)
         s->intra_quant_bias= avctx->intra_quant_bias;
     if(avctx->inter_quant_bias != FF_DEFAULT_QUANT_BIAS)
         s->inter_quant_bias= avctx->inter_quant_bias;
+
+    av_log(avctx, AV_LOG_DEBUG, "intra_quant_bias = %d inter_quant_bias = %d\n",s->intra_quant_bias,s->inter_quant_bias);
 
     avcodec_get_chroma_sub_sample(avctx->pix_fmt, &chroma_h_shift, &chroma_v_shift);
 
@@ -523,6 +531,7 @@ int MPV_encode_init(AVCodecContext *avctx)
         break;
     case CODEC_ID_LJPEG:
     case CODEC_ID_MJPEG:
+    case CODEC_ID_AMV:
         s->out_format = FMT_MJPEG;
         s->intra_only = 1; /* force intra only for jpeg */
         s->mjpeg_vsample[0] = 2;
@@ -716,9 +725,9 @@ int MPV_encode_init(AVCodecContext *avctx)
     /* precompute matrix */
     /* for mjpeg, we do include qscale in the matrix */
     if (s->out_format != FMT_MJPEG) {
-        ff_convert_matrix(&s->dsp, s->q_intra_matrix, s->q_intra_matrix16,
+        convert_matrix(&s->dsp, s->q_intra_matrix, s->q_intra_matrix16,
                        s->intra_matrix, s->intra_quant_bias, avctx->qmin, 31, 1);
-        ff_convert_matrix(&s->dsp, s->q_inter_matrix, s->q_inter_matrix16,
+        convert_matrix(&s->dsp, s->q_inter_matrix, s->q_inter_matrix16,
                        s->inter_matrix, s->inter_quant_bias, avctx->qmin, 31, 0);
     }
 
@@ -1731,6 +1740,7 @@ static av_always_inline void encode_mb_internal(MpegEncContext *s, int motion_x,
             h263_encode_mb(s, s->block, motion_x, motion_y);
         break;
     case CODEC_ID_MJPEG:
+    case CODEC_ID_AMV:
         if (ENABLE_MJPEG_ENCODER)
             ff_mjpeg_encode_mb(s, s->block);
         break;
@@ -2861,7 +2871,7 @@ static int encode_picture(MpegEncContext *s, int picture_number)
 
             s->intra_matrix[j] = av_clip_uint8((ff_mpeg1_default_intra_matrix[i] * s->qscale) >> 3);
         }
-        ff_convert_matrix(&s->dsp, s->q_intra_matrix, s->q_intra_matrix16,
+        convert_matrix(&s->dsp, s->q_intra_matrix, s->q_intra_matrix16,
                        s->intra_matrix, s->intra_quant_bias, 8, 8, 1);
         s->qscale= 8;
     }

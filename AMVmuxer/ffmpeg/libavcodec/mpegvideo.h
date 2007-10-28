@@ -25,8 +25,8 @@
  * mpegvideo header.
  */
 
-#ifndef FFMPEG_MPEGVIDEO_H
-#define FFMPEG_MPEGVIDEO_H
+#ifndef AVCODEC_MPEGVIDEO_H
+#define AVCODEC_MPEGVIDEO_H
 
 #include "dsputil.h"
 #include "bitstream.h"
@@ -699,12 +699,24 @@ void MPV_frame_end(MpegEncContext *s);
 int MPV_encode_init(AVCodecContext *avctx);
 int MPV_encode_end(AVCodecContext *avctx);
 int MPV_encode_picture(AVCodecContext *avctx, unsigned char *buf, int buf_size, void *data);
+#ifdef HAVE_MMX
 void MPV_common_init_mmx(MpegEncContext *s);
+#endif
+#ifdef ARCH_ALPHA
 void MPV_common_init_axp(MpegEncContext *s);
+#endif
+#ifdef HAVE_MLIB
 void MPV_common_init_mlib(MpegEncContext *s);
+#endif
+#ifdef HAVE_MMI
 void MPV_common_init_mmi(MpegEncContext *s);
+#endif
+#ifdef ARCH_ARMV4L
 void MPV_common_init_armv4l(MpegEncContext *s);
-void MPV_common_init_altivec(MpegEncContext *s);
+#endif
+#ifdef ARCH_POWERPC
+void MPV_common_init_ppc(MpegEncContext *s);
+#endif
 extern void (*draw_edges)(uint8_t *buf, int wrap, int width, int height, int w);
 void ff_clean_intra_table_entries(MpegEncContext *s);
 void ff_init_scantable(uint8_t *, ScanTable *st, const uint8_t *src_scantable);
@@ -723,9 +735,6 @@ void ff_er_frame_start(MpegEncContext *s);
 void ff_er_frame_end(MpegEncContext *s);
 void ff_er_add_slice(MpegEncContext *s, int startx, int starty, int endx, int endy, int status);
 
-int ff_dct_common_init(MpegEncContext *s);
-void ff_convert_matrix(DSPContext *dsp, int (*qmat)[64], uint16_t (*qmat16)[2][64],
-                       const uint16_t *quant_matrix, int bias, int qmin, int qmax, int intra);
 
 extern enum PixelFormat ff_yuv420p_list[2];
 
@@ -836,7 +845,11 @@ void mpeg4_pred_ac(MpegEncContext * s, DCTELEM *block, int n,
                    int dir);
 void ff_set_mpeg4_time(MpegEncContext * s);
 void mpeg4_encode_picture_header(MpegEncContext *s, int picture_number);
+#ifdef CONFIG_ENCODERS
 void h263_encode_init(MpegEncContext *s);
+#else
+static void h263_encode_init(MpegEncContext *s) {assert(0);}
+#endif
 void h263_decode_init_vlc(MpegEncContext *s);
 int h263_decode_picture_header(MpegEncContext *s);
 int ff_h263_decode_gob_header(MpegEncContext *s);
@@ -898,5 +911,5 @@ void ff_wmv2_encode_mb(MpegEncContext * s,
                        DCTELEM block[6][64],
                        int motion_x, int motion_y);
 
-#endif /* FFMPEG_MPEGVIDEO_H */
+#endif /* AVCODEC_MPEGVIDEO_H */
 

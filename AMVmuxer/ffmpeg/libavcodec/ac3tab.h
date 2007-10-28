@@ -19,8 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#ifndef FFMPEG_AC3TAB_H
-#define FFMPEG_AC3TAB_H
+#ifndef AC3TAB_H
+#define AC3TAB_H
 
 #include "common.h"
 
@@ -40,4 +40,4 @@ extern const int16_t  ff_floortab[8];
 extern const uint16_t ff_fgaintab[8];
 extern const uint8_t  ff_ac3_bndsz[50];
 
-#endif /* FFMPEG_AC3TAB_H */
+#endif /* AC3TAB_H */

@@ -16,8 +16,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#ifndef FFMPEG_INTREADWRITE_H
-#define FFMPEG_INTREADWRITE_H
+#ifndef INTREADWRITE_H
+#define INTREADWRITE_H
 
 #include <stdint.h>
 #include "bswap.h"
@@ -186,4 +186,4 @@ struct unaligned_16 { uint16_t l; } __attribute__((packed));
                     ((uint8_t*)(p))[7] = (d)>>56; } while(0)
 #endif
 
-#endif /* FFMPEG_INTREADWRITE_H */
+#endif /* INTREADWRITE_H */

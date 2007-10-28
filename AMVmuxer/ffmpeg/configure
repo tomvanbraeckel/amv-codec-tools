@@ -87,6 +87,7 @@ show_help(){
   echo "  --enable-libfaac         enable FAAC support via libfaac [default=no]"
   echo "  --enable-libfaad         enable FAAD support via libfaad [default=no]"
   echo "  --enable-libfaadbin      open libfaad.so.0 at runtime [default=no]"
+  echo "  --enable-libg729a        enable G.729A support via libg729a [default=no]"
   echo "  --enable-libgsm          enable GSM support via libgsm [default=no]"
   echo "  --enable-libmp3lame      enable MP3 encoding via libmp3lame [default=no]"
   echo "  --enable-libnut          enable NUT (de)muxing via libnut,"
@@ -164,7 +165,7 @@ show_help(){
   echo
   echo "Developer options (useful when working on FFmpeg itself):"
   echo "  --enable-gprof           enable profiling with gprof [$gprof]"
-  echo "  --disable-optimizations  disable compiler optimizations"
+  echo "  --disable-opts           disable compiler optimizations"
   echo "  --enable-extra-warnings  enable more compiler warnings"
   echo "  --disable-strip          disable stripping of executables and shared libraries"
   echo ""
@@ -178,7 +179,7 @@ log(){
 
 log_file(){
     log BEGIN $1
-    pr -n -t $1 >>$logfile
+    cat -n $1 >>$logfile
     log END $1
 }
 
@@ -617,6 +618,7 @@ CONFIG_LIST="
     libfaac
     libfaad
     libfaadbin
+    libg729a
     libgsm
     libmp3lame
     libnut
@@ -725,7 +727,6 @@ CMDLINE_SELECT="
     $THREADS_LIST
     debug
     extra_warnings
-    optimizations
     shared
     static
 "
@@ -776,6 +777,8 @@ libamr_wb_encoder_deps="libamr_wb"
 libfaac_encoder_deps="libfaac"
 libfaad_decoder_deps="libfaad"
 libfaadbin_decoder_extralibs='$ldl'
+g729a_decoder_deps="libg729a"
+g729a_encoder_deps="libg729a"
 libgsm_decoder_deps="libgsm"
 libgsm_encoder_deps="libgsm"
 libgsm_ms_decoder_deps="libgsm"
@@ -790,6 +793,8 @@ mpeg4aac_decoder_deps="libfaad"
 
 # demuxers / muxers
 ac3_demuxer_deps="ac3_parser"
+act_muxer_deps="g729a_encoder"
+act_demuxer_deps="g729a_decoder"
 audio_beos_demuxer_deps="audio_beos"
 audio_beos_demuxer_extralibs="-lmedia -lbe"
 audio_beos_muxer_deps="audio_beos"
@@ -821,7 +826,7 @@ udp_protocol_deps="network"
 
 # programs
 ffplay_deps="sdl"
-ffserver_deps="ffm_muxer rtp_protocol rtsp_demuxer"
+ffserver_deps="muxers rtp_protocol"
 ffserver_extralibs='$ldl'
 vhook_extralibs='$ldl'
 
@@ -883,7 +888,7 @@ enable ipv6
 enable static
 enable mpegaudio_hp
 enable network
-enable optimizations
+enable optimize
 enable protocols
 vhook="default"
 
@@ -895,14 +900,13 @@ FFSERVERLDFLAGS=-Wl,-E
 LDCONFIG="ldconfig"
 LIBPREF="lib"
 LIBSUF=".a"
-FULLNAME='$(NAME)$(BUILDSUF)'
-LIBNAME='$(LIBPREF)$(FULLNAME)$(LIBSUF)'
+LIB='$(LIBPREF)$(NAME)$(LIBSUF)'
 SLIBPREF="lib"
 SLIBSUF=".so"
-SLIBNAME='$(SLIBPREF)$(FULLNAME)$(SLIBSUF)'
+SLIBNAME='$(SLIBPREF)$(NAME)$(SLIBSUF)'
 SLIBNAME_WITH_VERSION='$(SLIBNAME).$(LIBVERSION)'
 SLIBNAME_WITH_MAJOR='$(SLIBNAME).$(LIBMAJOR)'
-LIB_INSTALL_EXTRA_CMD='$(RANLIB) "$(LIBDIR)/$(LIBNAME)"'
+LIB_INSTALL_EXTRA_CMD='$(RANLIB) "$(LIBDIR)/$(LIB)"'
 
 # find source path
 source_path="`dirname \"$0\"`"
@@ -982,6 +986,8 @@ for opt do
   --arch=*) arch="$optval"
   ;;
   --cpu=*) cpu="$optval"
+  ;;
+  --disable-opts) disable optimize
   ;;
   --enable-sunmlib) enable mlib
   ;;
@@ -1131,7 +1137,7 @@ case $targetos in
     fi ;;
   sunos)
     FFSERVERLDFLAGS=""
-    SHFLAGS='-shared -Wl,-h,$@'
+    SHFLAGS="-shared -Wl,-h,\$@"
     network_extralibs="-lsocket -lnsl"
     ;;
   netbsd)
@@ -1140,10 +1146,10 @@ case $targetos in
     ;;
   openbsd)
     disable need_memalign
-    LIBOBJFLAGS='$(PIC)'
-    LDCONFIG='ldconfig -m $(SHLIBDIR)'
+    LIBOBJFLAGS="\$(PIC)"
+    LDCONFIG="ldconfig -m \$(SHLIBDIR)"
     SHFLAGS='-shared'
-    SLIBNAME='$(SLIBPREF)$(FULLNAME)$(SLIBSUF).$(LIBVERSION)'
+    SLIBNAME='$(SLIBPREF)$(NAME)$(SLIBSUF).$(LIBVERSION)'
     SLIBNAME_WITH_VERSION='$(SLIBNAME)'
     SLIBNAME_WITH_MAJOR='$(SLIBNAME)'
     oss_demuxer_extralibs="-lossaudio"
@@ -1158,13 +1164,13 @@ case $targetos in
     ;;
   darwin)
     disable need_memalign
-    SHFLAGS='-dynamiclib -Wl,-single_module -Wl,-install_name,$(SHLIBDIR)/$(SLIBNAME),-current_version,$(SPPVERSION),-compatibility_version,$(SPPVERSION) -Wl,-read_only_relocs,suppress'
+    SHFLAGS="-dynamiclib -Wl,-single_module -Wl,-install_name,\$(SHLIBDIR)/\$(SLIBNAME),-current_version,\$(SPPVERSION),-compatibility_version,\$(SPPVERSION) -Wl,-read_only_relocs,suppress"
     VHOOKSHFLAGS='-dynamiclib -Wl,-single_module -flat_namespace -undefined suppress -Wl,-install_name,$(SHLIBDIR)/vhook/$@'
     strip="strip -x"
     FFLDFLAGS="-Wl,-dynamic,-search_paths_first"
     SLIBSUF=".dylib"
-    SLIBNAME_WITH_VERSION='$(SLIBPREF)$(FULLNAME).$(LIBVERSION)$(SLIBSUF)'
-    SLIBNAME_WITH_MAJOR='$(SLIBPREF)$(FULLNAME).$(LIBMAJOR)$(SLIBSUF)'
+    SLIBNAME_WITH_VERSION='$(SLIBPREF)$(NAME).$(LIBVERSION)$(SLIBSUF)'
+    SLIBNAME_WITH_MAJOR='$(SLIBPREF)$(NAME).$(LIBMAJOR)$(SLIBSUF)'
     FFSERVERLDFLAGS=-Wl,-bind_at_load
     ;;
   mingw32*)
@@ -1180,12 +1186,11 @@ case $targetos in
     SLIBPREF=""
     SLIBSUF=".dll"
     EXESUF=".exe"
-    SLIBNAME_WITH_VERSION='$(SLIBPREF)$(FULLNAME)-$(LIBVERSION)$(SLIBSUF)'
-    SLIBNAME_WITH_MAJOR='$(SLIBPREF)$(FULLNAME)-$(LIBMAJOR)$(SLIBSUF)'
-    SLIB_EXTRA_CMD='-lib /machine:i386 /def:$(@:$(SLIBSUF)=.def)'
-    SLIB_INSTALL_EXTRA_CMD='-install -m 644 $(SLIBNAME_WITH_MAJOR:$(SLIBSUF)=.lib) "$(SHLIBDIR)/$(SLIBNAME:$(SLIBSUF)=.lib)"'
-    SLIB_UNINSTALL_EXTRA_CMD='rm -f "$(SHLIBDIR)/$(SLIBNAME:$(SLIBSUF)=.lib)"'
-    SHFLAGS='-shared -Wl,--output-def,$(@:$(SLIBSUF)=.def) -Wl,--enable-runtime-pseudo-reloc -Wl,--enable-auto-image-base'
+    SLIBNAME_WITH_VERSION='$(SLIBPREF)$(NAME)-$(LIBVERSION)$(SLIBSUF)'
+    SLIBNAME_WITH_MAJOR='$(SLIBPREF)$(NAME)-$(LIBMAJOR)$(SLIBSUF)'
+    SLIB_EXTRA_CMD="-lib /machine:i386 /def:\$(@:${SLIBSUF}=.def)"
+    SLIB_INSTALL_EXTRA_CMD="-install -m 644 \$(SLIBNAME_WITH_MAJOR:\$(SLIBSUF)=.lib) \"\$(SHLIBDIR)/\$(SLIBNAME_WITH_MAJOR:\$(SLIBSUF)=.lib)\""
+    SHFLAGS="-shared -Wl,--output-def,\$(@:${SLIBSUF}=.def),--out-implib,lib\$(SLIBNAME:\$(SLIBSUF)=.dll.a) -Wl,--enable-runtime-pseudo-reloc -Wl,--enable-auto-image-base"
     ;;
   cygwin*)
     targetos=cygwin
@@ -1199,9 +1204,9 @@ case $targetos in
     EXESUF=".exe"
     SLIBPREF="cyg"
     SLIBSUF=".dll"
-    SLIBNAME_WITH_VERSION='$(SLIBPREF)$(FULLNAME)-$(LIBVERSION)$(SLIBSUF)'
-    SLIBNAME_WITH_MAJOR='$(SLIBPREF)$(FULLNAME)-$(LIBMAJOR)$(SLIBSUF)'
-    SHFLAGS='-shared -Wl,--enable-auto-image-base'
+    SLIBNAME_WITH_VERSION='$(SLIBPREF)$(NAME)-$(LIBVERSION)$(SLIBSUF)'
+    SLIBNAME_WITH_MAJOR='$(SLIBPREF)$(NAME)-$(LIBMAJOR)$(SLIBSUF)'
+    SHFLAGS='-shared -Wl,--out-implib=lib$(NAME).dll.a -Wl,--enable-auto-image-base'
     ;;
   linux)
     LDLATEFLAGS="-Wl,--as-needed $LDLATEFLAGS"
@@ -1246,7 +1251,9 @@ EOF
     exit 1;
 fi
 
-disabled static && LIBNAME=""
+if disabled static; then
+    LIB=""
+fi
 
 if ! enabled libogg; then
     enabled libtheora && die "libogg must be enabled to enable libtheora."
@@ -1300,7 +1307,7 @@ if test $targetos = darwin; then
     fi
 fi
 
-disabled optimizations || add_cflags -fomit-frame-pointer
+disabled optimize || add_cflags -fomit-frame-pointer
 
 # Add processor-specific flags
 if test $cpu != "generic"; then
@@ -1563,6 +1570,7 @@ enabled libamr_wb  && require libamrwb amrwb/dec_if.h D_IF_init -lamrwb -lm
 enabled libdc1394  && require libdc1394 libdc1394/dc1394_control.h dc1394_create_handle -ldc1394_control -lraw1394
 enabled libfaac    && require2 libfaac "stdint.h faac.h" faacEncGetVersion -lfaac
 enabled libfaad    && require2 libfaad faad.h faacDecOpen -lfaad
+enabled libg729a   && require libg729a g729a.h g729a_encoder_init -lg729a
 enabled libgsm     && require libgsm gsm.h gsm_create -lgsm
 enabled libmp3lame && require LAME lame/lame.h lame_init -lmp3lame -lm
 enabled libnut     && require libnut libnut.h nut_demuxer_init -lnut
@@ -1702,8 +1710,8 @@ check_ldflags $LDLATEFLAGS
 
 if enabled small; then
     check_cflags -Os            # not all compilers support -Os
-    optimizations="small"
-elif enabled optimizations; then
+    optimize="small"
+elif enabled optimize; then
     if test -n "`$cc -v 2>&1 | grep xlc`"; then
         add_cflags  "-O5"
         add_ldflags "-O5"
@@ -1717,7 +1725,7 @@ if enabled shared; then
     # LIBOBJFLAGS may have already been set in the OS configuration
     if test -z "$LIBOBJFLAGS" ; then
         case "$arch" in
-            x86_64|ia64|alpha|sparc*|power*) LIBOBJFLAGS='$(PIC)' ;;
+            x86_64|ia64|alpha|sparc*|power*) LIBOBJFLAGS="\$(PIC)" ;;
         esac
     fi
 fi
@@ -1729,7 +1737,7 @@ fi
 
 VHOOKCFLAGS="-fPIC"
 
-# Find out if the .align argument is a power of two or not.
+# find if .align arg is power-of-two or not
 if test $asmalign_pot = "unknown"; then
     disable asmalign_pot
     echo 'asm (".align 3");' | check_cc && enable asmalign_pot
@@ -1784,7 +1792,7 @@ fi
 echo "gprof enabled             ${gprof-no}"
 echo "debug symbols             ${debug-no}"
 echo "strip symbols             ${dostrip-no}"
-echo "optimizations             ${optimizations-no}"
+echo "optimize                  ${optimize-no}"
 echo "static                    ${static-no}"
 echo "shared                    ${shared-no}"
 echo "postprocessing support    ${pp-no}"
@@ -1813,6 +1821,7 @@ echo "libdc1394 support         ${libdc1394-no}"
 echo "libfaac enabled           ${libfaac-no}"
 echo "libfaad enabled           ${libfaad-no}"
 echo "libfaad dlopened          ${libfaadbin-no}"
+echo "libg729a enabled          ${libg729a-no}"
 echo "libgsm enabled            ${libgsm-no}"
 echo "libmp3lame enabled        ${libmp3lame-no}"
 echo "libnut enabled            ${libnut-no}"
@@ -1830,8 +1839,6 @@ echo "Creating config.mak and config.h..."
 
 echo "# Automatically generated by configure - do not modify!" > config.mak
 echo "/* Automatically generated by configure - do not modify! */" > $TMPH
-echo "#ifndef FFMPEG_CONFIG_H" >> $TMPH
-echo "#define FFMPEG_CONFIG_H" >> $TMPH
 echo "#define FFMPEG_CONFIGURATION \"$FFMPEG_CONFIGURATION\"" >> $TMPH
 
 echo "PREFIX=$PREFIX" >> config.mak
@@ -1861,13 +1868,12 @@ echo "VHOOKLIBS=$VHOOKLIBS" >> config.mak
 echo "LIBOBJFLAGS=$LIBOBJFLAGS" >> config.mak
 echo "BUILD_STATIC=$static" >> config.mak
 echo "BUILDSUF=$BUILDSUF" >> config.mak
-echo "FULLNAME=$FULLNAME" >> config.mak
 echo "LIBPREF=$LIBPREF" >> config.mak
-echo "LIBSUF=$LIBSUF" >> config.mak
-echo "LIBNAME=$LIBNAME" >> config.mak
+echo "LIBSUF=\${BUILDSUF}$LIBSUF" >> config.mak
+echo "LIB=$LIB" >> config.mak
 echo "SLIBPREF=$SLIBPREF" >> config.mak
-echo "SLIBSUF=$SLIBSUF" >> config.mak
-echo "EXESUF=$EXESUF" >> config.mak
+echo "SLIBSUF=\${BUILDSUF}$SLIBSUF" >> config.mak
+echo "EXESUF=\${BUILDSUF}$EXESUF" >> config.mak
 
 if enabled bigendian; then
   echo "WORDS_BIGENDIAN=yes" >> config.mak
@@ -1911,7 +1917,6 @@ if enabled shared; then
   echo "SLIBNAME_WITH_MAJOR=${SLIBNAME_WITH_MAJOR}" >> config.mak
   echo "SLIB_EXTRA_CMD=${SLIB_EXTRA_CMD}" >> config.mak
   echo "SLIB_INSTALL_EXTRA_CMD=${SLIB_INSTALL_EXTRA_CMD}" >> config.mak
-  echo "SLIB_UNINSTALL_EXTRA_CMD=${SLIB_UNINSTALL_EXTRA_CMD}" >> config.mak
 fi
 echo "LIB_INSTALL_EXTRA_CMD=${LIB_INSTALL_EXTRA_CMD}" >> config.mak
 echo "EXTRALIBS=$extralibs" >> config.mak
@@ -1942,8 +1947,6 @@ enabled asmalign_pot &&
   printf '#define ASMALIGN(ZEROBITS) ".align " #ZEROBITS "\\n\\t"\n' >> $TMPH ||
   printf '#define ASMALIGN(ZEROBITS) ".align 1<<" #ZEROBITS "\\n\\t"\n' >> $TMPH
 
-
-echo "#endif /* FFMPEG_CONFIG_H */" >> $TMPH
 
 # Do not overwrite config.h if unchanged to avoid superfluous rebuilds.
 cmp -s $TMPH config.h &&

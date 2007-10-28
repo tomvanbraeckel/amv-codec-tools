@@ -25,8 +25,8 @@
  * @author Michael Niedermayer <michaelni@gmx.at>
  */
 
-#ifndef FFMPEG_H264_H
-#define FFMPEG_H264_H
+#ifndef H264_H
+#define H264_H
 
 #include "dsputil.h"
 #include "cabac.h"
@@ -59,16 +59,13 @@
 #define MB_MBAFF h->mb_mbaff
 #define MB_FIELD h->mb_field_decoding_flag
 #define FRAME_MBAFF h->mb_aff_frame
-#define FIELD_PICTURE (s->picture_structure != PICT_FRAME)
 #else
 #define MB_MBAFF 0
 #define MB_FIELD 0
 #define FRAME_MBAFF 0
-#define FIELD_PICTURE 0
 #undef  IS_INTERLACED
 #define IS_INTERLACED(mb_type) 0
 #endif
-#define FIELD_OR_MBAFF_PICTURE (FRAME_MBAFF || FIELD_PICTURE)
 
 /**
  * Sequence parameter set
@@ -286,7 +283,7 @@ typedef struct H264Context{
     int prev_frame_num;           ///< frame_num of the last pic for POC type 1/2
 
     /**
-     * frame_num for frames or 2*frame_num+1 for field pics.
+     * frame_num for frames or 2*frame_num for field pics.
      */
     int curr_pic_num;
 
@@ -416,4 +413,4 @@ typedef struct H264Context{
 
 }H264Context;
 
-#endif /* FFMPEG_H264_H */
+#endif /* H264_H */

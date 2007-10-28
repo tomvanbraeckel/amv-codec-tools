@@ -25,8 +25,8 @@
  * @author Michael Niedermayer <michaelni@gmx.at>
  */
 
-#ifndef FFMPEG_INTEGER_H
-#define FFMPEG_INTEGER_H
+#ifndef INTEGER_H
+#define INTEGER_H
 
 #include <stdint.h>
 
@@ -80,4 +80,4 @@ AVInteger av_int2i(int64_t a);
  */
 int64_t av_i2int(AVInteger a);
 
-#endif /* FFMPEG_INTEGER_H */
+#endif // INTEGER_H

@@ -23,7 +23,6 @@
 #include "mpegaudio.h"
 #include "asf.h"
 #include "common.h"
-#include "asfcrypt.h"
 
 #undef NDEBUG
 #include <assert.h>
@@ -824,9 +823,6 @@ static int asf_read_packet(AVFormatContext *s, AVPacket *pkt)
 
         get_buffer(pb, asf_st->pkt.data + asf->packet_frag_offset,
                    asf->packet_frag_size);
-        if (s->key && s->keylen == 20)
-            ff_asfcrypt_dec(s->key, asf_st->pkt.data + asf->packet_frag_offset,
-                            asf->packet_frag_size);
         asf_st->frag_offset += asf->packet_frag_size;
         /* test if whole packet is read */
         if (asf_st->frag_offset == asf_st->pkt.size) {
@@ -882,6 +878,18 @@ static int asf_read_packet(AVFormatContext *s, AVPacket *pkt)
     return 0;
 }
 
+static int asf_read_close(AVFormatContext *s)
+{
+    int i;
+
+    for(i=0;i<s->nb_streams;i++) {
+        AVStream *st = s->streams[i];
+        av_free(st->priv_data);
+        av_free(st->codec->palctrl);
+    }
+    return 0;
+}
+
 // Added to support seeking after packets have been read
 // If information is not reset, read_packet fails due to
 // leftover information from previous reads
@@ -918,19 +926,6 @@ static void asf_reset_header(AVFormatContext *s)
         asf_st->seq=0;
     }
     asf->asf_st= NULL;
-}
-
-static int asf_read_close(AVFormatContext *s)
-{
-    int i;
-
-    asf_reset_header(s);
-    for(i=0;i<s->nb_streams;i++) {
-        AVStream *st = s->streams[i];
-        av_free(st->priv_data);
-        av_free(st->codec->palctrl);
-    }
-    return 0;
 }
 
 static int64_t asf_read_pts(AVFormatContext *s, int stream_index, int64_t *ppos, int64_t pos_limit)

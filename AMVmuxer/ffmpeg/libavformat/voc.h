@@ -19,8 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#ifndef FFMPEG_VOC_H
-#define FFMPEG_VOC_H
+#ifndef VOC_H
+#define VOC_H
 
 #include "avformat.h"
 #include "riff.h"    /* for CodecTag */
@@ -48,4 +48,4 @@ extern const AVCodecTag voc_codec_tags[];
 int voc_get_packet(AVFormatContext *s, AVPacket *pkt,
                    AVStream *st, int max_size);
 
-#endif /* FFMPEG_VOC_H */
+#endif

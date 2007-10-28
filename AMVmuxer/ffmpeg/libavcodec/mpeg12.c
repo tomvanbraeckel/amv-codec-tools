@@ -2239,7 +2239,7 @@ static int mpeg_decode_frame(AVCodecContext *avctx,
 
             *data_size = sizeof(AVFrame);
         }
-        return buf_size;
+        return 0;
     }
 
     if(s2->flags&CODEC_FLAG_TRUNCATED){

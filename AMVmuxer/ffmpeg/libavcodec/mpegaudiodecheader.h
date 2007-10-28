@@ -24,8 +24,8 @@
  * MPEG Audio header decoder.
  */
 
-#ifndef FFMPEG_MPEGAUDIODECHEADER_H
-#define FFMPEG_MPEGAUDIODECHEADER_H
+#ifndef MPEGAUDIODECHEADER_H
+#define MPEGAUDIODECHEADER_H
 
 #include "common.h"
 #include "mpegaudio.h"
@@ -36,4 +36,4 @@
    that the frame size must be computed externally */
 int ff_mpegaudio_decode_header(MPADecodeContext *s, uint32_t header);
 
-#endif /* FFMPEG_MPEGAUDIODECHEADER_H */
+#endif /* MPEGAUDIODECHEADER_H */

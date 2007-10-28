@@ -144,7 +144,6 @@ static int encode_frame(AVCodecContext *avctx, unsigned char *buf, int buf_size,
     AVFrame * const p= (AVFrame*)&s->picture;
     int bit_depth, color_type, y, len, row_size, ret, is_progressive;
     int bits_per_pixel, pass_row_size;
-    int compression_level;
     uint8_t *ptr;
     uint8_t *crow_buf = NULL;
     uint8_t *tmp_buf = NULL;
@@ -188,10 +187,7 @@ static int encode_frame(AVCodecContext *avctx, unsigned char *buf, int buf_size,
     s->zstream.zalloc = ff_png_zalloc;
     s->zstream.zfree = ff_png_zfree;
     s->zstream.opaque = NULL;
-    compression_level = avctx->compression_level == FF_COMPRESSION_DEFAULT ?
-                            Z_DEFAULT_COMPRESSION :
-                            av_clip(avctx->compression_level, 0, 9);
-    ret = deflateInit2(&s->zstream, compression_level,
+    ret = deflateInit2(&s->zstream, Z_DEFAULT_COMPRESSION,
                        Z_DEFLATED, 15, 8, Z_DEFAULT_STRATEGY);
     if (ret != Z_OK)
         return -1;

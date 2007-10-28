@@ -20,8 +20,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#ifndef FFMPEG_VC1_H
-#define FFMPEG_VC1_H
+#ifndef AVCODEC_VC1_H
+#define AVCODEC_VC1_H
 
 #include "avcodec.h"
 #include "mpegvideo.h"
@@ -304,4 +304,4 @@ typedef struct VC1Context{
     int bi_type;
 } VC1Context;
 
-#endif /* FFMPEG_VC1_H */
+#endif // AVCODEC_VC1_H

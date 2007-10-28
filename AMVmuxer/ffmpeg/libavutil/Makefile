@@ -4,9 +4,8 @@ OBJS = adler32.o \
        aes.o \
        base64.o \
        crc.o \
-       des.o \
-       fifo.o \
        intfloat_readwrite.o \
+       fifo.o \
        lls.o \
        log.o \
        lzo.o \
@@ -15,7 +14,6 @@ OBJS = adler32.o \
        mem.o \
        random.o \
        rational.o \
-       rc4.o \
        string.o \
        tree.o \
 

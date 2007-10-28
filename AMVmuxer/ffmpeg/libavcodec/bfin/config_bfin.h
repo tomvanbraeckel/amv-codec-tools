@@ -29,10 +29,6 @@ DEFUN(put_pixels_clamped,mL1,
 
       rts;
 */
-
-#ifndef FFMPEG_CONFIG_BFIN_H
-#define FFMPEG_CONFIG_BFIN_H
-
 #ifndef DEFUN
 
 #ifndef mL1
@@ -53,4 +49,3 @@ DEFUN(put_pixels_clamped,mL1,
 
 #endif
 
-#endif /* FFMPEG_CONFIG_BFIN_H */
