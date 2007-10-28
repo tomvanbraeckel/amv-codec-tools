@@ -19,9 +19,9 @@ OBJS := $(OBJS) $(ASM_OBJS) $(CPPOBJS)
 STATIC_OBJS := $(OBJS) $(STATIC_OBJS)
 SHARED_OBJS := $(OBJS) $(SHARED_OBJS)
 
-all: $(LIB) $(SLIBNAME)
+all: $(LIBNAME) $(SLIBNAME)
 
-$(LIB): $(STATIC_OBJS)
+$(LIBNAME): $(STATIC_OBJS)
 	rm -f $@
 	$(AR) rc $@ $^ $(EXTRAOBJS)
 	$(RANLIB) $@
@@ -39,7 +39,7 @@ $(SLIBNAME_WITH_MAJOR): $(SHARED_OBJS)
 %.o: %.S
 	$(CC) $(CFLAGS) $(LIBOBJFLAGS) -c -o $@ $<
 
-%: %.o $(LIB)
+%: %.o $(LIBNAME)
 	$(CC) $(LDFLAGS) -o $@ $^ $(EXTRALIBS)
 
 %.ho: %.h
@@ -58,16 +58,12 @@ clean::
 distclean: clean
 	rm -f .depend
 
-ifeq ($(BUILD_SHARED),yes)
-INSTLIBTARGETS += install-lib-shared
-endif
-ifeq ($(BUILD_STATIC),yes)
-INSTLIBTARGETS += install-lib-static
-endif
+INSTALL_TARGETS-$(BUILD_SHARED) += install-lib-shared
+INSTALL_TARGETS-$(BUILD_STATIC) += install-lib-static
 
 install: install-libs install-headers
 
-install-libs: $(INSTLIBTARGETS)
+install-libs: $(INSTALL_TARGETS-yes)
 
 install-lib-shared: $(SLIBNAME)
 	install -d "$(SHLIBDIR)"
@@ -79,9 +75,9 @@ install-lib-shared: $(SLIBNAME)
 		$(LN_S) $(SLIBNAME_WITH_VERSION) $(SLIBNAME)
 	$(SLIB_INSTALL_EXTRA_CMD)
 
-install-lib-static: $(LIB)
+install-lib-static: $(LIBNAME)
 	install -d "$(LIBDIR)"
-	install -m 644 $(LIB) "$(LIBDIR)"
+	install -m 644 $(LIBNAME) "$(LIBDIR)"
 	$(LIB_INSTALL_EXTRA_CMD)
 
 install-headers:
@@ -96,7 +92,8 @@ uninstall-libs:
 	-rm -f "$(SHLIBDIR)/$(SLIBNAME_WITH_MAJOR)" \
 	       "$(SHLIBDIR)/$(SLIBNAME)"            \
 	       "$(SHLIBDIR)/$(SLIBNAME_WITH_VERSION)"
-	-rm -f "$(LIBDIR)/$(LIB)"
+	-$(SLIB_UNINSTALL_EXTRA_CMD)
+	-rm -f "$(LIBDIR)/$(LIBNAME)"
 
 uninstall-headers::
 	rm -f $(addprefix "$(INCDIR)/",$(HEADERS))

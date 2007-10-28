@@ -2110,7 +2110,6 @@ matroska_read_header (AVFormatContext    *s,
                      codec_id == CODEC_ID_RV30 || codec_id == CODEC_ID_RV40) {
                 extradata_offset = 26;
                 track->codec_priv_size -= extradata_offset;
-                track->flags |= MATROSKA_TRACK_REAL_V;
             }
 
             else if (codec_id == CODEC_ID_RA_144) {
@@ -2235,12 +2234,6 @@ matroska_read_header (AVFormatContext    *s,
     }
 
     return res;
-}
-
-static inline int
-rv_offset(uint8_t *data, int slice, int slices)
-{
-    return AV_RL32(data+8*slice+4) + 8*slices;
 }
 
 static int
@@ -2379,7 +2372,6 @@ matroska_parse_block(MatroskaDemuxContext *matroska, uint8_t *data, int size,
     }
 
     if (res == 0) {
-        int real_v = matroska->tracks[track]->flags & MATROSKA_TRACK_REAL_V;
         uint64_t timecode = AV_NOPTS_VALUE;
 
         if (cluster_time != (uint64_t)-1
@@ -2387,91 +2379,74 @@ matroska_parse_block(MatroskaDemuxContext *matroska, uint8_t *data, int size,
             timecode = cluster_time + block_time;
 
         for (n = 0; n < laces; n++) {
-            int slice, slices = 1;
+            if (st->codec->codec_id == CODEC_ID_RA_288 ||
+                st->codec->codec_id == CODEC_ID_COOK ||
+                st->codec->codec_id == CODEC_ID_ATRAC3) {
+                MatroskaAudioTrack *audiotrack = (MatroskaAudioTrack *)matroska->tracks[track];
+                int a = st->codec->block_align;
+                int sps = audiotrack->sub_packet_size;
+                int cfs = audiotrack->coded_framesize;
+                int h = audiotrack->sub_packet_h;
+                int y = audiotrack->sub_packet_cnt;
+                int w = audiotrack->frame_size;
+                int x;
 
-            if (real_v) {
-                slices = *data++ + 1;
-                lace_size[n]--;
-            }
+                if (!audiotrack->pkt_cnt) {
+                    if (st->codec->codec_id == CODEC_ID_RA_288)
+                        for (x=0; x<h/2; x++)
+                            memcpy(audiotrack->buf+x*2*w+y*cfs,
+                                   data+x*cfs, cfs);
+                    else
+                        for (x=0; x<w/sps; x++)
+                            memcpy(audiotrack->buf+sps*(h*x+((h+1)/2)*(y&1)+(y>>1)), data+x*sps, sps);
 
-            for (slice=0; slice<slices; slice++) {
-                int slice_size, slice_offset = 0;
-                if (real_v)
-                    slice_offset = rv_offset(data, slice, slices);
-                if (slice+1 == slices)
-                    slice_size = lace_size[n] - slice_offset;
-                else
-                    slice_size = rv_offset(data, slice+1, slices) - slice_offset;
-
-                if (st->codec->codec_id == CODEC_ID_RA_288 ||
-                    st->codec->codec_id == CODEC_ID_COOK ||
-                    st->codec->codec_id == CODEC_ID_ATRAC3) {
-                    MatroskaAudioTrack *audiotrack = (MatroskaAudioTrack *)matroska->tracks[track];
-                    int a = st->codec->block_align;
-                    int sps = audiotrack->sub_packet_size;
-                    int cfs = audiotrack->coded_framesize;
-                    int h = audiotrack->sub_packet_h;
-                    int y = audiotrack->sub_packet_cnt;
-                    int w = audiotrack->frame_size;
-                    int x;
-
-                    if (!audiotrack->pkt_cnt) {
-                        if (st->codec->codec_id == CODEC_ID_RA_288)
-                            for (x=0; x<h/2; x++)
-                                memcpy(audiotrack->buf+x*2*w+y*cfs,
-                                       data+x*cfs, cfs);
-                        else
-                            for (x=0; x<w/sps; x++)
-                                memcpy(audiotrack->buf+sps*(h*x+((h+1)/2)*(y&1)+(y>>1)), data+x*sps, sps);
-
-                        if (++audiotrack->sub_packet_cnt >= h) {
-                            audiotrack->sub_packet_cnt = 0;
-                            audiotrack->pkt_cnt = h*w / a;
-                        }
+                    if (++audiotrack->sub_packet_cnt >= h) {
+                        audiotrack->sub_packet_cnt = 0;
+                        audiotrack->pkt_cnt = h*w / a;
                     }
-                    while (audiotrack->pkt_cnt) {
-                        pkt = av_mallocz(sizeof(AVPacket));
-                        av_new_packet(pkt, a);
-                        memcpy(pkt->data, audiotrack->buf
-                               + a * (h*w / a - audiotrack->pkt_cnt--), a);
-                        pkt->pos = pos;
-                        pkt->stream_index = matroska->tracks[track]->stream_index;
-                        matroska_queue_packet(matroska, pkt);
-                    }
-                } else {
-                    int offset = 0;
-
-                    if (st->codec->codec_id == CODEC_ID_TEXT
-                        && ((MatroskaSubtitleTrack *)(matroska->tracks[track]))->ass) {
-                        int i;
-                        for (i=0; i<8 && data[slice_offset+offset]; offset++)
-                            if (data[slice_offset+offset] == ',')
-                                i++;
-                    }
-
+                }
+                while (audiotrack->pkt_cnt) {
                     pkt = av_mallocz(sizeof(AVPacket));
-                    /* XXX: prevent data copy... */
-                    if (av_new_packet(pkt, slice_size-offset) < 0) {
-                        res = AVERROR(ENOMEM);
-                        n = laces-1;
-                        break;
-                    }
-                    memcpy (pkt->data, data+slice_offset+offset, slice_size-offset);
-
-                    if (n == 0)
-                        pkt->flags = is_keyframe;
-                    pkt->stream_index = matroska->tracks[track]->stream_index;
-
-                    pkt->pts = timecode;
+                    av_new_packet(pkt, a);
+                    memcpy(pkt->data, audiotrack->buf
+                           + a * (h*w / a - audiotrack->pkt_cnt--), a);
                     pkt->pos = pos;
-                    pkt->duration = duration;
-
+                    pkt->stream_index = matroska->tracks[track]->stream_index;
                     matroska_queue_packet(matroska, pkt);
                 }
+            } else {
+                int offset = 0;
 
-                if (timecode != AV_NOPTS_VALUE)
-                    timecode = duration ? timecode + duration : AV_NOPTS_VALUE;
+                if (st->codec->codec_id == CODEC_ID_TEXT
+                    && ((MatroskaSubtitleTrack *)(matroska->tracks[track]))->ass) {
+                    int i;
+                    for (i=0; i<8 && data[offset]; offset++)
+                        if (data[offset] == ',')
+                            i++;
+                }
+
+                pkt = av_mallocz(sizeof(AVPacket));
+                /* XXX: prevent data copy... */
+                if (av_new_packet(pkt, lace_size[n]-offset) < 0) {
+                    res = AVERROR(ENOMEM);
+                    n = laces-1;
+                    break;
+                }
+                memcpy (pkt->data, data+offset, lace_size[n]-offset);
+
+                if (n == 0)
+                    pkt->flags = is_keyframe;
+                pkt->stream_index = matroska->tracks[track]->stream_index;
+
+                pkt->pts = timecode;
+                pkt->pos = pos;
+                pkt->duration = duration;
+
+                matroska_queue_packet(matroska, pkt);
             }
+
+            if (timecode != AV_NOPTS_VALUE)
+                timecode = duration ? timecode + duration : AV_NOPTS_VALUE;
             data += lace_size[n];
         }
     }
