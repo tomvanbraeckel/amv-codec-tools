@@ -319,7 +319,7 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
     {
         for(i=1; i<10; i++)
         {
-	    diff=(lq[i-1]-lq[i]+J[j])>>1;
+            diff=(lq[i-1]-lq[i]+J[j])>>1;
             if(diff>0)
             {
                 lq[i-1]-= diff;
@@ -331,8 +331,8 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
     for(i=0; i<10; i++)
     {
         lsfq[i]=FP_MUL(lq[i], ma_predictor_sum[L0][i]);
-	for(k=0; k<MA_NP; k++)
-	    lsfq[i] += FP_MUL(ctx->lq_prev[k][i], ma_predictor[L0][k][i]);
+        for(k=0; k<MA_NP; k++)
+            lsfq[i] += FP_MUL(ctx->lq_prev[k][i], ma_predictor[L0][k][i]);
     }
 
     /* Rotate lq_prev */
@@ -348,24 +348,24 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
     for(i=0; i<5; i++)
     {
         int16_t min=lsfq[i];
-	int mini=i;
+        int mini=i;
         int16_t max=lsfq[i];
-	int maxi=i;
-	for(j=i; j< 10-i; j++)
-	{
-	    if(lsfq[j]>max)
-	    {
-	        maxi=j;
-		max=lsfq[j];
-	    }
-	    if(lsfq[j]<min)
-	    {
-	        mini=j;
-		min=lsfq[j];
-	    }
-	}
-	FFSWAP(int32_t, lsfq[i], lsfq[mini]);
-	FFSWAP(int32_t, lsfq[10-i-1], lsfq[maxi]);
+        int maxi=i;
+        for(j=i; j< 10-i; j++)
+        {
+            if(lsfq[j]>max)
+            {
+                maxi=j;
+                max=lsfq[j];
+            }
+            if(lsfq[j]<min)
+            {
+                mini=j;
+                min=lsfq[j];
+            }
+        }
+        FFSWAP(int32_t, lsfq[i], lsfq[mini]);
+        FFSWAP(int32_t, lsfq[10-i-1], lsfq[maxi]);
     }
 
 
@@ -550,8 +550,8 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     {
         if(vector_bits[i]>16)
             return 0;
-	parm[i]=0;
-	for(j=0; j<vector_bits[i]; j++)
+        parm[i]=0;
+        for(j=0; j<vector_bits[i]; j++)
         {
             parm[i]<<= 1;
             parm[i] |= serial[idx++]==0x81?1:0;
