@@ -333,6 +333,7 @@ int g729_parity_check(int P1, int P0)
 {
     int P=P1>>2;
     int S=P0&1;
+    int i;
 
     for(i=0; i<6; i++)
     {
@@ -658,7 +659,7 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     }
 
     if(!g729_parity_check(parm[4], parm[5]))
-        ctx->data_errorr=1;
+        ctx->data_error=1;
 
     /* stub: error concealment routine required */
     if(ctx->data_error)
