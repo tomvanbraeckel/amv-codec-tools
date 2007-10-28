@@ -21,6 +21,7 @@
 #include "avformat.h"
 #include "mpegaudio.h"
 #include "avstring.h"
+#include "mpegaudiodecheader.h"
 
 #define ID3v2_HEADER_SIZE 10
 #define ID3v1_TAG_SIZE 128
@@ -424,12 +425,56 @@ static int mp3_read_probe(AVProbeData *p)
     else                   return 0;
 }
 
+/**
+ * Try to find Xing/Info/VBRI tags and compute duration from info therein
+ */
+static void mp3_parse_vbr_tags(AVFormatContext *s, AVStream *st, offset_t base)
+{
+    uint32_t v, spf;
+    int frames = -1; /* Total number of frames in file */
+    const offset_t xing_offtbl[2][2] = {{32, 17}, {17,9}};
+    MPADecodeContext c;
+
+    ff_mpegaudio_decode_header(&c, get_be32(&s->pb));
+    if(c.layer != 3)
+        return;
+
+    /* Check for Xing / Info tag */
+    url_fseek(&s->pb, xing_offtbl[c.lsf == 1][c.nb_channels == 1], SEEK_CUR);
+    v = get_be32(&s->pb);
+    if(v == MKBETAG('X', 'i', 'n', 'g') || v == MKBETAG('I', 'n', 'f', 'o')) {
+        v = get_be32(&s->pb);
+        if(v & 0x1)
+            frames = get_be32(&s->pb);
+    }
+
+    /* Check for VBRI tag (always 32 bytes after end of mpegaudio header) */
+    url_fseek(&s->pb, base + 4 + 32, SEEK_SET);
+    v = get_be32(&s->pb);
+    if(v == MKBETAG('V', 'B', 'R', 'I')) {
+        /* Check tag version */
+        if(get_be16(&s->pb) == 1) {
+            /* skip delay, quality and total bytes */
+            url_fseek(&s->pb, 8, SEEK_CUR);
+            frames = get_be32(&s->pb);
+        }
+    }
+
+    if(frames < 0)
+        return;
+
+    spf = c.lsf ? 576 : 1152; /* Samples per frame, layer 3 */
+    st->duration = av_rescale_q(frames, (AVRational){spf, c.sample_rate},
+                                st->time_base);
+}
+
 static int mp3_read_header(AVFormatContext *s,
                            AVFormatParameters *ap)
 {
     AVStream *st;
     uint8_t buf[ID3v1_TAG_SIZE];
     int len, ret, filesize;
+    offset_t off;
 
     st = av_new_stream(s, 0);
     if (!st)
@@ -438,6 +483,7 @@ static int mp3_read_header(AVFormatContext *s,
     st->codec->codec_type = CODEC_TYPE_AUDIO;
     st->codec->codec_id = CODEC_ID_MP3;
     st->need_parsing = AVSTREAM_PARSE_FULL;
+    st->start_time = 0;
 
     /* try to get the TAG */
     if (!url_is_streamed(&s->pb)) {
@@ -467,6 +513,10 @@ static int mp3_read_header(AVFormatContext *s,
     } else {
         url_fseek(&s->pb, 0, SEEK_SET);
     }
+
+    off = url_ftell(&s->pb);
+    mp3_parse_vbr_tags(s, st, off);
+    url_fseek(&s->pb, off, SEEK_SET);
 
     /* the parameters will be extracted from the compressed bitstream */
     return 0;

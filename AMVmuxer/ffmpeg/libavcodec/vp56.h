@@ -21,8 +21,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#ifndef VP56_H
-#define VP56_H
+#ifndef FFMPEG_VP56_H
+#define FFMPEG_VP56_H
 
 #include "vp56data.h"
 #include "dsputil.h"
@@ -157,6 +157,14 @@ struct vp56_context {
 
     vp56_model_t *modelp;
     vp56_model_t models[2];
+
+    /* huffman decoding */
+    int use_huffman;
+    GetBitContext gb;
+    VLC dccv_vlc[2];
+    VLC runv_vlc[2];
+    VLC ract_vlc[2][3][6];
+    unsigned int nb_null[2][2];       /* number of consecutive NULL DC/AC */
 };
 
 
@@ -257,4 +265,4 @@ static inline int vp56_rac_get_tree(vp56_range_coder_t *c,
     return -tree->val;
 }
 
-#endif /* VP56_H */
+#endif /* FFMPEG_VP56_H */
