@@ -13,8 +13,8 @@
 typedef struct
 {
     int data_error;         ///< data error detected during decoding
-    short* exc_base;
-    short* exc;
+    int* exc_base;
+    int* exc;
     double *lq_prev[MA_NP]; ///< l[i], LSP quantizer output (3.2.4)
     double lsp_prev[10];    ///< q[i], LSP coefficients from previous frame (3.2.5)
     float betta;            ///< betta, Pitch gain (3.8)
@@ -596,7 +596,7 @@ void* g729a_decoder_init()
         for(i=0;i<frame_size; i++)
             ctx->lq_prev[k][i]=ctx->lq_prev[0][i];
 
-    ctx->exc_base=calloc(sizeof(short), frame_size*8+pitch_max+interpol_filt_len);
+    ctx->exc_base=calloc(sizeof(int), frame_size*8+pitch_max+interpol_filt_len);
     if(!ctx->exc_base)
         return NULL;
 
