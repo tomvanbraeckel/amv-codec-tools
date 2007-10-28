@@ -56,6 +56,7 @@ OBJS-$(CONFIG_CSCD_DECODER)            += cscd.o
 OBJS-$(CONFIG_CYUV_DECODER)            += cyuv.o
 OBJS-$(CONFIG_DCA_DECODER)             += dca.o
 OBJS-$(CONFIG_DNXHD_DECODER)           += dnxhddec.o dnxhddata.o
+OBJS-$(CONFIG_DNXHD_ENCODER)           += dnxhdenc.o dnxhddata.o mpegvideo_enc.o motion_est.o ratecontrol.o
 OBJS-$(CONFIG_DSICINVIDEO_DECODER)     += dsicinav.o
 OBJS-$(CONFIG_DSICINAUDIO_DECODER)     += dsicinav.o
 OBJS-$(CONFIG_DVBSUB_DECODER)          += dvbsubdec.o
@@ -78,10 +79,7 @@ OBJS-$(CONFIG_FLIC_DECODER)            += flicvideo.o
 OBJS-$(CONFIG_FLV_DECODER)             += h263dec.o h263.o
 OBJS-$(CONFIG_FLV_ENCODER)             += mpegvideo_enc.o motion_est.o ratecontrol.o h263.o
 OBJS-$(CONFIG_FOURXM_DECODER)          += 4xm.o
-OBJS-$(CONFIG_FRAPS_DECODER)           += fraps.o
-OBJS-$(CONFIG_G729A_DECODER)           += g729.o
-
-
+OBJS-$(CONFIG_FRAPS_DECODER)           += fraps.o huffman.o
 OBJS-$(CONFIG_GIF_DECODER)             += gifdec.o lzw.o
 OBJS-$(CONFIG_GIF_ENCODER)             += gif.o
 OBJS-$(CONFIG_H261_DECODER)            += h261dec.o h261.o
@@ -130,6 +128,7 @@ OBJS-$(CONFIG_MSMPEG4V3_ENCODER)       += msmpeg4.o msmpeg4data.o mpegvideo_enc.
 OBJS-$(CONFIG_MSRLE_DECODER)           += msrle.o
 OBJS-$(CONFIG_MSVIDEO1_DECODER)        += msvideo1.o
 OBJS-$(CONFIG_MSZH_DECODER)            += lcldec.o
+OBJS-$(CONFIG_NELLYMOSER_DECODER)      += nellymoserdec.o
 OBJS-$(CONFIG_NUV_DECODER)             += nuv.o rtjpeg.o
 OBJS-$(CONFIG_PAM_ENCODER)             += pnmenc.o pnm.o
 OBJS-$(CONFIG_PBM_ENCODER)             += pnmenc.o pnm.o
@@ -187,6 +186,7 @@ OBJS-$(CONFIG_TSCC_DECODER)            += tscc.o
 OBJS-$(CONFIG_TTA_DECODER)             += tta.o
 OBJS-$(CONFIG_TXD_DECODER)             += txd.o s3tc.o
 OBJS-$(CONFIG_ULTI_DECODER)            += ulti.o
+OBJS-$(CONFIG_VB_DECODER)              += vb.o
 OBJS-$(CONFIG_VC1_DECODER)             += vc1.o vc1data.o vc1dsp.o msmpeg4data.o
 OBJS-$(CONFIG_VCR1_DECODER)            += vcr1.o
 OBJS-$(CONFIG_VCR1_ENCODER)            += vcr1.o
@@ -197,8 +197,9 @@ OBJS-$(CONFIG_VORBIS_DECODER)          += vorbis_dec.o vorbis.o vorbis_data.o xi
 OBJS-$(CONFIG_VORBIS_ENCODER)          += vorbis_enc.o vorbis.o vorbis_data.o mdct.o fft.o
 OBJS-$(CONFIG_VP3_DECODER)             += vp3.o vp3dsp.o
 OBJS-$(CONFIG_VP5_DECODER)             += vp5.o vp56.o vp56data.o vp3dsp.o
-OBJS-$(CONFIG_VP6_DECODER)             += vp6.o vp56.o vp56data.o vp3dsp.o
-OBJS-$(CONFIG_VP6F_DECODER)            += vp6.o vp56.o vp56data.o vp3dsp.o
+OBJS-$(CONFIG_VP6_DECODER)             += vp6.o vp56.o vp56data.o vp3dsp.o huffman.o
+OBJS-$(CONFIG_VP6A_DECODER)            += vp6.o vp56.o vp56data.o vp3dsp.o huffman.o
+OBJS-$(CONFIG_VP6F_DECODER)            += vp6.o vp56.o vp56data.o vp3dsp.o huffman.o
 OBJS-$(CONFIG_VQA_DECODER)             += vqavideo.o
 OBJS-$(CONFIG_WAVPACK_DECODER)         += wavpack.o
 OBJS-$(CONFIG_WMAV1_DECODER)           += wmadec.o wma.o mdct.o fft.o
@@ -265,10 +266,12 @@ OBJS-$(CONFIG_ADPCM_CT_DECODER)        += adpcm.o
 OBJS-$(CONFIG_ADPCM_CT_ENCODER)        += adpcm.o
 OBJS-$(CONFIG_ADPCM_EA_DECODER)        += adpcm.o
 OBJS-$(CONFIG_ADPCM_EA_ENCODER)        += adpcm.o
+OBJS-$(CONFIG_ADPCM_EA_R1_DECODER)     += adpcm.o
+OBJS-$(CONFIG_ADPCM_EA_R2_DECODER)     += adpcm.o
+OBJS-$(CONFIG_ADPCM_EA_R3_DECODER)     += adpcm.o
 OBJS-$(CONFIG_ADPCM_G726_DECODER)      += g726.o
 OBJS-$(CONFIG_ADPCM_G726_ENCODER)      += g726.o
 OBJS-$(CONFIG_ADPCM_IMA_AMV_DECODER)   += adpcm.o
-OBJS-$(CONFIG_ADPCM_IMA_AMV_ENCODER)   += adpcm.o
 OBJS-$(CONFIG_ADPCM_IMA_DK3_DECODER)   += adpcm.o
 OBJS-$(CONFIG_ADPCM_IMA_DK3_ENCODER)   += adpcm.o
 OBJS-$(CONFIG_ADPCM_IMA_DK4_DECODER)   += adpcm.o
@@ -366,6 +369,7 @@ OBJS-$(CONFIG_SNOW_DECODER)            += i386/snowdsp_mmx.o
 OBJS-$(CONFIG_VP3_DECODER)             += i386/vp3dsp_mmx.o i386/vp3dsp_sse2.o
 OBJS-$(CONFIG_VP5_DECODER)             += i386/vp3dsp_mmx.o i386/vp3dsp_sse2.o
 OBJS-$(CONFIG_VP6_DECODER)             += i386/vp3dsp_mmx.o i386/vp3dsp_sse2.o
+OBJS-$(CONFIG_VP6A_DECODER)            += i386/vp3dsp_mmx.o i386/vp3dsp_sse2.o
 OBJS-$(CONFIG_VP6F_DECODER)            += i386/vp3dsp_mmx.o i386/vp3dsp_sse2.o
 endif
 
@@ -430,10 +434,12 @@ OBJS-$(HAVE_ALTIVEC)                   += $(ALTIVEC-OBJS-yes)       \
 
 OBJS-$(ARCH_BFIN)                      += bfin/dsputil_bfin.o \
                                           bfin/mpegvideo_bfin.o \
+                                          bfin/vp3_bfin.o \
 
 ASM_OBJS-$(ARCH_BFIN)                  += bfin/pixels_bfin.o \
                                           bfin/fdct_bfin.o   \
                                           bfin/idct_bfin.o   \
+                                          bfin/vp3_idct_bfin.o   \
 
 EXTRALIBS := -L$(BUILD_ROOT)/libavutil -lavutil$(BUILDSUF) $(EXTRALIBS)
 
@@ -463,18 +469,18 @@ endif
 
 tests: apiexample $(TESTS)
 
-apiexample: apiexample.o $(LIB)
+apiexample: apiexample.o $(LIBNAME)
 
 cpuid-test: i386/cputest.c
 	$(CC) $(CFLAGS) -DTEST -o $@ $<
 
-dct-test: dct-test.o fdctref.o $(LIB)
+dct-test: dct-test.o fdctref.o $(LIBNAME)
 
-fft-test: fft-test.o $(LIB)
+fft-test: fft-test.o $(LIBNAME)
 
-imgresample-test: imgresample.c $(LIB)
+imgresample-test: imgresample.c $(LIBNAME)
 	$(CC) $(CFLAGS) -DTEST -o $@ $^ $(EXTRALIBS)
 
-motion-test: motion-test.o $(LIB)
+motion-test: motion-test.o $(LIBNAME)
 
 .PHONY: tests

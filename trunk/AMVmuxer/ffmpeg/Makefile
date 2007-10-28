@@ -34,7 +34,10 @@ ALL_TARGETS-$(CONFIG_VHOOK) += videohook
 ALL_TARGETS-$(BUILD_DOC)    += documentation
 
 INSTALL_TARGETS-$(CONFIG_VHOOK) += install-vhook
+ifneq ($(PROGS),)
+INSTALL_TARGETS-yes             += install-progs
 INSTALL_TARGETS-$(BUILD_DOC)    += install-man
+endif
 
 VHOOKCFLAGS += $(filter-out -mdynamic-no-pic,$(CFLAGS))
 
@@ -137,13 +140,12 @@ doc/%.pod: doc/%-doc.texi
 doc/%.1: doc/%.pod
 	pod2man --section=1 --center=" " --release=" " $< > $@
 
-install: install-progs install-libs install-headers $(INSTALL_TARGETS-yes)
+install: install-libs install-headers $(INSTALL_TARGETS-yes)
 
 ifeq ($(BUILD_SHARED),yes)
-install-progs: $(PROGS) install-libs
-else
-install-progs: $(PROGS)
+install-progs: install-libs
 endif
+install-progs: $(PROGS)
 	install -d "$(BINDIR)"
 	install -c -m 755 $(PROGS) "$(BINDIR)"
 
@@ -192,7 +194,7 @@ uninstall-man:
 	rm -f $(addprefix $(MANDIR)/man1/,$(ALLMANPAGES))
 
 uninstall-vhook:
-	rm -f $(addprefix $(SHLIBDIR)/vhook/,$(ALLHOOKS))
+	rm -f $(addprefix $(SHLIBDIR)/,$(ALLHOOKS_SRCS:.c=$(SLIBSUF)))
 	-rmdir "$(SHLIBDIR)/vhook/"
 
 uninstall-libs:
