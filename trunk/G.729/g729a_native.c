@@ -18,7 +18,7 @@ typedef struct
     int intT2_prev;          ///< int(T2) value of previous frame (4.1.3)
     double *lq_prev[MA_NP]; ///< l[i], LSP quantizer output (3.2.4)
     double lsp_prev[10];    ///< q[i], LSP coefficients from previous frame (3.2.5)
-    float betta;            ///< betta, Pitch gain (3.8)
+    double betta;            ///< betta, Pitch gain (3.8)
     float g[40];            ///< gain coefficient (4.2.4)
     int rand_seed;          ///< seed for random number generator (4.4.4)
     int prev_mode;
@@ -448,7 +448,7 @@ static void g729a_decode_ac_vector(G729A_Context* ctx, int k, int t, int* ac_v)
 }
 
 /**
- * \brief Decoding fo the fixed-codebook vector (4.1.4, reversed 3.8.2)
+ * \brief Decoding fo the fixed-codebook vector (3.8)
  * \param ctx private data structure
  * \param C Fixed codebook
  * \param S Signs of fixed-codebook pulses (0 bit value means negative sign)
@@ -458,21 +458,32 @@ static void g729a_decode_ac_vector(G729A_Context* ctx, int k, int t, int* ac_v)
  * \note hardcoded 4 and 13 bits vector items length!
  *       4.4k codec uses different values here (different algorithm?)
  */
-static void g729a_decode_fc_vector(G729A_Context* ctx, int C, int S, int* fc_v)
+static void g729a_decode_fc_vector(G729A_Context* ctx, int C, int S, double* fc_v)
 {
     int accC=C;
     int accS=S;
     int i;
 
-    /* reverted Equation 62 */
-    for(i=0; i<4; i++)
+    for(i=0; i<40; i++)
+        fc_v[i]=0;
+
+    /* reverted Equation 62 and Equation 45 */
+    for(i=0; i<3; i++)
     {
-        fc_v[i]=accC&7;
-        fc_v[i]*=(accS&1)?5:-5;
+        fc_v[ (accC&7) * 5 + i ] = (accS&1) ? 1 : -1;
         accC>>=3;
         accS>>=1;
     }
-    fc_v[3]>>=1;
+    fc_v[ ((accC>>1)&7) * 5 + 3 + accC&1 ] = (accS&1) ? 1 : -1;
+}
+
+static void g729a_fix_fc_vector(G729A_Context *ctx, int T, double* fc_v)
+{
+    if(T>=40)
+        return;
+
+    for(i=T; i<40;i++)
+        fc_v[i]+=fc_v[i-T]*ctx->betta;
 }
 
 /**
@@ -777,7 +788,7 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     int vector_bits[VECTOR_SIZE]={1,7,5,5,8,1,13, 4,3,4,5,13, 4,3,4};
     int t;     ///< pitch delay, fraction part
     int k;     ///< pitch delay, integer part
-    int fc[4]; ///< fixed codebooc vector
+    double fc[40]; ///< fixed codebooc vector
 
     ctx->data_error=0;
 
@@ -807,11 +818,13 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     g729a_decode_ac_delay_subframe1(ctx, parm[4], &k, &t);
     g729a_decode_ac_vector(ctx, k, t, ctx->exc);
     g729a_decode_fc_vector(ctx, parm[6], parm[7], fc);
+    g729a_fix_fc_vector(ctx, k, fc);
 
     /* second subframe */
     g729a_decode_ac_delay_subframe2(ctx, parm[10], k, &k, &t);
     g729a_decode_ac_vector(ctx, k, t, ctx->exc+40);
     g729a_decode_fc_vector(ctx, parm[11], parm[12], fc);
+    g729a_fix_fc_vector(ctx, k, fc);
 
     //Save signal for using in next frame
     memmove(ctx->exc_base, ctx->exc, (PITCH_MAX+INTERPOL_LEN)*sizeof(int));
