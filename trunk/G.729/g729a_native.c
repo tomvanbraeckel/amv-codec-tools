@@ -15,6 +15,7 @@ typedef struct
     int data_error;         ///< data error detected during decoding
     int* exc_base;          ///< past excitation signal buffer
     int* exc;
+    int intT2_prev;          ///< int(T2) value of previous frame (4.1.3)
     double *lq_prev[MA_NP]; ///< l[i], LSP quantizer output (3.2.4)
     double lsp_prev[10];    ///< q[i], LSP coefficients from previous frame (3.2.5)
     float betta;            ///< betta, Pitch gain (3.8)
@@ -241,6 +242,25 @@ static const double cb_L3[32][5] = {
   {-0.137329, -0.032349, -0.029541,  0.088379,  0.114014},
 };
 
+
+/**
+ * interpolation filter b30 (3.7.1)
+ */
+static const double b30[31]=
+{
+   0.898517,
+   0.769271,   0.448635,   0.095915,
+  -0.134333,  -0.178528,  -0.084919,
+   0.036952,   0.095533,   0.068936,
+  -0.000000,  -0.050404,  -0.050835,
+  -0.014169,   0.023083,   0.033543,
+   0.016774,  -0.007466,  -0.019340,
+  -0.013755,   0.000000,   0.009400,
+   0.009029,   0.002381,  -0.003658,
+  -0.005027,  -0.002405,   0.001050,
+   0.002780,   0.002145,   0.000000
+};
+
 /**
  * MA predictor (3.2.4)
  */
@@ -347,6 +367,114 @@ int g729_parity_check(int P1, int P0)
     S ^= 1;
     return (!S);
 }
+
+/**
+ * \brief Decoding of the adaptive-codebook vector delay for first subframe (4.1.3)
+ * \param ctx private data structure
+ * \param P1 Pitch delay first subframe
+ * \param intT [out] integer part of delay
+ * \param frac [out] fractional part of delay [-1, 0, 1]
+ */
+static void g729a_decode_ac_delay_subframe1(G729A_Context* ctx, int P1, int* intT, int* frac)
+{
+    /* if no parity error */
+    if(!ctx->data_error)
+    {
+        if(P1<197)
+        {
+            *intT=1.0*(P1+2)/3+19;
+            *frac=P1-3*(*intT)+58;
+        }
+        else
+        {
+            *intT=P1-112;
+            *frac=0;
+        }
+    }
+    else{
+        *intT=ctx->intT2_prev;
+        *frac=0;
+    }
+}
+
+/**
+ * \brief Decoding of the adaptive-codebook vector delay for second subframe (4.1.3)
+ * \param ctx private data structure
+ * \param P1 Pitch delay second subframe 
+ * \param T1 first subframe's vector delay integer part 
+ * \param intT [out] integer part of delay
+ * \param frac [out] fractional part of delay [-1, 0, 1]
+ */
+static void g729a_decode_ac_delay_subframe2(G729A_Context* ctx, int P2, int intT1, int* intT, int* frac)
+{
+
+    int tmin=FFMIN(FFMAX(intT1-5, PITCH_MIN)+9, PITCH_MAX)-9;
+    
+    *intT=(P2+2)/3-1;
+    *frac=P2-2-3*(*intT);
+
+    *intT+=tmin;
+
+    ctx->intT2_prev=*intT;
+}
+
+/**
+ * \brief Decoding of the adaptive-codebook vector (4.1.3)
+ * \param ctx private data structure
+ * \param k pitch delat, integer part
+ * \param t pitch delay, fraction paart [-1, 0, 1]
+ * \param ac_v buffer to store decoded vector into
+ */
+static void g729a_decode_ac_vector(G729A_Context* ctx, int k, int t, int* ac_v)
+{
+    int n, i;
+    double v;
+
+    t++;
+
+    //t [0, 1, 2]
+    //k [PITCH_MIN-1; PITCH_MAX]
+    for(n=0; n<40; n++)
+    {
+        /* 3.7.1, Equation 40 */
+        v=0;
+        for(i=0; i<10; i++)
+        {
+            v+=ctx->exc[n-k+i]*b30[t+3*i];
+            v+=ctx->exc[n-k+i+1]*b30[3-t+3*i];
+        }
+        ac_v[n]=round(v);
+    }
+}
+
+/**
+ * \brief Decoding fo the fixed-codebook vector (4.1.4, reversed 3.8.2)
+ * \param ctx private data structure
+ * \param C Fixed codebook
+ * \param S Signs of fixed-codebook pulses (0 bit value means negative sign)
+ *
+ * bit allocations: 3+3+3+4
+ *
+ * \note hardcoded 4 and 13 bits vector items length!
+ *       4.4k codec uses different values here (different algorithm?)
+ */
+static void g729a_decode_fc_vector(G729A_Context* ctx, int C, int S, int* fc_v)
+{
+    int accC=C;
+    int accS=S;
+    int i;
+
+    /* reverted Equation 62 */
+    for(i=0; i<4; i++)
+    {
+        fc_v[i]=accC&7;
+        fc_v[i]*=(accS&1)?5:-5;
+        accC>>=3;
+        accS>>=1;
+    }
+    fc_v[3]>>=1;
+}
+
 /**
  * \brief Decode LP coefficients from L0-L3 (3.2.4)
  * \param ctx private data structure
@@ -599,6 +727,7 @@ void* g729a_decoder_init()
         for(i=0;i<frame_size; i++)
             ctx->lq_prev[k][i]=ctx->lq_prev[0][i];
 
+    // Two subframes + PITCH_MAX inetries for last excitation signal data + ???
     ctx->exc_base=calloc(sizeof(int), frame_size*8+PITCH_MAX+INTERPOL_LEN);
     if(!ctx->exc_base)
         return NULL;
@@ -646,6 +775,9 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     int i,j;
     double lsp[10];
     int vector_bits[VECTOR_SIZE]={1,7,5,5,8,1,13, 4,3,4,5,13, 4,3,4};
+    int t;     ///< pitch delay, fraction part
+    int k;     ///< pitch delay, integer part
+    int fc[4]; ///< fixed codebooc vector
 
     ctx->data_error=0;
 
@@ -671,6 +803,18 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     g729a_lsp_decode(ctx, parm[0], parm[1], parm[2], parm[3], lsp);
     g729a_lp_decode(ctx, lsp);
 
+    /* first subframe */
+    g729a_decode_ac_delay_subframe1(ctx, parm[4], &k, &t);
+    g729a_decode_ac_vector(ctx, k, t, ctx->exc);
+    g729a_decode_fc_vector(ctx, parm[6], parm[7], fc);
+
+    /* second subframe */
+    g729a_decode_ac_delay_subframe2(ctx, parm[10], k, &k, &t);
+    g729a_decode_ac_vector(ctx, k, t, ctx->exc+40);
+    g729a_decode_fc_vector(ctx, parm[11], parm[12], fc);
+
+    //Save signal for using in next frame
+    memmove(ctx->exc_base, ctx->exc, (PITCH_MAX+INTERPOL_LEN)*sizeof(int));
     return 0;
 }
 
