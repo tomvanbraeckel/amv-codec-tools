@@ -22,6 +22,11 @@ typedef struct
     int prev_mode;
 }  G729A_Context;
 
+//Stability constants (3.2.4)
+#define LSFQ_MIN 0.005
+#define LSFQ_MAX 3.135
+#define LSFQ_DIFF_MIN 0.0391
+
 /**
  * L1 codebook (10-dimensional, with 128 entries (3.2.4)
  */
@@ -397,10 +402,6 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
     }
 
 
-//Stability constants (3.2.4)
-#define LSFQ_MIN 0.005
-#define LSFQ_MAX 3.135
-#define LSFQ_DIFF_MIN 0.0391
     /* checking for stability */
     for(i=0;i<10; i++)
         lsfq[i] = FFMAX(lsfq[i],LSFQ_MIN); //Is warning required ?
