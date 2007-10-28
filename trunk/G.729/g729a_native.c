@@ -1,3 +1,21 @@
+/*
+ * G.729 Annex A decoder
+ * Copyright (c) 2007 Vladimir Voroshilov
+ *
+ * FFmpeg is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * FFmpeg is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with FFmpeg; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ */
 #include <stdlib.h>
 #include <inttypes.h>
 #include <math.h>
@@ -262,6 +280,47 @@ static const double b30[31]=
 };
 
 /**
+ * GA codebook (3.9.2)
+ */
+#define GA_BITS 3
+#define GA_CB_SIZE (1<<GA_BITS)
+static const double cb_GA[GA_CB_SIZE][2] =
+{
+  { 0.197876,  1.214478}, //5
+  { 0.094666,  0.296021}, //1
+  { 0.117249,  1.134155}, //4
+  { 0.163452,  3.315674}, //7
+  { 0.003479,  0.659668}, //3
+  { 0.000061,  0.185059}, //0
+  { 0.021729,  1.801270}, //6
+  { 0.111755,  0.613037}, //2
+};
+
+/**
+ * GB codebook (3.9.2)
+ */
+#define GB_BITS 4
+#define GB_CB_SIZE (1<<GB_BITS)
+static const double cb_GB[GB_CB_SIZE][2] = {
+  { 0.313843,  0.072266}, //2
+  { 1.055847,  0.227173}, //14
+  { 0.375977,  0.292358}, //3
+  { 0.983398,  0.414062}, //13
+  { 0.050415,  0.244751}, //0
+  { 1.158020,  0.724487}, //15
+  { 0.121704,  0.000000}, //1
+  { 0.942017,  0.028931}, //12
+  { 0.645325,  0.362061}, //6
+  { 0.923584,  0.599854}, //10
+  { 0.706116,  0.145996}, //7
+  { 0.866333,  0.198975}, //9
+  { 0.493835,  0.593384}, //4
+  { 0.925354,  1.742676}, //11
+  { 0.556641,  0.064087}, //5
+  { 0.809326,  0.397461}, //8
+};
+
+/**
  * MA predictor (3.2.4)
  */
 static const double ma_predictor[2][4][10] = {
@@ -458,6 +517,7 @@ static void g729a_decode_ac_vector(G729A_Context* ctx, int k, int t, int* ac_v)
  * \note hardcoded 4 and 13 bits vector items length!
  *       4.4k codec uses different values here (different algorithm?)
  */
+#define FC_PULSE_COUNT 4
 static void g729a_decode_fc_vector(G729A_Context* ctx, int C, int S, double* fc_v)
 {
     int accC=C;
@@ -468,13 +528,13 @@ static void g729a_decode_fc_vector(G729A_Context* ctx, int C, int S, double* fc_
         fc_v[i]=0;
 
     /* reverted Equation 62 and Equation 45 */
-    for(i=0; i<3; i++)
+    for(i=0; i<FC_PULSE_COUNT-1; i++)
     {
         fc_v[ (accC&7) * 5 + i ] = (accS&1) ? 1 : -1;
         accC>>=3;
         accS>>=1;
     }
-    fc_v[ ((accC>>1)&7) * 5 + 3 + accC&1 ] = (accS&1) ? 1 : -1;
+    fc_v[ ((accC>>1)&7) * 5 + i + accC&1 ] = (accS&1) ? 1 : -1;
 }
 
 /**
@@ -493,6 +553,21 @@ static void g729a_fix_fc_vector(G729A_Context *ctx, int T, double* fc_v)
 
     for(i=T; i<40;i++)
         fc_v[i]+=fc_v[i-T]*ctx->betta;
+}
+
+static void g729a_get_gain(G729A_Context *ctx, int GA, int GB, double* fc_v)
+{
+    double gp, gamma;
+    double energy=0;
+    int i;
+
+   gp=cb_GA[GA][0]+cb_GB[GB][0];
+gamma=cb_GA[GA][1]+cb_GB[GB][1];
+
+   for(i=0; i<40; i++)
+       energy+=fc_v[i]*fc_v[i];
+   energy/=40;
+   energy=10*log2(energy);
 }
 
 /**
@@ -792,7 +867,7 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     int idx=2;
     int i,j;
     double lsp[10];
-    int vector_bits[VECTOR_SIZE]={1,7,5,5,8,1,13, 4,3,4,5,13, 4,3,4};
+    int vector_bits[VECTOR_SIZE]={1,7,5,5,8,1,13, FC_PULSE_COUNT, GA_BITS, GB_BITS, 5,13, FC_PULSE_COUNT,GA_BITS,GB_BITS};
     int t;     ///< pitch delay, fraction part
     int k;     ///< pitch delay, integer part
     double fc[40]; ///< fixed codebooc vector
@@ -826,12 +901,14 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     g729a_decode_ac_vector(ctx, k, t, ctx->exc);
     g729a_decode_fc_vector(ctx, parm[6], parm[7], fc);
     g729a_fix_fc_vector(ctx, k, fc);
+    g729a_get_gain(ctx, parm[8], parm[9], fc);
 
     /* second subframe */
     g729a_decode_ac_delay_subframe2(ctx, parm[10], k, &k, &t);
     g729a_decode_ac_vector(ctx, k, t, ctx->exc+40);
     g729a_decode_fc_vector(ctx, parm[11], parm[12], fc);
     g729a_fix_fc_vector(ctx, k, fc);
+    g729a_get_gain(ctx, parm[13], parm[14], fc);
 
     //Save signal for using in next frame
     memmove(ctx->exc_base, ctx->exc, (PITCH_MAX+INTERPOL_LEN)*sizeof(int));
