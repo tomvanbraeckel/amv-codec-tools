@@ -25,8 +25,8 @@
  * mpegvideo header.
  */
 
-#ifndef AVCODEC_MPEGVIDEO_H
-#define AVCODEC_MPEGVIDEO_H
+#ifndef FFMPEG_MPEGVIDEO_H
+#define FFMPEG_MPEGVIDEO_H
 
 #include "dsputil.h"
 #include "bitstream.h"
@@ -735,6 +735,9 @@ void ff_er_frame_start(MpegEncContext *s);
 void ff_er_frame_end(MpegEncContext *s);
 void ff_er_add_slice(MpegEncContext *s, int startx, int starty, int endx, int endy, int status);
 
+int ff_dct_common_init(MpegEncContext *s);
+void ff_convert_matrix(DSPContext *dsp, int (*qmat)[64], uint16_t (*qmat16)[2][64],
+                       const uint16_t *quant_matrix, int bias, int qmin, int qmax, int intra);
 
 extern enum PixelFormat ff_yuv420p_list[2];
 
@@ -911,5 +914,5 @@ void ff_wmv2_encode_mb(MpegEncContext * s,
                        DCTELEM block[6][64],
                        int motion_x, int motion_y);
 
-#endif /* AVCODEC_MPEGVIDEO_H */
+#endif /* FFMPEG_MPEGVIDEO_H */
 
