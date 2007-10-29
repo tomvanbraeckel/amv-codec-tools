@@ -866,7 +866,7 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     short parm[VECTOR_SIZE];
     int idx=2;
     int i,j;
-    float lsp[10];
+    float lp[10];
     int vector_bits[VECTOR_SIZE]={1,7,5,5,8,1,13, FC_PULSE_COUNT, GA_BITS, GB_BITS, 5,13, FC_PULSE_COUNT,GA_BITS,GB_BITS};
     int t;     ///< pitch delay, fraction part
     int k;     ///< pitch delay, integer part
@@ -893,7 +893,7 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     if(ctx->data_error)
         return 0;
 
-    g729a_lsp_decode(ctx, parm[0], parm[1], parm[2], parm[3], lsp);
+    g729a_lsp_decode(ctx, parm[0], parm[1], parm[2], parm[3], lp);
     g729a_lp_decode(ctx, lsp);
 
     /* first subframe */
