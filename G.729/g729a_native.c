@@ -33,9 +33,9 @@ typedef struct
     int data_error;         ///< data error detected during decoding
     int* exc_base;          ///< past excitation signal buffer
     int* exc;
-    int intT2_prev;          ///< int(T2) value of previous frame (4.1.3)
-    float *lq_prev[MA_NP]; ///< l[i], LSP quantizer output (3.2.4)
-    float lsp_prev[10];    ///< q[i], LSP coefficients from previous frame (3.2.5)
+    int intT2_prev;         ///< int(T2) value of previous frame (4.1.3)
+    float *lq_prev[MA_NP];  ///< l[i], LSP quantizer output (3.2.4)
+    float lsp_prev[10];     ///< q[i], LSP coefficients from previous frame (3.2.5)
     float betta;            ///< betta, Pitch gain (3.8)
     float g[40];            ///< gain coefficient (4.2.4)
     int rand_seed;          ///< seed for random number generator (4.4.4)
