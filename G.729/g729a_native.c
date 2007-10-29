@@ -607,6 +607,43 @@ static void g729a_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, fl
 }
 
 /**
+ * \brief Memory update (3.10)
+ * \param ctx private data structure
+ * \param fc_v fixed-codebook vector
+ * \param gp quantized fixed-codebook gain (gain pitch)
+ * \param gc quantized adaptive-codebook gain (gain code)
+ * \param exc last excitation signal buffer for current subframe
+ */
+static void g729a_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc, int* exc)
+{
+    int i;
+
+    for(i=0; i<40; i++)
+        exc[i]=round(exc[i]*gp+fc_v[i]*gc)/2;
+}
+
+/**
+ * \brief Computing the reconstructed speech (4.1.6)
+ * \param ctx private data structure
+ * \param lp LP filter coefficients
+ * \param exc excitation
+ * \param speech reconstructed speech buffer (40+10 items)
+ */
+static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, int* exc, float* speech_buf)
+{
+    float* speech=speech_buf+10;
+    int i,n;
+
+    /* 4.1.6, Equation 77  */
+    for(n=0; n<40; n++)
+    {
+        speech[n]=exc[n];
+        for(i=0; i<10; i++)
+            speech[n]-= lp[i]*speech[n-i-1];
+    }
+}
+
+/**
  * \brief Decode LP coefficients from L0-L3 (3.2.4)
  * \param ctx private data structure
  * \param L0 Switched MA predictor of LSP quantizer
@@ -913,6 +950,8 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     float fc[40]; ///< fixed codebooc vector
     float gp, gc;
 
+    float speech_buf[80+10]; ///< reconstructed speech
+
     ctx->data_error=0;
 
     for(i=0; i<VECTOR_SIZE; i++)
@@ -943,6 +982,8 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     g729a_decode_fc_vector(ctx, parm[6], parm[7], fc);
     g729a_fix_fc_vector(ctx, k, fc);
     g729a_get_gain(ctx, parm[8], parm[9], fc, &gp, &gc);
+    g729a_mem_update(ctx, fc, gp, gc, ctx->exc);
+    g729a_reconstruct_speech(ctx, lp, ctx->exc, speech_buf);
 
     /* second subframe */
     g729a_decode_ac_delay_subframe2(ctx, parm[10], k, &k, &t);
@@ -950,6 +991,8 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     g729a_decode_fc_vector(ctx, parm[11], parm[12], fc);
     g729a_fix_fc_vector(ctx, k, fc);
     g729a_get_gain(ctx, parm[13], parm[14], fc, &gp, &gc);
+    g729a_mem_update(ctx, fc, gp, gc, ctx->exc+40);
+    g729a_reconstruct_speech(ctx, lp, ctx->exc+40, speech_buf+40);
 
     //Save signal for using in next frame
     memmove(ctx->exc_base, ctx->exc, (PITCH_MAX+INTERPOL_LEN)*sizeof(int));
