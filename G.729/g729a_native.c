@@ -534,7 +534,7 @@ static void g729a_decode_fc_vector(G729A_Context* ctx, int C, int S, float* fc_v
         accC>>=3;
         accS>>=1;
     }
-    fc_v[ ((accC>>1)&7) * 5 + i + accC&1 ] = (accS&1) ? 1 : -1;
+    fc_v[ ((accC>>1)&7) * 5 + i + (accC&1) ] = (accS&1) ? 1 : -1;
 }
 
 /**
