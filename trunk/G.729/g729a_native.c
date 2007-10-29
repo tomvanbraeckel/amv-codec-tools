@@ -34,9 +34,9 @@ typedef struct
     int* exc_base;          ///< past excitation signal buffer
     int* exc;
     int intT2_prev;          ///< int(T2) value of previous frame (4.1.3)
-    double *lq_prev[MA_NP]; ///< l[i], LSP quantizer output (3.2.4)
-    double lsp_prev[10];    ///< q[i], LSP coefficients from previous frame (3.2.5)
-    double betta;            ///< betta, Pitch gain (3.8)
+    float *lq_prev[MA_NP]; ///< l[i], LSP quantizer output (3.2.4)
+    float lsp_prev[10];    ///< q[i], LSP coefficients from previous frame (3.2.5)
+    float betta;            ///< betta, Pitch gain (3.8)
     float g[40];            ///< gain coefficient (4.2.4)
     int rand_seed;          ///< seed for random number generator (4.4.4)
     int prev_mode;
@@ -54,7 +54,7 @@ typedef struct
 /**
  * L1 codebook (10-dimensional, with 128 entries (3.2.4)
  */
-static const double cb_L1[128][10] = {
+static const float cb_L1[128][10] = {
   {0.181396, 0.264648, 0.457886, 1.107666, 1.481201, 1.702148, 2.195190, 2.340454, 2.586670, 2.663574},
   {0.211182, 0.322266, 0.421143, 0.594482, 0.747803, 0.961426, 1.909668, 2.174927, 2.477295, 2.673584},
   {0.191406, 0.275391, 0.376953, 0.594971, 1.350464, 1.634888, 2.234741, 2.355103, 2.576782, 2.653931},
@@ -187,7 +187,7 @@ static const double cb_L1[128][10] = {
 /**
  * L2 codebook (10-dimensional, with 32 entries (3.2.4)
  */
-static const double cb_L2[32][5] = {
+static const float cb_L2[32][5] = {
   {-0.053101, -0.099487, -0.090576,  0.126099, -0.063232},
   {-0.101685, -0.108765,  0.056519, -0.000977, -0.152710},
   {-0.124634,  0.028198, -0.037354,  0.039185, -0.026855},
@@ -225,7 +225,7 @@ static const double cb_L2[32][5] = {
 /**
  * L3 codebook (10-dimensional, with 32 entries (3.2.4)
  */
-static const double cb_L3[32][5] = {
+static const float cb_L3[32][5] = {
   { 0.071045, -0.146606,  0.101196,  0.010498,  0.046997},
   { 0.177002,  0.008789, -0.028198,  0.105469,  0.080688},
   {-0.019897, -0.064209, -0.092041, -0.199341,  0.032593},
@@ -264,7 +264,7 @@ static const double cb_L3[32][5] = {
 /**
  * interpolation filter b30 (3.7.1)
  */
-static const double b30[31]=
+static const float b30[31]=
 {
    0.898517,
    0.769271,   0.448635,   0.095915,
@@ -284,7 +284,7 @@ static const double b30[31]=
  */
 #define GA_BITS 3
 #define GA_CB_SIZE (1<<GA_BITS)
-static const double cb_GA[GA_CB_SIZE][2] =
+static const float cb_GA[GA_CB_SIZE][2] =
 {
   { 0.197876,  1.214478}, //5
   { 0.094666,  0.296021}, //1
@@ -301,7 +301,7 @@ static const double cb_GA[GA_CB_SIZE][2] =
  */
 #define GB_BITS 4
 #define GB_CB_SIZE (1<<GB_BITS)
-static const double cb_GB[GB_CB_SIZE][2] = {
+static const float cb_GB[GB_CB_SIZE][2] = {
   { 0.313843,  0.072266}, //2
   { 1.055847,  0.227173}, //14
   { 0.375977,  0.292358}, //3
@@ -323,7 +323,7 @@ static const double cb_GB[GB_CB_SIZE][2] = {
 /**
  * MA predictor (3.2.4)
  */
-static const double ma_predictor[2][4][10] = {
+static const float ma_predictor[2][4][10] = {
   {
     { 0.256989,  0.277985,  0.279999,  0.273590,  0.275696,  0.276398,  0.267487,  0.267792,  0.277893,  0.264679},
     { 0.214172,  0.219391,  0.233093,  0.222992,  0.227173,  0.225189,  0.214783,  0.212280,  0.211487,  0.209595},
@@ -342,7 +342,7 @@ static const double ma_predictor[2][4][10] = {
  * ma_predicot_sum[i] := 1-sum{1}{4}{ma_predictor[k][i]}
  */
 
-static const double ma_predictor_sum[2][10] = {
+static const float ma_predictor_sum[2][10] = {
   { 0.237976,  0.257782,  0.250397,  0.253082,  0.247986,  0.258698,  0.257782,  0.265594,  0.275970,  0.262573},
   { 0.445099,  0.559479,  0.603394,  0.529297,  0.501282,  0.502289,  0.462494,  0.464478,  0.489594,  0.479370},
 };
@@ -374,7 +374,7 @@ static inline uint16_t g729a_random(G729A_Context* ctx)
 }
 
 
-static void dmp_d(char* name, double* arr, int size)
+static void dmp_d(char* name, float* arr, int size)
 {
     int i;
     printf("%s: ",name);
@@ -487,7 +487,7 @@ static void g729a_decode_ac_delay_subframe2(G729A_Context* ctx, int P2, int intT
 static void g729a_decode_ac_vector(G729A_Context* ctx, int k, int t, int* ac_v)
 {
     int n, i;
-    double v;
+    float v;
 
     t++;
 
@@ -518,7 +518,7 @@ static void g729a_decode_ac_vector(G729A_Context* ctx, int k, int t, int* ac_v)
  *       4.4k codec uses different values here (different algorithm?)
  */
 #define FC_PULSE_COUNT 4
-static void g729a_decode_fc_vector(G729A_Context* ctx, int C, int S, double* fc_v)
+static void g729a_decode_fc_vector(G729A_Context* ctx, int C, int S, float* fc_v)
 {
     int accC=C;
     int accS=S;
@@ -544,7 +544,7 @@ static void g729a_decode_fc_vector(G729A_Context* ctx, int C, int S, double* fc_
  *
  * \remark if T>=40 no changes to vector are made
  */
-static void g729a_fix_fc_vector(G729A_Context *ctx, int T, double* fc_v)
+static void g729a_fix_fc_vector(G729A_Context *ctx, int T, float* fc_v)
 {
     int i;
 
@@ -555,10 +555,10 @@ static void g729a_fix_fc_vector(G729A_Context *ctx, int T, double* fc_v)
         fc_v[i]+=fc_v[i-T]*ctx->betta;
 }
 
-static void g729a_get_gain(G729A_Context *ctx, int GA, int GB, double* fc_v)
+static void g729a_get_gain(G729A_Context *ctx, int GA, int GB, float* fc_v)
 {
-    double gp, gamma;
-    double energy=0;
+    float gp, gamma;
+    float energy=0;
     int i;
 
    gp=cb_GA[GA][0]+cb_GB[GB][0];
@@ -579,14 +579,14 @@ gamma=cb_GA[GA][1]+cb_GB[GB][1];
  * \param L3 Second stage higher vector of LSP quantizer
  * \param lsfq Decoded LSP coefficients
  */
-static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t L2, int16_t L3, double* lsfq)
+static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t L2, int16_t L3, float* lsfq)
 {
     int i,j,k;
-    double J[2]={0.0012, 0.0006};
-    double lq[10];
+    float J[2]={0.0012, 0.0006};
+    float lq[10];
     int32_t mode_index;
-    double diff;
-    double* tmp;
+    float diff;
+    float* tmp;
 
     /* 3.2.4 Equation 19 */
     for(i=0;i<5; i++)
@@ -626,12 +626,12 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
         ctx->lq_prev[0][i]=lsfq[i];
     ctx->prev_mode=L0;
 
-    /* sorting lsfq in ascending order. double bubble agorithm*/
+    /* sorting lsfq in ascending order. float bubble agorithm*/
     for(i=0; i<5; i++)
     {
-        double min=lsfq[i];
+        float min=lsfq[i];
         int mini=i;
-        double max=lsfq[i];
+        float max=lsfq[i];
         int maxi=i;
         for(j=i; j< 10-i; j++)
         {
@@ -646,8 +646,8 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
                 min=lsfq[j];
             }
         }
-        FFSWAP(double, lsfq[i], lsfq[mini]);
-        FFSWAP(double, lsfq[10-i-1], lsfq[maxi]);
+        FFSWAP(float, lsfq[i], lsfq[mini]);
+        FFSWAP(float, lsfq[10-i-1], lsfq[maxi]);
     }
 
     /* checking for stability */
@@ -669,14 +669,14 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
  * \param q LSP coefficients
  * \param a decoded LP coefficients
  */
-static void g729a_lsp2a(G729A_Context* ctx, double* q, double* a)
+static void g729a_lsp2a(G729A_Context* ctx, float* q, float* a)
 {
     int i,j, qidx=0, fidx=0;
-    double f1[6];
-    double f2[6];
+    float f1[6];
+    float f2[6];
 
-    double ff1[5];
-    double ff2[5];
+    float ff1[5];
+    float ff2[5];
 
     f1[0]=1.0;
     f2[0]=1.0;
@@ -719,10 +719,10 @@ static void g729a_lsp2a(G729A_Context* ctx, double* q, double* a)
  * \param ctx private data structure
  * \param lspq current LSP coefficients
  */
-static void g729a_lp_decode(G729A_Context* ctx, double* lspq)
+static void g729a_lp_decode(G729A_Context* ctx, float* lspq)
 {
-    double lsp[10];
-    double a1[10],a2[10];
+    float lsp[10];
+    float a1[10],a2[10];
     int i;
 
     /* LSP values for first subframe (3.2.5, Equation 24)*/
@@ -763,7 +763,7 @@ void* g729a_decoder_init()
     int interpol_filt_len=11;
     int frame_size=10;
     int i,k;
-    double d;
+    float d;
 
     /* Decoder initialization. 4.3, Table 9 */
 
@@ -777,7 +777,7 @@ void* g729a_decoder_init()
 
     /* LSP coefficients */
     for(k=0; k<MA_NP; k++)
-        ctx->lq_prev[k]=malloc(sizeof(double)*frame_size);
+        ctx->lq_prev[k]=malloc(sizeof(float)*frame_size);
 
 #if 0
     /*
@@ -866,11 +866,11 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     short parm[VECTOR_SIZE];
     int idx=2;
     int i,j;
-    double lsp[10];
+    float lsp[10];
     int vector_bits[VECTOR_SIZE]={1,7,5,5,8,1,13, FC_PULSE_COUNT, GA_BITS, GB_BITS, 5,13, FC_PULSE_COUNT,GA_BITS,GB_BITS};
     int t;     ///< pitch delay, fraction part
     int k;     ///< pitch delay, integer part
-    double fc[40]; ///< fixed codebooc vector
+    float fc[40]; ///< fixed codebooc vector
 
     ctx->data_error=0;
 
