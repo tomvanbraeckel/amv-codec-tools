@@ -894,7 +894,7 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
         return 0;
 
     g729a_lsp_decode(ctx, parm[0], parm[1], parm[2], parm[3], lp);
-    g729a_lp_decode(ctx, lsp);
+    g729a_lp_decode(ctx, lp);
 
     /* first subframe */
     g729a_decode_ac_delay_subframe1(ctx, parm[4], &k, &t);
