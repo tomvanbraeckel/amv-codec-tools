@@ -564,10 +564,10 @@ static void g729a_get_gain(G729A_Context *ctx, int GA, int GB, float* fc_v)
    gp=cb_GA[GA][0]+cb_GB[GB][0];
 gamma=cb_GA[GA][1]+cb_GB[GB][1];
 
-   for(i=0; i<40; i++)
-       energy+=fc_v[i]*fc_v[i];
-   energy/=40;
-   energy=10*log2(energy);
+    for(i=0; i<40; i++)
+        energy+=fc_v[i]*fc_v[i];
+    energy/=40;
+    energy=10*log2(energy);
 }
 
 /**
