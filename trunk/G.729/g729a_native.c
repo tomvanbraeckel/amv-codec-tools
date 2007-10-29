@@ -511,6 +511,7 @@ static void g729a_decode_ac_vector(G729A_Context* ctx, int k, int t, int* ac_v)
  * \param ctx private data structure
  * \param C Fixed codebook
  * \param S Signs of fixed-codebook pulses (0 bit value means negative sign)
+ * \param fc_v [out] decoded fixed codebook vector
  *
  * bit allocations: 3+3+3+4
  *
@@ -524,8 +525,7 @@ static void g729a_decode_fc_vector(G729A_Context* ctx, int C, int S, float* fc_v
     int accS=S;
     int i;
 
-    for(i=0; i<40; i++)
-        fc_v[i]=0;
+    memset(fc_v, 0, sizeof(float)*40);
 
     /* reverted Equation 62 and Equation 45 */
     for(i=0; i<FC_PULSE_COUNT-1; i++)
