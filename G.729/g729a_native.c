@@ -36,6 +36,7 @@ typedef struct
     int intT2_prev;         ///< int(T2) value of previous frame (4.1.3)
     float *lq_prev[MA_NP];  ///< l[i], LSP quantizer output (3.2.4)
     float lsp_prev[10];     ///< q[i], LSP coefficients from previous frame (3.2.5)
+    float pred_vect_q[4];   ///< quantized prediction error
     float betta;            ///< betta, Pitch gain (3.8)
     float g[40];            ///< gain coefficient (4.2.4)
     int rand_seed;          ///< seed for random number generator (4.4.4)
@@ -347,6 +348,15 @@ static const float ma_predictor_sum[2][10] = {
   { 0.445099,  0.559479,  0.603394,  0.529297,  0.501282,  0.502289,  0.462494,  0.464478,  0.489594,  0.479370},
 };
 
+
+/**
+ * MA prediction coefficients (3.9.1, near Equation 69)
+ */
+static const float ma_prediction_coeff[4] =
+{
+  0.68, 0.58, 0.34, 0.19
+};
+
 /*
 -------------------------------------------------------------------------------
           Internal routines
@@ -555,19 +565,45 @@ static void g729a_fix_fc_vector(G729A_Context *ctx, int T, float* fc_v)
         fc_v[i]+=fc_v[i-T]*ctx->betta;
 }
 
-static void g729a_get_gain(G729A_Context *ctx, int GA, int GB, float* fc_v)
+/**
+ * \brief Decoding of the adaptive and fixed codebook gains (4.1.5 and 3.9.1)
+ * \param ctx private data structure
+ * \param GA Gain codebook (stage 2)
+ * \param GB Gain codebook (stage 2)
+ * \param fc_v fixed-codebook vector
+ * \param gp pointer to variable receiving quantized fixed-codebook gain (gain pitch)
+ * \param gc pointer to variable receiving quantized adaptive-codebook gain (gain code)
+ */
+static void g729a_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, float* gp, float* gc)
 {
-    float gp, gamma;
     float energy=0;
     int i;
 
-   gp=cb_GA[GA][0]+cb_GB[GB][0];
-gamma=cb_GA[GA][1]+cb_GB[GB][1];
-
+    /* 3.9.1, Equation 66 */
     for(i=0; i<40; i++)
         energy+=fc_v[i]*fc_v[i];
-    energy/=40;
-    energy=10*log2(energy);
+    energy=30-10.*log2(energy/40.0);
+
+    /* 3.9.1, Equation 69 */
+    for(i=0; i<4; i++)
+        energy+= ctx->pred_vect_q[i] * ma_prediction_coeff[i];
+
+    
+    /* 3.9.1, Equation 71 */
+    energy = exp10(energy/20);
+
+    // shift prediction error vector
+    for(i=3; i>0; i--)
+        ctx->pred_vect_q[i]=ctx->pred_vect_q[i-1];
+
+    /* 3.9.1, Equation 72 */
+    ctx->pred_vect_q[0]=20*log(cb_GA[nGA][1]+cb_GB[nGB][1]);
+
+    /* 3.9.1, Equation 73 */
+    *gp = cb_GA[nGA][0]+cb_GB[nGB][0];           // quantized adaptive-codebook gain (gain code)
+    
+    /* 3.9.1, Equation 74 */
+    *gc = energy*(cb_GA[nGA][1]+cb_GB[nGB][1]);  //quantized fixed-codebook gain (gain pitch)
 }
 
 /**
@@ -830,6 +866,10 @@ void* g729a_decoder_init()
     /* random seed initialization (4.4.4) */
     ctx->rand_seed=21845;
 
+    //quantized prediction error
+    for(i=0; i<4; i++)
+        ctx->pred_vect_q[i] = -14;
+
     return ctx;
 }
 
@@ -871,6 +911,7 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     int t;     ///< pitch delay, fraction part
     int k;     ///< pitch delay, integer part
     float fc[40]; ///< fixed codebooc vector
+    float gp, gc;
 
     ctx->data_error=0;
 
@@ -901,14 +942,14 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     g729a_decode_ac_vector(ctx, k, t, ctx->exc);
     g729a_decode_fc_vector(ctx, parm[6], parm[7], fc);
     g729a_fix_fc_vector(ctx, k, fc);
-    g729a_get_gain(ctx, parm[8], parm[9], fc);
+    g729a_get_gain(ctx, parm[8], parm[9], fc, &gp, &gc);
 
     /* second subframe */
     g729a_decode_ac_delay_subframe2(ctx, parm[10], k, &k, &t);
     g729a_decode_ac_vector(ctx, k, t, ctx->exc+40);
     g729a_decode_fc_vector(ctx, parm[11], parm[12], fc);
     g729a_fix_fc_vector(ctx, k, fc);
-    g729a_get_gain(ctx, parm[13], parm[14], fc);
+    g729a_get_gain(ctx, parm[13], parm[14], fc, &gp, &gc);
 
     //Save signal for using in next frame
     memmove(ctx->exc_base, ctx->exc, (PITCH_MAX+INTERPOL_LEN)*sizeof(int));
