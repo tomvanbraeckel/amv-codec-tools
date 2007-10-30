@@ -584,13 +584,13 @@ static void g729a_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, fl
     /* 3.9.1, Equation 66 */
     for(i=0; i<40; i++)
         energy+=fc_v[i]*fc_v[i];
+
     energy=30-10.*log10(energy/40.0);
 
     /* 3.9.1, Equation 69 */
     for(i=0; i<4; i++)
         energy+= ctx->pred_vect_q[i] * ma_prediction_coeff[i];
 
-    
     /* 3.9.1, Equation 71 */
     energy = exp10(energy/20);
 
