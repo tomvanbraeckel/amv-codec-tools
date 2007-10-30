@@ -37,7 +37,7 @@ typedef struct
     float *lq_prev[MA_NP];  ///< l[i], LSP quantizer output (3.2.4)
     float lsp_prev[10];     ///< q[i], LSP coefficients from previous frame (3.2.5)
     float pred_vect_q[4];   ///< quantized prediction error
-    float betta;            ///< betta, Pitch gain (3.8)
+    float gain_pitch;       ///< Pitch gain of previous subframe (3.8)
     float g[40];            ///< gain coefficient (4.2.4)
     int rand_seed;          ///< seed for random number generator (4.4.4)
     int prev_mode;
@@ -562,7 +562,7 @@ static void g729a_fix_fc_vector(G729A_Context *ctx, int T, float* fc_v)
         return;
 
     for(i=T; i<40;i++)
-        fc_v[i]+=fc_v[i-T]*ctx->betta;
+        fc_v[i]+=fc_v[i-T]*ctx->gain_pitch;
 }
 
 /**
@@ -841,7 +841,7 @@ void* g729a_decoder_init()
     /* Decoder initialization. 4.3, Table 9 */
 
     /* Pitch gain */
-    ctx->betta=0.8;
+    ctx->gain_pitch=0.8;
 
     /* gain coefficients */
     ctx->g[0]=1.0;
