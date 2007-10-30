@@ -798,11 +798,11 @@ static void g729a_lsp2a(G729A_Context* ctx, float* q, float* a)
  * \brief interpolate LSP end decode LP for both first and second subframes (3.2.5 and 3.2.6)
  * \param ctx private data structure
  * \param lspq current LSP coefficients
+ * \param lp [out] decoded LP coefficients
  */
-static void g729a_lp_decode(G729A_Context* ctx, float* lspq)
+static void g729a_lp_decode(G729A_Context* ctx, float* lspq, float* lp)
 {
     float lsp[10];
-    float a1[10],a2[10];
     int i;
 
     /* LSP values for first subframe (3.2.5, Equation 24)*/
@@ -811,16 +811,16 @@ static void g729a_lp_decode(G729A_Context* ctx, float* lspq)
         lsp[i]=(lspq[i]+ctx->lsp_prev[i])/2;
     }
 
-    g729a_lsp2a(ctx, lsp, a1);
+    g729a_lsp2a(ctx, lsp, lp);
 
-dmp_d("a1", a1, 10);
+dmp_d("a1", lp, 10);
     /* LSP values for second subframe (3.2.5)*/
     for(i=0;i<10;i++)
         lsp[i]=lspq[i];
 
-    g729a_lsp2a(ctx, lsp, a2);
+    g729a_lsp2a(ctx, lsp, lp+10);
 
-dmp_d("a2", a1, 10);
+dmp_d("a2", lp+10, 10);
     /* saving LSP coefficients for using in next frame */
     for(i=0;i<10;i++)
         ctx->lsp_prev[i]=lspq[i];
@@ -954,7 +954,8 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     short parm[VECTOR_SIZE];
     int idx=2;
     int i,j;
-    float lp[10];
+    float lp[20];
+    float lsp[10];
     int vector_bits[VECTOR_SIZE]={1,7,5,5,8,1,13, FC_PULSE_COUNT, GA_BITS, GB_BITS, 5,13, FC_PULSE_COUNT,GA_BITS,GB_BITS};
     int t;     ///< pitch delay, fraction part
     int k;     ///< pitch delay, integer part
@@ -984,8 +985,8 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     if(ctx->data_error)
         return 0;
 
-    g729a_lsp_decode(ctx, parm[0], parm[1], parm[2], parm[3], lp);
-    g729a_lp_decode(ctx, lp);
+    g729a_lsp_decode(ctx, parm[0], parm[1], parm[2], parm[3], lsp);
+    g729a_lp_decode(ctx, lsp, lp);
 
     /* first subframe */
     g729a_decode_ac_delay_subframe1(ctx, parm[4], &k, &t);
@@ -1003,7 +1004,7 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     g729a_fix_fc_vector(ctx, k, fc);
     g729a_get_gain(ctx, parm[13], parm[14], fc, &gp, &gc);
     g729a_mem_update(ctx, fc, gp, gc, ctx->exc+40);
-    g729a_reconstruct_speech(ctx, lp, ctx->exc+40, speech_buf+40);
+    g729a_reconstruct_speech(ctx, lp+10, ctx->exc+40, speech_buf+40);
 
     //Save signal for using in next frame
     memmove(ctx->exc_base, ctx->exc, (PITCH_MAX+INTERPOL_LEN)*sizeof(int));
