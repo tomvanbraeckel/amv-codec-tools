@@ -738,7 +738,6 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
         lsfq[i+1]=FFMAX(lsfq[i+1], lsfq[i]+LSFQ_DIFF_MIN);
     lsfq[9] = FFMIN(lsfq[9],LSFQ_MAX);//Is warning required ?
 
-    //FIXME: fixed-point optimization
     for(i=0;i<10; i++)
         lsfq[i]=cos(lsfq[i]);
 }
@@ -807,20 +806,16 @@ static void g729a_lp_decode(G729A_Context* ctx, float* lspq, float* lp)
 
     /* LSP values for first subframe (3.2.5, Equation 24)*/
     for(i=0;i<10;i++)
-    {
         lsp[i]=(lspq[i]+ctx->lsp_prev[i])/2;
-    }
 
     g729a_lsp2a(ctx, lsp, lp);
 
-dmp_d("a1", lp, 10);
     /* LSP values for second subframe (3.2.5)*/
     for(i=0;i<10;i++)
         lsp[i]=lspq[i];
 
     g729a_lsp2a(ctx, lsp, lp+10);
 
-dmp_d("a2", lp+10, 10);
     /* saving LSP coefficients for using in next frame */
     for(i=0;i<10;i++)
         ctx->lsp_prev[i]=lspq[i];
