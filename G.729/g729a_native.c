@@ -40,6 +40,7 @@ typedef struct
     float lsp_prev[10];     ///< q[i], LSP coefficients from previous frame (3.2.5)
     float pred_vect_q[4];   ///< quantized prediction error
     float gain_pitch;       ///< Pitch gain of previous subframe (3.8) [GAIN_PITCH_MIN ... GAIN_PITCH_MAX]
+    short syn_filter_data[10];
     float g[40];            ///< gain coefficient (4.2.4)
     int rand_seed;          ///< seed for random number generator (4.4.4)
     int prev_mode;
@@ -634,20 +635,32 @@ static void g729a_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc
  * \param ctx private data structure
  * \param lp LP filter coefficients
  * \param exc excitation
- * \param speech reconstructed speech buffer (40+10 items)
+ * \param speech reconstructed speech buffer (40 items)
  */
-static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, int* exc, float* speech_buf)
+static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, int* exc, short* speech)
 {
-    float* speech=speech_buf+10;
+    float* tmp_speech_buf=calloc(1,(40+10)*sizeof(float));
+    float* tmp_speech=tmp_speech_buf+10;
     int i,n;
+
+    for(i=0;i<10;i++)
+        tmp_speech_buf[i]= ctx->syn_filter_data[i];
 
     /* 4.1.6, Equation 77  */
     for(n=0; n<40; n++)
     {
-        speech[n]=exc[n];
+        tmp_speech[n]=exc[n];
         for(i=0; i<10; i++)
-            speech[n]-= lp[i]*speech[n-i-1];
+            tmp_speech[n]-= lp[i]*tmp_speech[n-i-1];
     }
+
+    for(i=0; i<40; i++)
+        speech[i]=round(tmp_speech[i]);
+
+    free(tmp_speech_buf);
+
+    /* FIXME: line below shold be used only if reconstruction completed successfully */
+    memcpy(ctx->syn_filter_data, speech+40-10, 10*sizeof(short));
 }
 
 /**
@@ -957,7 +970,7 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     float fc[40]; ///< fixed codebooc vector
     float gp, gc;
 
-    float speech_buf[80+10]; ///< reconstructed speech
+    short speech_buf[80]; ///< reconstructed speech
 
     ctx->data_error=0;
 
