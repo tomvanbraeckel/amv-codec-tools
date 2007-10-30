@@ -626,7 +626,7 @@ static void g729a_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc
     int i;
 
     for(i=0; i<40; i++)
-        exc[i]=round(exc[i]*gp+fc_v[i]*gc)/2;
+        exc[i]=round(exc[i]*gp+fc_v[i]*gc);
 }
 
 /**
