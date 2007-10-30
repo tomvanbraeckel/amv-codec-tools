@@ -1011,6 +1011,7 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     g729a_decode_fc_vector(ctx, parm[11], parm[12], fc);
     g729a_fix_fc_vector(ctx, k, fc);
     g729a_get_gain(ctx, parm[13], parm[14], fc, &gp, &gc);
+//FIXME: gc value here is wrong (2.07 instead of 20.5)!
     g729a_mem_update(ctx, fc, gp, gc, ctx->exc+40);
     g729a_reconstruct_speech(ctx, lp+10, ctx->exc+40, speech_buf+40);
 
