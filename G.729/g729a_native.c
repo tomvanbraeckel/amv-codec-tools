@@ -28,6 +28,8 @@
 #define FFMAX(a,b) ((a) > (b) ? (a) : (b))
 #define FFMIN(a,b) ((a) > (b) ? (b) : (a))
 
+#define GAIN_PITCH_MIN 0.2
+#define GAIN_PITCH_MAX 0.8
 typedef struct
 {
     int data_error;         ///< data error detected during decoding
@@ -37,7 +39,7 @@ typedef struct
     float *lq_prev[MA_NP];  ///< l[i], LSP quantizer output (3.2.4)
     float lsp_prev[10];     ///< q[i], LSP coefficients from previous frame (3.2.5)
     float pred_vect_q[4];   ///< quantized prediction error
-    float gain_pitch;       ///< Pitch gain of previous subframe (3.8)
+    float gain_pitch;       ///< Pitch gain of previous subframe (3.8) [GAIN_PITCH_MIN ... GAIN_PITCH_MAX]
     float g[40];            ///< gain coefficient (4.2.4)
     int rand_seed;          ///< seed for random number generator (4.4.4)
     int prev_mode;
@@ -604,6 +606,11 @@ static void g729a_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, fl
     
     /* 3.9.1, Equation 74 */
     *gc = energy*(cb_GA[nGA][1]+cb_GB[nGB][1]);  //quantized fixed-codebook gain (gain pitch)
+
+    /* save pitch gain value for next subframe */
+    ctx->gain_pitch=*gp;
+    ctx->gain_pitch = FFMAX(ctx->gain_pitch, GAIN_PITCH_MIN);
+    ctx->gain_pitch = FFMIN(ctx->gain_pitch, GAIN_PITCH_MAX);
 }
 
 /**
@@ -840,8 +847,12 @@ void* g729a_decoder_init()
 
     /* Decoder initialization. 4.3, Table 9 */
 
-    /* Pitch gain */
-    ctx->gain_pitch=0.8;
+    /* 
+    Pitch gain of previous subframe. 
+
+    (EE) This does not comply with specification, but reference
+         and Intel decoder uses here minimum sharpen value instead of maximum. */
+    ctx->gain_pitch=GAIN_PITCH_MIN;
 
     /* gain coefficients */
     ctx->g[0]=1.0;
