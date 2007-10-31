@@ -75,6 +75,12 @@ $(DECODERNAME) : $(DECODER-OBJECTS)
 $(LIBNAME) : $(LIB-OBJECTS)
 	$(AR) rcs $(LIBNAME) $(LIB-OBJECTS)
 
+g729a_native.o: g729a_native.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+native: g729a_native.o
+	$(AR) rcs $(LIBNAME) $<
+
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
@@ -112,4 +118,4 @@ test_native: g729a_native.c test.c
 test_orig: test.c $(LIBNAME)
 	gcc $(CFLAGS) -L. -I. -o test_orig $<  -lg729a
 
-.PHONY: prepare all clean distclean ffmpeg
+.PHONY: prepare all clean distclean ffmpeg native
