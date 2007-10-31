@@ -744,8 +744,7 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
     }
 
     /* checking for stability */
-    for(i=0;i<10; i++)
-        lsfq[i] = FFMAX(lsfq[i],LSFQ_MIN); //Is warning required ?
+    lsfq[0] = FFMAX(lsfq[0],LSFQ_MIN); //Is warning required ?
 
     for(i=0;i<9; i++)
         lsfq[i+1]=FFMAX(lsfq[i+1], lsfq[i]+LSFQ_DIFF_MIN);
