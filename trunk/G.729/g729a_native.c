@@ -830,7 +830,7 @@ static void g729a_lp_decode(G729A_Context* ctx, float* lspq, float* lp)
 
     /* saving LSP coefficients for using in next frame */
     for(i=0;i<10;i++)
-        ctx->lsp_prev[i]=lspq[i];
+        ctx->lsp_prev[i]=lsp[i];
 }
 
 /*
