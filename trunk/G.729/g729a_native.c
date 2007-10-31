@@ -292,12 +292,12 @@ static const float cb_GA[GA_CB_SIZE][2] =
 {
   { 0.197876,  1.214478}, //5
   { 0.094666,  0.296021}, //1
-  { 0.117249,  1.134155}, //4
   { 0.163452,  3.315674}, //7
-  { 0.003479,  0.659668}, //3
+  { 0.117249,  1.134155}, //4
+  { 0.111755,  0.613037}, //2
   { 0.000061,  0.185059}, //0
   { 0.021729,  1.801270}, //6
-  { 0.111755,  0.613037}, //2
+  { 0.003479,  0.659668}, //3
 };
 
 /**
@@ -600,7 +600,7 @@ static void g729a_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, fl
         ctx->pred_vect_q[i]=ctx->pred_vect_q[i-1];
 
     /* 3.9.1, Equation 72 */
-    ctx->pred_vect_q[0]=20*log(cb_GA[nGA][1]+cb_GB[nGB][1]);
+    ctx->pred_vect_q[0]=20*log10(cb_GA[nGA][1]+cb_GB[nGB][1]);
 
     /* 3.9.1, Equation 73 */
     *gp = cb_GA[nGA][0]+cb_GB[nGB][0];           // quantized adaptive-codebook gain (gain code)
@@ -1011,7 +1011,6 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     g729a_decode_fc_vector(ctx, parm[11], parm[12], fc);
     g729a_fix_fc_vector(ctx, k, fc);
     g729a_get_gain(ctx, parm[13], parm[14], fc, &gp, &gc);
-//FIXME: gc value here is wrong (2.07 instead of 20.5)!
     g729a_mem_update(ctx, fc, gp, gc, ctx->exc+40);
     g729a_reconstruct_speech(ctx, lp+10, ctx->exc+40, speech_buf+40);
 
