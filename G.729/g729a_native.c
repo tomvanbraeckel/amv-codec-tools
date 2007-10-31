@@ -716,7 +716,7 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
         ctx->lq_prev[k-1]=ctx->lq_prev[k];
     ctx->lq_prev[MA_NP-1]=tmp;
     for(i=0; i<10; i++)
-        ctx->lq_prev[0][i]=lsfq[i];
+        ctx->lq_prev[0][i]=lq[i];
     ctx->prev_mode=L0;
 
     /* sorting lsfq in ascending order. float bubble agorithm*/
