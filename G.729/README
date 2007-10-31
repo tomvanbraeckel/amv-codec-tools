@@ -24,9 +24,14 @@ You should see:
     g729a.c
     g729a.h
 
-3. Builing library
+3a. Builing library from ITU's sources
 
-Now "make" will build libg729a.a for your
+Now "make" will build libg729a.a for you
+
+3b. Building natvie G.729 decoder (encoding is not supported)
+
+"make native" will build lig729a.a from g729a_native.c
+(out implementation of G.729 decoder).
 
 4. Execute "make ffmpeg-cfg" followed by "make ffmpeg"
 
