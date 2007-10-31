@@ -1014,7 +1014,10 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
 
     //Save signal for using in next frame
     memmove(ctx->exc_base, ctx->exc_base+80, (PITCH_MAX+INTERPOL_LEN)*sizeof(int));
-    return 0;
+
+    /* Return reconstructed speech to caller */
+    memcpy(out_frame, speech_buf, 80*sizeof(short));
+    return 80;
 }
 
 /*
