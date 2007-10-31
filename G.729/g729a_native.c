@@ -707,7 +707,7 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
     {
         lsfq[i]=lq[i] * ma_predictor_sum[L0][i];
         for(k=0; k<MA_NP; k++)
-            lsfq[i] += (ctx->lq_prev[k][i] * ma_predictor[L0][k][i])*4;
+            lsfq[i] += (ctx->lq_prev[k][i] * ma_predictor[L0][k][i]);
     }
 
     /* Rotate lq_prev */
@@ -884,16 +884,16 @@ void* g729a_decoder_init()
     /* 
       This is code from reference decoder. Have to be reimplemented 
     */
-    ctx->lq_prev[0][0]=FP2FL(2339);
-    ctx->lq_prev[0][1]=FP2FL(4679);
-    ctx->lq_prev[0][2]=FP2FL(7018);
-    ctx->lq_prev[0][3]=FP2FL(9358);
-    ctx->lq_prev[0][4]=FP2FL(11698);
-    ctx->lq_prev[0][5]=FP2FL(14037);
-    ctx->lq_prev[0][6]=FP2FL(16377);
-    ctx->lq_prev[0][7]=FP2FL(18717);
-    ctx->lq_prev[0][8]=FP2FL(21056);
-    ctx->lq_prev[0][9]=FP2FL(23396);
+    ctx->lq_prev[0][0]=4*FP2FL(2339);
+    ctx->lq_prev[0][1]=4*FP2FL(4679);
+    ctx->lq_prev[0][2]=4*FP2FL(7018);
+    ctx->lq_prev[0][3]=4*FP2FL(9358);
+    ctx->lq_prev[0][4]=4*FP2FL(11698);
+    ctx->lq_prev[0][5]=4*FP2FL(14037);
+    ctx->lq_prev[0][6]=4*FP2FL(16377);
+    ctx->lq_prev[0][7]=4*FP2FL(18717);
+    ctx->lq_prev[0][8]=4*FP2FL(21056);
+    ctx->lq_prev[0][9]=4*FP2FL(23396);
 
     ctx->lsp_prev[0]=FP2FL(30000);
     ctx->lsp_prev[1]=FP2FL(26000);
