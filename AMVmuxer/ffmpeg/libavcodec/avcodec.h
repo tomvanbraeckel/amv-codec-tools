@@ -269,6 +269,7 @@ enum CodecID {
     CODEC_ID_VOXWARE,
     CODEC_ID_APE,
     CODEC_ID_NELLYMOSER,
+    CODEC_ID_G729A,
 
     /* subtitle codecs */
     CODEC_ID_DVD_SUBTITLE= 0x17000,
