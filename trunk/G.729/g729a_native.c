@@ -850,7 +850,6 @@ void* g729a_decoder_init()
     int interpol_filt_len=11;
     int frame_size=10;
     int i,k;
-    float d;
 
     /* Decoder initialization. 4.3, Table 9 */
 
@@ -878,7 +877,7 @@ void* g729a_decoder_init()
     for(i=0; i<frame_size;i++)
     {
         ctx->lq_prev[0][i]=(i+1)*M_PI/(frame_size+1);
-        ctx->lsp_prev[i]=cos(d);
+        ctx->lsp_prev[i]=cos(ctx->lq_prev[0][i]);
     }
 #else
     /* 
