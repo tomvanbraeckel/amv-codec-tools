@@ -1013,7 +1013,7 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     g729a_reconstruct_speech(ctx, lp+10, ctx->exc+40, speech_buf+40);
 
     //Save signal for using in next frame
-    memmove(ctx->exc_base, ctx->exc, (PITCH_MAX+INTERPOL_LEN)*sizeof(int));
+    memmove(ctx->exc_base, ctx->exc_base+80, (PITCH_MAX+INTERPOL_LEN)*sizeof(int));
     return 0;
 }
 
