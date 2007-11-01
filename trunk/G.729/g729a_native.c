@@ -808,17 +808,17 @@ static void g729a_lsp2a(G729A_Context* ctx, float* q, float* a)
 /**
  * \brief interpolate LSP end decode LP for both first and second subframes (3.2.5 and 3.2.6)
  * \param ctx private data structure
- * \param lspq current LSP coefficients
+ * \param lsp_curr current LSP coefficients
  * \param lp [out] decoded LP coefficients
  */
-static void g729a_lp_decode(G729A_Context* ctx, float* lspq, float* lp)
+static void g729a_lp_decode(G729A_Context* ctx, float* lsp_curr, float* lp)
 {
     float lsp[10];
     int i;
 
     /* LSP values for first subframe (3.2.5, Equation 24)*/
     for(i=0;i<10;i++)
-        lsp[i]=(lspq[i]+ctx->lsp_prev[i])/2;
+        lsp[i]=(lsp_curr[i]+ctx->lsp_prev[i])/2;
 
     g729a_lsp2a(ctx, lsp, lp);
 
