@@ -78,7 +78,7 @@ for(i=0 ; i<frame_size/2; i++)
 
 ^1^Note: the bitstream ordering is reflected by order in the table. For each parameter, the Most Significant Bit (MSB) is transmitted first.
 
-^2^This affects fixed-codebook pulses indexes calculation. "Fine rec" mode uses 3+3+3+4 bit allocation which gives four pulses with indexes in [0:39] range. Since indexes must cover [0:43] range for "Long rec" and "Long vox" formats, bit allocation was changed to 4+4+4+5=17 for them. Since proprietary codec uses 16-bit arithmetic last 5 bits were transferred to next parameter. New codec with 32-bit parameters will use 17-bit and 4-bit values for this and next parameters.
+^2^This affects fixed-codebook pulses indexes calculation. "Fine rec" mode uses 3+3+3+4 bit allocation which gives four pulses units with indexes in [0:39] range. Since indexes must cover [0:43] range for "Long rec" and "Long vox" formats, bit allocation was changed to 4+4+4+5=17 for them. And since proprietary codec uses 16-bit arithmetic last 5 bits were transferred to next parameter. New codec with 32-bit parameters will use 17-bit and 4-bit values for this and next parameters.
 
 ^3^ Two G.729 frames are passed from demuxer to codec at one time
 
