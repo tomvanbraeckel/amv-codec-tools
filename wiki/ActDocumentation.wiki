@@ -64,21 +64,23 @@ for(i=0 ; i<frame_size/2; i++)
 || L3 || Second stage higher vector of LSP quantizer || 5 || 5 ||
 || P1 || Pitch delay first subframe || 8 || 8 ||
 || P0 || Parity bit for Pitch delay || 1 || 1 ||
-|| C1 || Fixed codebook first subframe || 13 || 12 ||
-|| S1 || Signs of fixed-codebook pulses 1st subframe || 4 || 9 ||
+|| C1 || Fixed codebook first subframe || 13 || 12(17)^2^ ||
+|| S1 || Signs of fixed-codebook pulses 1st subframe || 4 || 9(4)^2^ ||
 || GA1 || Gain codebook (stage 1) 1st subframe || 3 || 3 ||
 || GB1 || Gain codebook (stage 1) 1st subframe || 4 || 4 ||
 || P2 || Pitch delay second subframe || 5 || 5 ||
-|| C2 || Fixed codebook 2nd subframe || 13 || 12 ||
-|| S2 || Signs of fixed-codebook pulses 2nd subframe || 4 || 9 ||
+|| C2 || Fixed codebook 2nd subframe || 13 || 12(17)^2^ ||
+|| S2 || Signs of fixed-codebook pulses 2nd subframe || 4 || 9(4)^2^ ||
 || GA2 || Gain codebook (stage 1) 2nd subframe || 3 || 3 ||
 || GB2 || Gain codebook (stage 1) 2nd subframe || 4 || 4 ||
-|| || *Total* || *80* || *88*^2^ ||
+|| || *Total* || *80* || *88*^3^ ||
 *Table 3. Description of transmitted parameters indices*^1^
 
 ^1^Note: the bitstream ordering is reflected by order in the table. For each parameter, the Most Significant Bit (MSB) is transmitted first.
 
-^2^ Two G.729 frames are passed from demuxer to codec at one time
+^2^This affects fixed-codebook pulses indexes calculation. "Fine rec" mode uses 3+3+3+4 bit allocation which gives four pulses with indexes in [0:39] range. Since indexes must cover [0:43] range for "Long rec" and "Long vox" formats, bit allocation was changed to 4+4+4+5=17 for them. Since proprietary codec uses 16-bit arithmetic last 5 bits were transferred to next parameter. New codec with 32-bit parameters will use 17-bit and 4-bit values for this and next parameters.
+
+^3^ Two G.729 frames are passed from demuxer to codec at one time
 
 = Proprietary software =
 
