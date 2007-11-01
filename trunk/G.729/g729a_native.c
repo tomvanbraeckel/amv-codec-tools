@@ -825,7 +825,7 @@ static void g729a_lp_decode(G729A_Context* ctx, float* lsp_curr, float* lp)
 
     /* LSP values for second subframe (3.2.5)*/
     for(i=0;i<10;i++)
-        lsp[i]=lspq[i];
+        lsp[i]=lsp_curr[i];
 
     g729a_lsp2lp(ctx, lsp, lp+10);
 
