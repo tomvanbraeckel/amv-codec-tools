@@ -586,21 +586,21 @@ static void g729a_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, fl
     for(i=0; i<40; i++)
         energy+=fc_v[i]*fc_v[i];
 
-    energy=30-10.*log10(energy/40.0);
+    energy=30-10.*log(energy/40.0)/M_LN10;
 
     /* 3.9.1, Equation 69 */
     for(i=0; i<4; i++)
         energy+= ctx->pred_vect_q[i] * ma_prediction_coeff[i];
 
     /* 3.9.1, Equation 71 */
-    energy = exp10(energy/20);
+    energy = exp(M_LN10*energy/20);
 
     // shift prediction error vector
     for(i=3; i>0; i--)
         ctx->pred_vect_q[i]=ctx->pred_vect_q[i-1];
 
     /* 3.9.1, Equation 72 */
-    ctx->pred_vect_q[0]=20*log10(cb_GA[nGA][1]+cb_GB[nGB][1]);
+    ctx->pred_vect_q[0]=20*log(cb_GA[nGA][1]+cb_GB[nGB][1])/M_LN10;
 
     /* 3.9.1, Equation 73 */
     *gp = cb_GA[nGA][0]+cb_GB[nGB][0];           // quantized adaptive-codebook gain (gain code)
