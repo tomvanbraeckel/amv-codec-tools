@@ -526,10 +526,11 @@ static void g729a_decode_ac_vector(G729A_Context* ctx, int k, int t, int* ac_v)
  * \param S Signs of fixed-codebook pulses (0 bit value means negative sign)
  * \param fc_v [out] decoded fixed codebook vector
  *
- * bit allocations: 3+3+3+4
+ * bit allocations: 
+ *   8k mode: 3+3+3+4
+ * 4.4k mode: 4+4+4+5
  *
  * \note hardcoded 4 and 13 bits vector items length!
- *       4.4k codec uses different values here (different algorithm?)
  */
 #define FC_PULSE_COUNT 4
 static void g729a_decode_fc_vector(G729A_Context* ctx, int C, int S, float* fc_v)
