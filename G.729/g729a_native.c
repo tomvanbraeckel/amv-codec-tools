@@ -32,6 +32,7 @@
 #define GAIN_PITCH_MAX 0.8
 typedef struct
 {
+    int format;             ///< format index from formats array
     int data_error;         ///< data error detected during decoding
     int* exc_base;          ///< past excitation signal buffer
     int* exc;
@@ -362,6 +363,28 @@ static const float ma_prediction_coeff[4] =
 
 /*
 -------------------------------------------------------------------------------
+    Formats description
+-------------------------------------------------------------------------------
+*/
+/// Number of pulses in fixed-codebook vector
+#define FC_PULSE_COUNT 4
+
+static const struct{
+    char* name;
+    int sample_rate;
+    char frame_size;
+    char vector_bits[VECTOR_SIZE];
+    char silence_compression;
+} formats[]={
+  {"8Kb/s",   8000, 80, {1,7,5,5,8,1,3+3+3+4,FC_PULSE_COUNT,GA_BITS,GB_BITS,5,3+3+3+4, FC_PULSE_COUNT,GA_BITS,GB_BITS}, 0},
+#ifdef G729_SUPPORT_4400
+// Note: 
+  {"4.4Kb/s", 4400, 88, {1,7,5,5,8,1,4+4+4+5,FC_PULSE_COUNT,GA_BITS,GB_BITS,5,4+4+4+5, FC_PULSE_COUNT,GA_BITS,GB_BITS}, 0},
+#endif //G729_SUPPORT_4400
+  { NULL,     0,    0,  {0,0,0,0,0,0, 0, 0,0,0,0, 0, 0,0,0}, 0}
+};
+/*
+-------------------------------------------------------------------------------
           Internal routines
 ------------------------------------------------------------------------------
 */
@@ -532,7 +555,6 @@ static void g729a_decode_ac_vector(G729A_Context* ctx, int k, int t, int* ac_v)
  *
  * \note hardcoded 4 and 13 bits vector items length!
  */
-#define FC_PULSE_COUNT 4
 static void g729a_decode_fc_vector(G729A_Context* ctx, int C, int S, float* fc_v)
 {
     int accC=C;
@@ -852,6 +874,9 @@ void* g729a_decoder_init()
     int frame_size=10;
     int i,k;
 
+    /* stub */
+    ctx->format=0;
+
     /* Decoder initialization. 4.3, Table 9 */
 
     /* 
@@ -958,12 +983,11 @@ void g729a_decoder_uninit(void *context)
 int  g729a_decode_frame(void* context, short* serial, int serial_size, short* out_frame, int out_frame_size)
 {
     G729A_Context* ctx=context;
-    short parm[VECTOR_SIZE];
+    int parm[VECTOR_SIZE];
     int idx=2;
     int i,j;
     float lp[20];
     float lsp[10];
-    int vector_bits[VECTOR_SIZE]={1,7,5,5,8,1,13, FC_PULSE_COUNT, GA_BITS, GB_BITS, 5,13, FC_PULSE_COUNT,GA_BITS,GB_BITS};
     int t;     ///< pitch delay, fraction part
     int k;     ///< pitch delay, integer part
     float fc[40]; ///< fixed codebooc vector
@@ -975,10 +999,10 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
 
     for(i=0; i<VECTOR_SIZE; i++)
     {
-        if(vector_bits[i]>16)
+        if(formats[ctx->format].vector_bits[i]>16)
             return 0;
         parm[i]=0;
-        for(j=0; j<vector_bits[i]; j++)
+        for(j=0; j<formats[ctx->format].vector_bits[i]; j++)
         {
             parm[i]<<= 1;
             parm[i] |= serial[idx++]==0x81?1:0;
