@@ -376,15 +376,16 @@ static const struct{
     char* name;
     int sample_rate;
     char frame_size;
+    char fc_index_bits;
     char vector_bits[VECTOR_SIZE];
     char silence_compression;
 } formats[]={
-  {"8Kb/s",   8000, 80, {1,7,5,5,8,1,3+3+3+4,FC_PULSE_COUNT,GA_BITS,GB_BITS,5,3+3+3+4, FC_PULSE_COUNT,GA_BITS,GB_BITS}, 0},
+  {"8Kb/s",   8000, 80, 3, {1,7,5,5,8,1,/*fc_index_bits*/3*FC_PULSE_COUNT+1,FC_PULSE_COUNT,GA_BITS,GB_BITS,5,3+3+3+4, FC_PULSE_COUNT,GA_BITS,GB_BITS}, 0},
 #ifdef G729_SUPPORT_4400
 // Note: 
-  {"4.4Kb/s", 4400, 88, {1,7,5,5,8,1,4+4+4+5,FC_PULSE_COUNT,GA_BITS,GB_BITS,5,4+4+4+5, FC_PULSE_COUNT,GA_BITS,GB_BITS}, 0},
+  {"4.4Kb/s", 4400, 88, 4, {1,7,5,5,8,1,/*fc_index_bits*/4*FC_PULSE_COUNT+1,FC_PULSE_COUNT,GA_BITS,GB_BITS,5,4+4+4+5, FC_PULSE_COUNT,GA_BITS,GB_BITS}, 0},
 #endif //G729_SUPPORT_4400
-  { NULL,     0,    0,  {0,0,0,0,0,0, 0, 0,0,0,0, 0, 0,0,0}, 0}
+  { NULL,     0,    0,  0, {0,0,0,0,0,0, 0, 0,0,0,0, 0, 0,0,0}, 0}
 };
 /*
 -------------------------------------------------------------------------------
@@ -553,27 +554,44 @@ static void g729a_decode_ac_vector(G729A_Context* ctx, int k, int t, int* ac_v)
  * \param fc_v [out] decoded fixed codebook vector
  *
  * bit allocations: 
- *   8k mode: 3+3+3+4
- * 4.4k mode: 4+4+4+5
+ *   8k mode: 3+3+3+1+3
+ * 4.4k mode: 4+4+4+1+4 (non-standard)
  *
- * \note hardcoded 4 and 13 bits vector items length!
+ * FIXME: error handling required
  */
 static void g729a_decode_fc_vector(G729A_Context* ctx, int C, int S, float* fc_v)
 {
     int accC=C;
     int accS=S;
     int i;
+    int index;
+    int bits=formats[ctx->format].fc_index_bits;
+    int mask=(1<<bits)-1;
 
     memset(fc_v, 0, sizeof(float)*ctx->subframe_size);
 
     /* reverted Equation 62 and Equation 45 */
     for(i=0; i<FC_PULSE_COUNT-1; i++)
     {
-        fc_v[ (accC&7) * 5 + i ] = (accS&1) ? 1 : -1;
-        accC>>=3;
+        index=(accC&mask) * 5 + i;
+        //overflow can occure in 4.4k case
+        if(index>=ctx->subframe_size)
+        {
+            ctx->data_error=1;
+            return;
+        }
+        fc_v[ index ] = (accS&1) ? 1 : -1;
+        accC>>=bits;
         accS>>=1;
     }
-    fc_v[ ((accC>>1)&7) * 5 + i + (accC&1) ] = (accS&1) ? 1 : -1;
+    index=((accC>>1)&mask) * 5 + i + (accC&1);
+    //overflow can occure in 4.4k case
+    if(index>=ctx->subframe_size)
+    {
+        ctx->data_error=1;
+        return;        
+    }
+    fc_v[ index ] = (accS&1) ? 1 : -1;
 }
 
 /**
