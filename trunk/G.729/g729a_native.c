@@ -28,15 +28,13 @@
 #define FFMAX(a,b) ((a) > (b) ? (a) : (b))
 #define FFMIN(a,b) ((a) > (b) ? (b) : (a))
 
-#define GAIN_PITCH_MIN 0.2
-#define GAIN_PITCH_MAX 0.8
 typedef struct
 {
     int format;             ///< format index from formats array
     int subframe_size;      ///< number of samples produced from one subframe
     int data_error;         ///< data error detected during decoding
     int* exc_base;          ///< past excitation signal buffer
-    int* exc;
+    int* exc;               ///< start of past excitation data in buffer
     int intT2_prev;         ///< int(T2) value of previous frame (4.1.3)
     float *lq_prev[MA_NP];  ///< l[i], LSP quantizer output (3.2.4)
     float lsp_prev[10];     ///< q[i], LSP coefficients from previous frame (3.2.5)
@@ -52,6 +50,10 @@ typedef struct
 #define LSFQ_MIN 0.005
 #define LSFQ_MAX 3.135
 #define LSFQ_DIFF_MIN 0.0391
+
+/* Gain pitch maximum and minimum (3.8) */
+#define GAIN_PITCH_MIN 0.2
+#define GAIN_PITCH_MAX 0.8
 
 #define PITCH_MIN 20
 #define PITCH_MAX 143
