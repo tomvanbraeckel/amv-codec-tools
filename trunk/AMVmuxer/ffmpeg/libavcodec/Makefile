@@ -80,7 +80,7 @@ OBJS-$(CONFIG_FLV_DECODER)             += h263dec.o h263.o
 OBJS-$(CONFIG_FLV_ENCODER)             += mpegvideo_enc.o motion_est.o ratecontrol.o h263.o
 OBJS-$(CONFIG_FOURXM_DECODER)          += 4xm.o
 OBJS-$(CONFIG_FRAPS_DECODER)           += fraps.o huffman.o
-OBJS-$(CONFIG_G729A_DECODER)           += g729.o
+OBJS-$(CONFIG_G729A_DECODER)           += g729dec.o
 
 
 OBJS-$(CONFIG_GIF_DECODER)             += gifdec.o lzw.o
