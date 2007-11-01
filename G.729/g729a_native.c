@@ -33,6 +33,7 @@
 typedef struct
 {
     int format;             ///< format index from formats array
+    int subframe_size;      ///< number of samples produced from one subframe
     int data_error;         ///< data error detected during decoding
     int* exc_base;          ///< past excitation signal buffer
     int* exc;
@@ -529,7 +530,7 @@ static void g729a_decode_ac_vector(G729A_Context* ctx, int k, int t, int* ac_v)
 
     //t [0, 1, 2]
     //k [PITCH_MIN-1; PITCH_MAX]
-    for(n=0; n<40; n++)
+    for(n=0; n<ctx->subframe_size; n++)
     {
         /* 3.7.1, Equation 40 */
         v=0;
@@ -561,7 +562,7 @@ static void g729a_decode_fc_vector(G729A_Context* ctx, int C, int S, float* fc_v
     int accS=S;
     int i;
 
-    memset(fc_v, 0, sizeof(float)*40);
+    memset(fc_v, 0, sizeof(float)*ctx->subframe_size);
 
     /* reverted Equation 62 and Equation 45 */
     for(i=0; i<FC_PULSE_COUNT-1; i++)
@@ -578,16 +579,16 @@ static void g729a_decode_fc_vector(G729A_Context* ctx, int C, int S, float* fc_v
  * \param T pitch delay to check
  * \param fc_v [in/out] fixed codebook vector to change
  *
- * \remark if T>=40 no changes to vector are made
+ * \remark if T>=subframe_size no changes to vector are made
  */
 static void g729a_fix_fc_vector(G729A_Context *ctx, int T, float* fc_v)
 {
     int i;
 
-    if(T>=40)
+    if(T>=ctx->subframe_size)
         return;
 
-    for(i=T; i<40;i++)
+    for(i=T; i<ctx->subframe_size;i++)
         fc_v[i]+=fc_v[i-T]*ctx->gain_pitch;
 }
 
@@ -606,24 +607,24 @@ static void g729a_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, fl
     int i;
 
     /* 3.9.1, Equation 66 */
-    for(i=0; i<40; i++)
+    for(i=0; i<ctx->subframe_size; i++)
         energy+=fc_v[i]*fc_v[i];
 
-    energy=30-10.*log(energy/40.0)/M_LN10;
+    energy=30-10.*log(energy/40.0)/M_LN10; //FIXME: should there be subframe_size ?
 
     /* 3.9.1, Equation 69 */
     for(i=0; i<4; i++)
         energy+= ctx->pred_vect_q[i] * ma_prediction_coeff[i];
 
     /* 3.9.1, Equation 71 */
-    energy = exp(M_LN10*energy/20);
+    energy = exp(M_LN10*energy/20); //FIXME: should there be subframe_size/2 ?
 
     // shift prediction error vector
     for(i=3; i>0; i--)
         ctx->pred_vect_q[i]=ctx->pred_vect_q[i-1];
 
     /* 3.9.1, Equation 72 */
-    ctx->pred_vect_q[0]=20*log(cb_GA[nGA][1]+cb_GB[nGB][1])/M_LN10;
+    ctx->pred_vect_q[0]=20*log(cb_GA[nGA][1]+cb_GB[nGB][1])/M_LN10; //FIXME: should there be subframe_size/2 ?
 
     /* 3.9.1, Equation 73 */
     *gp = cb_GA[nGA][0]+cb_GB[nGB][0];           // quantized adaptive-codebook gain (gain code)
@@ -649,7 +650,7 @@ static void g729a_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc
 {
     int i;
 
-    for(i=0; i<40; i++)
+    for(i=0; i<ctx->subframe_size; i++)
         exc[i]=round(exc[i]*gp+fc_v[i]*gc);
 }
 
@@ -658,11 +659,11 @@ static void g729a_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc
  * \param ctx private data structure
  * \param lp LP filter coefficients
  * \param exc excitation
- * \param speech reconstructed speech buffer (40 items)
+ * \param speech reconstructed speech buffer (ctx->subframe_size items)
  */
 static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, int* exc, short* speech)
 {
-    float* tmp_speech_buf=calloc(1,(40+10)*sizeof(float));
+    float* tmp_speech_buf=calloc(1,(ctx->subframe_size+10)*sizeof(float));
     float* tmp_speech=tmp_speech_buf+10;
     int i,n;
 
@@ -670,20 +671,20 @@ static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, int* exc, sh
         tmp_speech_buf[i]= ctx->syn_filter_data[i];
 
     /* 4.1.6, Equation 77  */
-    for(n=0; n<40; n++)
+    for(n=0; n<ctx->subframe_size; n++)
     {
         tmp_speech[n]=exc[n];
         for(i=0; i<10; i++)
             tmp_speech[n]-= lp[i]*tmp_speech[n-i-1];
     }
 
-    for(i=0; i<40; i++)
+    for(i=0; i<ctx->subframe_size; i++)
         speech[i]=round(tmp_speech[i]);
 
     free(tmp_speech_buf);
 
     /* FIXME: line below shold be used only if reconstruction completed successfully */
-    memcpy(ctx->syn_filter_data, speech+40-10, 10*sizeof(short));
+    memcpy(ctx->syn_filter_data, speech+ctx->subframe_size-10, 10*sizeof(short));
 }
 
 /**
@@ -876,7 +877,7 @@ void* g729a_decoder_init()
 
     /* stub */
     ctx->format=0;
-
+    ctx->subframe_size=formats[ctx->format].frame_size>>1;
     /* Decoder initialization. 4.3, Table 9 */
 
     /* 
@@ -990,10 +991,13 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     float lsp[10];
     int t;     ///< pitch delay, fraction part
     int k;     ///< pitch delay, integer part
-    float fc[40]; ///< fixed codebooc vector
+    float* fc; ///< fixed codebooc vector
     float gp, gc;
 
-    short speech_buf[80]; ///< reconstructed speech
+    short* speech_buf; ///< reconstructed speech
+
+    fc=calloc(1, ctx->subframe_size*sizeof(float));
+    speech_buf=calloc(1, 2*ctx->subframe_size*sizeof(short));
 
     ctx->data_error=0;
 
@@ -1030,19 +1034,22 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
 
     /* second subframe */
     g729a_decode_ac_delay_subframe2(ctx, parm[10], k, &k, &t);
-    g729a_decode_ac_vector(ctx, k, t, ctx->exc+40);
+    g729a_decode_ac_vector(ctx, k, t, ctx->exc+ctx->subframe_size);
     g729a_decode_fc_vector(ctx, parm[11], parm[12], fc);
     g729a_fix_fc_vector(ctx, k, fc);
     g729a_get_gain(ctx, parm[13], parm[14], fc, &gp, &gc);
-    g729a_mem_update(ctx, fc, gp, gc, ctx->exc+40);
-    g729a_reconstruct_speech(ctx, lp+10, ctx->exc+40, speech_buf+40);
+    g729a_mem_update(ctx, fc, gp, gc, ctx->exc+ctx->subframe_size);
+    g729a_reconstruct_speech(ctx, lp+10, ctx->exc+ctx->subframe_size, speech_buf+ctx->subframe_size);
 
     //Save signal for using in next frame
-    memmove(ctx->exc_base, ctx->exc_base+80, (PITCH_MAX+INTERPOL_LEN)*sizeof(int));
+    memmove(ctx->exc_base, ctx->exc_base+2*ctx->subframe_size, (PITCH_MAX+INTERPOL_LEN)*sizeof(int));
 
     /* Return reconstructed speech to caller */
-    memcpy(out_frame, speech_buf, 80*sizeof(short));
-    return 80;
+    memcpy(out_frame, speech_buf, 2*ctx->subframe_size*sizeof(short));
+
+    free(speech_buf);
+    free(fc);
+    return ctx->subframe_size;
 }
 
 /*
