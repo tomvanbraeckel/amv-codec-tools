@@ -760,7 +760,7 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
  * \param q LSP coefficients
  * \param a decoded LP coefficients
  */
-static void g729a_lsp2a(G729A_Context* ctx, float* q, float* a)
+static void g729a_lsp2lp(G729A_Context* ctx, float* q, float* a)
 {
     int i,j, qidx=0, fidx=0;
     float f1[6];
@@ -820,13 +820,13 @@ static void g729a_lp_decode(G729A_Context* ctx, float* lsp_curr, float* lp)
     for(i=0;i<10;i++)
         lsp[i]=(lsp_curr[i]+ctx->lsp_prev[i])/2;
 
-    g729a_lsp2a(ctx, lsp, lp);
+    g729a_lsp2lp(ctx, lsp, lp);
 
     /* LSP values for second subframe (3.2.5)*/
     for(i=0;i<10;i++)
         lsp[i]=lspq[i];
 
-    g729a_lsp2a(ctx, lsp, lp+10);
+    g729a_lsp2lp(ctx, lsp, lp+10);
 
     /* saving LSP coefficients for using in next frame */
     for(i=0;i<10;i++)
