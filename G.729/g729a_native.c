@@ -55,6 +55,13 @@ typedef struct
 #define GAIN_PITCH_MIN 0.2
 #define GAIN_PITCH_MAX 0.8
 
+/* 4.2.2 */
+#define GAMMA_N 0.55
+#define GAMMA_D 0.70
+
+/* 4.2.1 */
+#define GAMMA_P 0.50
+
 #define PITCH_MIN 20
 #define PITCH_MAX 143
 #define INTERPOL_LEN 11
@@ -706,7 +713,9 @@ static void g729a_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, 
 static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, int* exc, short* speech)
 {
     float* tmp_speech_buf=calloc(1,(ctx->subframe_size+10)*sizeof(float));
+    float* residual=calloc(1,ctx->subframe_size*sizeof(float));
     float* tmp_speech=tmp_speech_buf+10;
+    float factor;
     int i,n;
 
     for(i=0;i<10;i++)
@@ -715,10 +724,21 @@ static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, int* exc, sh
     /* 4.1.6, Equation 77  */
     g729a_synth_filt(ctx, lp, exc, tmp_speech_buf);
 
+    /* 4.2.1, Equation 79 */
+    for(n=0; n<ctx->subframe_size; n++)
+    {
+        residual[n]=tmp_speech[n];
+	factor=GAMMA_N;
+        for(i=0; i<10; i++)
+            residual[n] += factor*lp[i]*tmp_speech[n-i-1];
+	    factor *= GAMMA_N;
+    }
+
     for(i=0; i<ctx->subframe_size; i++)
         speech[i]=lrintf(tmp_speech[i]);
 
     free(tmp_speech_buf);
+    free(residual);
 
     /* FIXME: line below shold be used only if reconstruction completed successfully */
     memcpy(ctx->syn_filter_data, speech+ctx->subframe_size-10, 10*sizeof(short));
