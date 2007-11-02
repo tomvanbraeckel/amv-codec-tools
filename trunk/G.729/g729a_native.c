@@ -678,12 +678,12 @@ static void g729a_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc
  * \brief LP synthesis filter
  * \param ctx private data structure
  * \param lp LP coefficients
- * \param in_buf input signal
- * \param out output signal
+ * \param in input signal
+ * \param out_buf output signal
  *
  * \note out_buf should have additional 10 items at top (from previous subframe)
  */
-static void g729a_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in_buf, float *out)
+static void g729a_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, float *out_buf)
 {
     float* out=out_buf+10;
     int i,n;
@@ -713,7 +713,7 @@ static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, int* exc, sh
         tmp_speech_buf[i]= ctx->syn_filter_data[i];
 
     /* 4.1.6, Equation 77  */
-    g729a_synth_filt(ctx, lp, exc, tmp_speech_buf)
+    g729a_synth_filt(ctx, lp, exc, tmp_speech_buf);
 
     for(i=0; i<ctx->subframe_size; i++)
         speech[i]=lrintf(tmp_speech[i]);
