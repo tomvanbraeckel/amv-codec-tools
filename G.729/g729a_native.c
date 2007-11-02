@@ -675,6 +675,28 @@ static void g729a_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc
 }
 
 /**
+ * \brief LP synthesis filter
+ * \param ctx private data structure
+ * \param lp LP coefficients
+ * \param in_buf input signal
+ * \param out output signal
+ *
+ * \note out_buf should have additional 10 items at top (from previous subframe)
+ */
+static void g729a_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in_buf, float *out)
+{
+    float* out=out_buf+10;
+    int i,n;
+
+    for(n=0; n<ctx->subframe_size; n++)
+    {
+        out[n]=in[n];
+        for(i=0; i<10; i++)
+            out[n]-= lp[i]*out[n-i-1];
+    }
+}
+
+/**
  * \brief Computing the reconstructed speech (4.1.6)
  * \param ctx private data structure
  * \param lp LP filter coefficients
@@ -691,12 +713,7 @@ static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, int* exc, sh
         tmp_speech_buf[i]= ctx->syn_filter_data[i];
 
     /* 4.1.6, Equation 77  */
-    for(n=0; n<ctx->subframe_size; n++)
-    {
-        tmp_speech[n]=exc[n];
-        for(i=0; i<10; i++)
-            tmp_speech[n]-= lp[i]*tmp_speech[n-i-1];
-    }
+    g729a_synth_filt(ctx, lp, exc, tmp_speech_buf)
 
     for(i=0; i<ctx->subframe_size; i++)
         speech[i]=lrintf(tmp_speech[i]);
