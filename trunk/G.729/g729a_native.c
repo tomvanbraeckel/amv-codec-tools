@@ -731,7 +731,8 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     float gl;      ///< gain coefficient for long-term postfilter
     float corr_t0; ///< corellation of residual signal with delay intT0
     float corr_0;  ///< corellation of residual signal with delay 0
-    float glgp;    ///< gl*gp
+    float inv_glgp ///< 1.0/(1+gl*GAMMA_P)
+    float glgp_inv_glgp; ///< gl*GAMMA_P/(1+gl*GAMMA_P);
     float lp_gn[10];
     float lp_gd[10];
 
@@ -801,11 +802,12 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     else
         gl=FFMIN(corr_max/corr_t0, 1);
 
-    glgp = gl*GAMMA_P;
+    inv_glgp=1.0/(1+gl*GAMMA_P)
+    glgp_inv_glgp=gl*GAMMA_P/(1+gl*GAMMA_P);
 
     /* 4.2.1, Equation 78 */
     for(n=0; n<ctx->subframe_size; n++)
-        residual_filt[n]=(ctx->residual[n]+ctx->residual[n-intT0]*glgp)/(1+glgp);
+        residual_filt[n]=ctx->residual[n](inv_glgp+ctx->residual[n-intT0]*glgp_inv_glgp;
 
     /* Long-term postfilter end */
     memcpy(residual_filt_buf, ctx->res_filter_data, 10*sizeof(float));
