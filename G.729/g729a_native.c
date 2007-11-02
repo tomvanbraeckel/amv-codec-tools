@@ -542,7 +542,7 @@ static void g729a_decode_ac_vector(G729A_Context* ctx, int k, int t, int* ac_v)
             v+=ctx->exc[n-k+i]*b30[t+3*i];
             v+=ctx->exc[n-k+i+1]*b30[3-t+3*i];
         }
-        ac_v[n]=round(v);
+        ac_v[n]=lrintf(v);
     }
 }
 
@@ -671,7 +671,7 @@ static void g729a_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc
     int i;
 
     for(i=0; i<ctx->subframe_size; i++)
-        exc[i]=round(exc[i]*gp+fc_v[i]*gc);
+        exc[i]=lrintf(exc[i]*gp+fc_v[i]*gc);
 }
 
 /**
@@ -699,7 +699,7 @@ static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, int* exc, sh
     }
 
     for(i=0; i<ctx->subframe_size; i++)
-        speech[i]=round(tmp_speech[i]);
+        speech[i]=lrintf(tmp_speech[i]);
 
     free(tmp_speech_buf);
 
