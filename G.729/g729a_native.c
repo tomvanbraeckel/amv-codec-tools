@@ -44,7 +44,7 @@ typedef struct
     float *residual;        ///< Residual signal buffer (used in long-term postfilter)
     float syn_filter_data[10];
     float res_filter_data[10];
-    float g[40];            ///< gain coefficient (4.2.4)
+    float g;                ///< gain coefficient (4.2.4)
     int rand_seed;          ///< seed for random number generator (4.4.4)
     int prev_mode;
 }  G729A_Context;
@@ -731,10 +731,11 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     float gl;      ///< gain coefficient for long-term postfilter
     float corr_t0; ///< corellation of residual signal with delay intT0
     float corr_0;  ///< corellation of residual signal with delay 0
-    float inv_glgp ///< 1.0/(1+gl*GAMMA_P)
+    float inv_glgp;///< 1.0/(1+gl*GAMMA_P)
     float glgp_inv_glgp; ///< gl*GAMMA_P/(1+gl*GAMMA_P);
     float lp_gn[10];
     float lp_gd[10];
+    float gain,gain_temp1,gain_temp2;
 
     /* A.4.2.1 */
     int minT0=FFMIN(ctx->intT1, PITCH_MAX-3)-3;
@@ -802,18 +803,36 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     else
         gl=FFMIN(corr_max/corr_t0, 1);
 
-    inv_glgp=1.0/(1+gl*GAMMA_P)
+    inv_glgp=1.0/(1+gl*GAMMA_P);
     glgp_inv_glgp=gl*GAMMA_P/(1+gl*GAMMA_P);
 
     /* 4.2.1, Equation 78 */
     for(n=0; n<ctx->subframe_size; n++)
-        residual_filt[n]=ctx->residual[n](inv_glgp+ctx->residual[n-intT0]*glgp_inv_glgp;
+        residual_filt[n]=ctx->residual[n]*inv_glgp+ctx->residual[n-intT0]*glgp_inv_glgp;
+
+    gain_temp1=0;
+    for(n=0; n<ctx->subframe_size; n++)
+       gain_temp1+=speech[n]*speech[n];
 
     /* Long-term postfilter end */
     memcpy(residual_filt_buf, ctx->res_filter_data, 10*sizeof(float));
     g729a_synthesis_filter(ctx, lp_gd, residual_filt_buf, speech);
     memcpy(ctx->res_filter_data, residual_filt_buf+ctx->subframe_size-10, 10*sizeof(float));
 
+    /* adaptive gain control (A.4.2.4) */
+    gain_temp2=0;
+    for(n=0; n<ctx->subframe_size; n++)
+       gain_temp2+=speech[n]*speech[n];
+
+    if(gain_temp2)
+    {
+        gain=sqrt(gain_temp1/gain_temp2);
+        for(n=0; n<ctx->subframe_size; n++)
+        {
+            speech[n] *= ctx->g;
+            ctx->g=0.9*ctx->g+0.1*gain;
+        }
+    }
     free(residual_filt);
     return gl;
 }
@@ -1048,10 +1067,8 @@ void* g729a_decoder_init()
          and Intel decoder uses here minimum sharpen value instead of maximum. */
     ctx->gain_pitch=GAIN_PITCH_MIN;
 
-    /* gain coefficients */
-    ctx->g[0]=1.0;
-    for(i=1; i<40;i++)
-        ctx->g[i]=0.0;
+    /* gain coefficient */
+    ctx->g=1.0;
 
     /* LSP coefficients */
     for(k=0; k<MA_NP; k++)
