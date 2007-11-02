@@ -741,8 +741,10 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
         ctx->residual[n+PITCH_MAX]=speech[n];
 	factor=GAMMA_N;
         for(i=0; i<10; i++)
+        {
             ctx->residual[n+PITCH_MAX] += factor*lp[i]*speech[n-i-1];
 	    factor *= GAMMA_N;
+        }
     }
 
     /* Long-term postfilter start */
