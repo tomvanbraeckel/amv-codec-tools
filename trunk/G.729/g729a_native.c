@@ -43,6 +43,7 @@ typedef struct
     float gain_pitch;       ///< Pitch gain of previous subframe (3.8) [GAIN_PITCH_MIN ... GAIN_PITCH_MAX]
     float *residual;        ///< Residual signal buffer (used in long-term postfilter)
     float syn_filter_data[10];
+    float res_filter_data[10];
     float g[40];            ///< gain coefficient (4.2.4)
     int rand_seed;          ///< seed for random number generator (4.4.4)
     int prev_mode;
@@ -723,28 +724,41 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
 {
     int i,k, n, intT0;
     float *speech=speech_buf+10;
-    float* residual_filt=calloc(1,ctx->subframe_size*sizeof(float));
+    float* residual_filt_buf=calloc(1,(ctx->subframe_size+10)*sizeof(float));
+    float* residual_filt=residual_filt_buf+19;
     float factor;
     float corellation, corr_max;
     float gl;      ///< gain coefficient for long-term postfilter
     float corr_t0; ///< corellation of residual signal with delay intT0
     float corr_0;  ///< corellation of residual signal with delay 0
     float glgp;    ///< gl*gp
+    float lp_gn[10];
+    float lp_gd[10];
 
     /* A.4.2.1 */
     int minT0=FFMIN(ctx->intT1, PITCH_MAX-3)-3;
     int maxT0=FFMIN(ctx->intT1, PITCH_MAX-3)+3;
 
+    factor=GAMMA_N;
+    for(i=0; i<10; i++)
+    {
+        lp_gn[i]=lp[i]*factor;
+        factor*=GAMMA_N;
+    }
+
+    factor=GAMMA_D;
+    for(i=0; i<10; i++)
+    {
+        lp_gd[i]=lp[i]*factor;
+        factor*=GAMMA_D;
+    }
+
     /* 4.2.1, Equation 79 Residual signal calculation */
     for(n=0; n<ctx->subframe_size; n++)
     {
         ctx->residual[n+PITCH_MAX]=speech[n];
-	factor=GAMMA_N;
         for(i=0; i<10; i++)
-        {
-            ctx->residual[n+PITCH_MAX] += factor*lp[i]*speech[n-i-1];
-	    factor *= GAMMA_N;
-        }
+            ctx->residual[n+PITCH_MAX] += lp_gn[i]*speech[n-i-1];
     }
 
     /* Long-term postfilter start */
@@ -794,6 +808,9 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
         residual_filt[n]=(ctx->residual[n]+ctx->residual[n-intT0]*glgp)/(1+glgp);
 
     /* Long-term postfilter end */
+    memcpy(residual_filt_buf, ctx->res_filter_data, 10*sizeof(float));
+    g729a_synthesis_filter(ctx, lp_gd, residual_filt_buf, speech);
+    memcpy(ctx->res_filter_data, residual_filt_buf+ctx->subframe_size-10, 10*sizeof(float));
 
     free(residual_filt);
     return gl;
@@ -1094,6 +1111,8 @@ void* g729a_decoder_init()
     for(i=0; i<4; i++)
         ctx->pred_vect_q[i] = -14;
 
+    memset(ctx->syn_filter_data, 0, 10*sizeof(float));
+    memset(ctx->res_filter_data, 0, 10*sizeof(float));
     return ctx;
 }
 
