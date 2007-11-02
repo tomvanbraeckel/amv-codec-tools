@@ -42,7 +42,7 @@ typedef struct
     float pred_vect_q[4];   ///< quantized prediction error
     float gain_pitch;       ///< Pitch gain of previous subframe (3.8) [GAIN_PITCH_MIN ... GAIN_PITCH_MAX]
     float *residual;        ///< Residual signal buffer (used in long-term postfilter)
-    short syn_filter_data[10];
+    float syn_filter_data[10];
     float g[40];            ///< gain coefficient (4.2.4)
     int rand_seed;          ///< seed for random number generator (4.4.4)
     int prev_mode;
@@ -809,11 +809,13 @@ static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, int* exc, sh
     float* tmp_speech=tmp_speech_buf+10;
     int i,n, intT0;
 
-    for(i=0;i<10;i++)
-        tmp_speech_buf[i]= ctx->syn_filter_data[i];
+    memcpy(tmp_speech_buf, ctx->syn_filter_data, 10*sizeof(float));
 
     /* 4.1.6, Equation 77  */
     g729a_synth_filt(ctx, lp, exc, tmp_speech_buf);
+
+    /* FIXME: line below shold be used only if reconstruction completed successfully */
+    memcpy(ctx->syn_filter_data, tmp_speech+ctx->subframe_size-10, 10*sizeof(short));
 
     /* 4.2 */
     g729a_postfilter(ctx, lp, tmp_speech_buf);
@@ -823,8 +825,6 @@ static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, int* exc, sh
 
     free(tmp_speech_buf);
 
-    /* FIXME: line below shold be used only if reconstruction completed successfully */
-    memcpy(ctx->syn_filter_data, speech+ctx->subframe_size-10, 10*sizeof(short));
 }
 
 /**
