@@ -36,10 +36,12 @@ typedef struct
     int* exc_base;          ///< past excitation signal buffer
     int* exc;               ///< start of past excitation data in buffer
     int intT2_prev;         ///< int(T2) value of previous frame (4.1.3)
+    int intT1;              ///< int(T1) value of first subframe
     float *lq_prev[MA_NP];  ///< l[i], LSP quantizer output (3.2.4)
     float lsp_prev[10];     ///< q[i], LSP coefficients from previous frame (3.2.5)
     float pred_vect_q[4];   ///< quantized prediction error
     float gain_pitch;       ///< Pitch gain of previous subframe (3.8) [GAIN_PITCH_MIN ... GAIN_PITCH_MAX]
+    float *residual;        ///< Residual signal buffer (used in long-term postfilter)
     short syn_filter_data[10];
     float g[40];            ///< gain coefficient (4.2.4)
     int rand_seed;          ///< seed for random number generator (4.4.4)
@@ -501,6 +503,7 @@ static void g729a_decode_ac_delay_subframe1(G729A_Context* ctx, int P1, int* int
         *intT=ctx->intT2_prev;
         *frac=0;
     }
+    ctx->intT1=*intT;
 }
 
 /**
@@ -704,6 +707,96 @@ static void g729a_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, 
 }
 
 /**
+ * \brief Signal postfiltering (4.2, with A.4.2 simplification)
+ * \param ctx private data structure
+ * \param speech_buf signal buffer, containing at the top 10 samples from previous subframe
+ *
+ * Filtering has following  stages:
+ *   Long-term postfilter (4.2.1)
+ *   Short-term postfilter (4.2.2).
+ *   Tilt-compensation (4.2.3)
+ *   Adaptive gain control (4.2.4)
+ *
+ * \note This routine is G.729 Annex A specific.
+ */
+static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
+{
+    int i,k, n, intT0;
+    float *speech=speech_buf+10;
+    float* residual_filt=calloc(1,ctx->subframe_size*sizeof(float));
+    float factor;
+    float corellation, corr_max;
+    float gl;      ///< gain coefficient for long-term postfilter
+    float corr_t0; ///< corellation of residual signal with delay intT0
+    float corr_0;  ///< corellation of residual signal with delay 0
+    float glgp;    ///< gl*gp
+
+    /* A.4.2.1 */
+    int minT0=FFMIN(ctx->intT1, PITCH_MAX-3)-3;
+    int maxT0=FFMIN(ctx->intT1, PITCH_MAX-3)+3;
+
+    /* 4.2.1, Equation 79 Residual signal calculation */
+    for(n=0; n<ctx->subframe_size; n++)
+    {
+        ctx->residual[n+PITCH_MAX]=speech[n];
+	factor=GAMMA_N;
+        for(i=0; i<10; i++)
+            ctx->residual[n+PITCH_MAX] += factor*lp[i]*speech[n-i-1];
+	    factor *= GAMMA_N;
+    }
+
+    /* Long-term postfilter start */
+
+    k=minT0;
+    corellation=0;
+    /* 4.2.1, Equation 80 */
+    for(n=0; n<ctx->subframe_size; n++)
+        corellation+=ctx->residual[n+PITCH_MAX]*ctx->residual[n+PITCH_MAX-k];
+
+    corr_max=corellation;
+    intT0=k;
+
+    for(; k<=maxT0; k++)
+    {
+        corellation=0;
+        /* 4.2.1, Equation 80 */
+        for(n=0; n<ctx->subframe_size; n++)
+            corellation+=ctx->residual[n+PITCH_MAX]*ctx->residual[n+PITCH_MAX-k];
+        if(corellation>corr_max)
+        {
+            corr_max=corellation;
+            intT0=k;
+        }
+    }
+
+    corellation=0;
+    for(n=0; n<ctx->subframe_size; n++)
+        corellation+=ctx->residual[n+PITCH_MAX-intT0]*ctx->residual[n+PITCH_MAX-intT0];
+    corr_t0=corellation;
+
+    corellation=0;
+    for(n=0; n<ctx->subframe_size; n++)
+        corellation+=ctx->residual[n+PITCH_MAX]*ctx->residual[n+PITCH_MAX];
+    corr_0=corellation;
+
+    /* 4.2.1, Equation 82 */
+    if(corr_max*corr_max < 0.5*corr_0*corr_t0)
+        gl=0;
+    else
+        gl=FFMIN(corr_max/corr_t0, 1);
+
+    glgp = gl*GAMMA_P;
+
+    /* 4.2.1, Equation 78 */
+    for(n=0; n<ctx->subframe_size; n++)
+        residual_filt[n]=(ctx->residual[n]+ctx->residual[n-intT0]*glgp)/(1+glgp);
+
+    /* Long-term postfilter end */
+
+    free(residual_filt);
+    return gl;
+}
+/**
  * \brief Computing the reconstructed speech (4.1.6)
  * \param ctx private data structure
  * \param lp LP filter coefficients
@@ -713,10 +806,8 @@ static void g729a_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, 
 static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, int* exc, short* speech)
 {
     float* tmp_speech_buf=calloc(1,(ctx->subframe_size+10)*sizeof(float));
-    float* residual=calloc(1,ctx->subframe_size*sizeof(float));
     float* tmp_speech=tmp_speech_buf+10;
-    float factor;
-    int i,n;
+    int i,n, intT0;
 
     for(i=0;i<10;i++)
         tmp_speech_buf[i]= ctx->syn_filter_data[i];
@@ -724,21 +815,13 @@ static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, int* exc, sh
     /* 4.1.6, Equation 77  */
     g729a_synth_filt(ctx, lp, exc, tmp_speech_buf);
 
-    /* 4.2.1, Equation 79 */
-    for(n=0; n<ctx->subframe_size; n++)
-    {
-        residual[n]=tmp_speech[n];
-	factor=GAMMA_N;
-        for(i=0; i<10; i++)
-            residual[n] += factor*lp[i]*tmp_speech[n-i-1];
-	    factor *= GAMMA_N;
-    }
+    /* 4.2 */
+    g729a_postfilter(ctx, lp, tmp_speech_buf);
 
     for(i=0; i<ctx->subframe_size; i++)
         speech[i]=lrintf(tmp_speech[i]);
 
     free(tmp_speech_buf);
-    free(residual);
 
     /* FIXME: line below shold be used only if reconstruction completed successfully */
     memcpy(ctx->syn_filter_data, speech+ctx->subframe_size-10, 10*sizeof(short));
@@ -1001,6 +1084,7 @@ void* g729a_decoder_init()
 
     ctx->exc=ctx->exc_base+PITCH_MAX+INTERPOL_LEN;
     
+    ctx->residual=calloc(1, PITCH_MAX+ctx->subframe_size);
     /* random seed initialization (4.4.4) */
     ctx->rand_seed=21845;
 
@@ -1019,6 +1103,9 @@ void g729a_decoder_uninit(void *context)
 {
     G729A_Context* ctx=context;
     int k;
+
+    if(ctx->residual) free(ctx->residual);
+    ctx->residual=NULL;
 
     if(ctx->exc_base) free(ctx->exc_base);
     ctx->exc_base=NULL;
