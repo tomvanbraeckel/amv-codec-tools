@@ -33,8 +33,8 @@ typedef struct
     int format;             ///< format index from formats array
     int subframe_size;      ///< number of samples produced from one subframe
     int data_error;         ///< data error detected during decoding
-    float exc_base;          ///< past excitation signal buffer
-    float exc;               ///< start of past excitation data in buffer
+    float* exc_base;          ///< past excitation signal buffer
+    float* exc;               ///< start of past excitation data in buffer
     int intT2_prev;         ///< int(T2) value of previous frame (4.1.3)
     int intT1;              ///< int(T1) value of first subframe
     float *lq_prev[MA_NP];  ///< l[i], LSP quantizer output (3.2.4)
