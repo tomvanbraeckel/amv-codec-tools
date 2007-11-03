@@ -833,7 +833,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
             ctx->g=0.9*ctx->g+0.1*gain;
         }
     }
-    free(residual_filt);
+    free(residual_filt_buf);
     return gl;
 }
 /**
