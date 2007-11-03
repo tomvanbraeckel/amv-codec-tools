@@ -677,7 +677,7 @@ static void g729a_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, fl
  * \param gc quantized adaptive-codebook gain (gain code)
  * \param exc last excitation signal buffer for current subframe
  */
-static void g729a_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc, int* exc)
+static void g729a_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc, float* exc)
 {
     int i;
 
