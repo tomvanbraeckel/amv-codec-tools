@@ -725,7 +725,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     int i,k, n, intT0;
     float *speech=speech_buf+10;
     float* residual_filt_buf=calloc(1,(ctx->subframe_size+10)*sizeof(float));
-    float* residual_filt=residual_filt_buf+19;
+    float* residual_filt=residual_filt_buf+10;
     float factor;
     float corellation, corr_max;
     float gl;      ///< gain coefficient for long-term postfilter
