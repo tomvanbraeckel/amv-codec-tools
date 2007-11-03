@@ -33,8 +33,8 @@ typedef struct
     int format;             ///< format index from formats array
     int subframe_size;      ///< number of samples produced from one subframe
     int data_error;         ///< data error detected during decoding
-    int* exc_base;          ///< past excitation signal buffer
-    int* exc;               ///< start of past excitation data in buffer
+    float exc_base;          ///< past excitation signal buffer
+    float exc;               ///< start of past excitation data in buffer
     int intT2_prev;         ///< int(T2) value of previous frame (4.1.3)
     int intT1;              ///< int(T1) value of first subframe
     float *lq_prev[MA_NP];  ///< l[i], LSP quantizer output (3.2.4)
@@ -535,7 +535,7 @@ static void g729a_decode_ac_delay_subframe2(G729A_Context* ctx, int P2, int intT
  * \param t pitch delay, fraction paart [-1, 0, 1]
  * \param ac_v buffer to store decoded vector into
  */
-static void g729a_decode_ac_vector(G729A_Context* ctx, int k, int t, int* ac_v)
+static void g729a_decode_ac_vector(G729A_Context* ctx, int k, int t, float* ac_v)
 {
     int n, i;
     float v;
@@ -694,7 +694,7 @@ static void g729a_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc
  *
  * \note out_buf should have additional 10 items at top (from previous subframe)
  */
-static void g729a_lp_synthesis_filter(G729A_Context *ctx, float* lp, int *in, float *out_buf)
+static void g729a_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, float *out_buf)
 {
     float* out=out_buf+10;
     int i,n;
@@ -1116,7 +1116,7 @@ void* g729a_decoder_init()
             ctx->lq_prev[k][i]=ctx->lq_prev[0][i];
 
     // Two subframes + PITCH_MAX inetries for last excitation signal data + ???
-    ctx->exc_base=calloc(sizeof(int), frame_size*8+PITCH_MAX+INTERPOL_LEN);
+    ctx->exc_base=calloc(sizeof(float), frame_size*8+PITCH_MAX+INTERPOL_LEN);
     if(!ctx->exc_base)
         return NULL;
 
@@ -1226,7 +1226,7 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     g729a_reconstruct_speech(ctx, lp+10, ctx->exc+ctx->subframe_size, speech_buf+ctx->subframe_size);
 
     //Save signal for using in next frame
-    memmove(ctx->exc_base, ctx->exc_base+2*ctx->subframe_size, (PITCH_MAX+INTERPOL_LEN)*sizeof(int));
+    memmove(ctx->exc_base, ctx->exc_base+2*ctx->subframe_size, (PITCH_MAX+INTERPOL_LEN)*sizeof(float));
 
     /* Return reconstructed speech to caller */
     memcpy(out_frame, speech_buf, 2*ctx->subframe_size*sizeof(short));
