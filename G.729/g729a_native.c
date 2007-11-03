@@ -690,21 +690,26 @@ static void g729a_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc
  * \param ctx private data structure
  * \param lp LP coefficients
  * \param in input signal
- * \param out_buf output signal
+ * \param out output signal
+ * \param filter_data filter data array
  *
- * \note out_buf should have additional 10 items at top (from previous subframe)
  */
-static void g729a_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, float *out_buf)
+static void g729a_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, float *out, float *filter_data)
 {
-    float* out=out_buf+10;
+    float* tmp_buf=calloc(1, (10+ctx->subframe_size)*sizeof(float));
+    float* tmp=tmp_buf+10;
     int i,n;
+
+    memcpy(tmp_buf, filter_data, 10*sizeof(float));
 
     for(n=0; n<ctx->subframe_size; n++)
     {
-        out[n]=in[n];
+        tmp[n]=in[n];
         for(i=0; i<10; i++)
-            out[n]-= lp[i]*out[n-i-1];
+            tmp[n]-= lp[i]*tmp[n-i-1];
     }
+    memcpy(filter_data, tmp+ctx->subframe_size-10, 10*sizeof(float));
+    memcpy(out, tmp+10, ctx->subframe_size*sizeof(float));
 }
 
 /**
@@ -815,9 +820,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
        gain_temp1+=speech[n]*speech[n];
 
     /* Long-term postfilter end */
-    memcpy(residual_filt_buf, ctx->res_filter_data, 10*sizeof(float));
-    g729a_lp_synthesis_filter(ctx, lp_gd, residual_filt_buf, speech);
-    memcpy(ctx->res_filter_data, residual_filt_buf+ctx->subframe_size-10, 10*sizeof(float));
+    g729a_lp_synthesis_filter(ctx, lp_gd, residual_filt, speech, ctx->res_filter_data);
 
     /* adaptive gain control (A.4.2.4) */
     gain_temp2=0;
@@ -849,13 +852,8 @@ static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, 
     float* tmp_speech=tmp_speech_buf+10;
     int i,n, intT0;
 
-    memcpy(tmp_speech_buf, ctx->syn_filter_data, 10*sizeof(float));
-
     /* 4.1.6, Equation 77  */
-    g729a_lp_synthesis_filter(ctx, lp, exc, tmp_speech_buf);
-
-    /* FIXME: line below shold be used only if reconstruction completed successfully */
-    memcpy(ctx->syn_filter_data, tmp_speech+ctx->subframe_size-10, 10*sizeof(short));
+    g729a_lp_synthesis_filter(ctx, lp, exc, tmp_speech, ctx->syn_filter_data);
 
     /* 4.2 */
 //    g729a_postfilter(ctx, lp, tmp_speech_buf);
