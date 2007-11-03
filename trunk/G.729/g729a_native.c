@@ -843,7 +843,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
  * \param exc excitation
  * \param speech reconstructed speech buffer (ctx->subframe_size items)
  */
-static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, int* exc, short* speech)
+static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, short* speech)
 {
     float* tmp_speech_buf=calloc(1,(ctx->subframe_size+10)*sizeof(float));
     float* tmp_speech=tmp_speech_buf+10;
