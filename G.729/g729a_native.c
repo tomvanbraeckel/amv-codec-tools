@@ -1122,7 +1122,7 @@ void* g729a_decoder_init()
 
     ctx->exc=ctx->exc_base+PITCH_MAX+INTERPOL_LEN;
     
-    ctx->residual=calloc(1, PITCH_MAX+ctx->subframe_size);
+    ctx->residual=calloc(1, (PITCH_MAX+ctx->subframe_size)*sizeof(float));
     /* random seed initialization (4.4.4) */
     ctx->rand_seed=21845;
 
