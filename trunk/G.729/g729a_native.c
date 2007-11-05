@@ -550,8 +550,13 @@ static void g729a_decode_ac_vector(G729A_Context* ctx, int k, int t, float* ac_v
         v=0;
         for(i=0; i<10; i++)
         {
-            v+=ctx->exc[n-k+i]*b30[t+3*i];
-            v+=ctx->exc[n-k+i+1]*b30[3-t+3*i];
+            /*
+              (EE) This does not comply with specification.
+              Specification uses "n-k+i" (note "+i") index in vector, while
+              reference code uses "n-k-i" (note "-i") here.
+	    */
+            v+=ac_v[n-k-i]*b30[t+3*i];
+            v+=ac_v[n-k+i+1]*b30[3-t+3*i];
         }
         ac_v[n]=lrintf(v);
     }
