@@ -836,6 +836,10 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
             ctx->g=0.9*ctx->g+0.1*gain;
         }
     }
+
+    //Shift residual for using in next subframe
+    memmove(ctx->residual, ctx->residual+ctx->subframe_size, PITCH_MAX*sizeof(float));
+
     free(residual_filt_buf);
     return gl;
 }
