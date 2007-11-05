@@ -709,7 +709,7 @@ static void g729a_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, 
             tmp[n]-= lp[i]*tmp[n-i-1];
     }
     memcpy(filter_data, tmp+ctx->subframe_size-10, 10*sizeof(float));
-    memcpy(out, tmp+10, ctx->subframe_size*sizeof(float));
+    memcpy(out, tmp, ctx->subframe_size*sizeof(float));
 }
 
 /**
