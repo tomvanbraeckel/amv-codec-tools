@@ -11,9 +11,11 @@ ACT is a low complexity speech compression codec. There are 3 different ways to 
 
 || *Name* || *Sample rate* || *Frame size* || *Frames per chunk* || *Chunk size* || *Padding bytes* ||
 || Fine Rec || 8000 || 10 || 51 || 510 || 2 ||
-|| Long Rec || 4400 || 22 || 23 || 506 || 6 ||
-|| Long Vox || 4400 || 22 || 23 || 506 || 6 ||
+|| Long Rec || 4400 || 22^1^ || 23 || 506 || 6 ||
+|| Long Vox || 4400 || 22^1^ || 23 || 506 || 6 ||
 *Table 1. Known Formats*
+
+^1^ Each ACT frame contains two G.729 frames.
 
 The codec actually is G.729A
 
@@ -73,14 +75,12 @@ for(i=0 ; i<frame_size/2; i++)
 || S2 || Signs of fixed-codebook pulses 2nd subframe || 4 || 9(4)^2^ ||
 || GA2 || Gain codebook (stage 1) 2nd subframe || 3 || 3 ||
 || GB2 || Gain codebook (stage 1) 2nd subframe || 4 || 4 ||
-|| || *Total* || *80* || *88*^3^ ||
+|| || *Total* || *80* || *88* ||
 *Table 3. Description of transmitted parameters indices*^1^
 
 ^1^Note: the bitstream ordering is reflected by order in the table. For each parameter, the Most Significant Bit (MSB) is transmitted first.
 
 ^2^This affects fixed-codebook pulses indexes calculation. "Fine rec" mode uses 3+3+3+4 bit allocation which gives four pulses units with indexes in [0:39] range. Since indexes must cover [0:43] range for "Long rec" and "Long vox" formats, bit allocation was changed to 4+4+4+5=17 for them. And since proprietary codec uses 16-bit arithmetic last 5 bits were transferred to next parameter. New codec with 32-bit parameters will use 17-bit and 4-bit values for this and next parameters.
-
-^3^ Two G.729 frames are passed from demuxer to codec at one time
 
 = Proprietary software =
 
