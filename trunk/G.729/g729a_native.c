@@ -281,6 +281,20 @@ static const float cb_L3[32][5] = {
 
 /**
  * interpolation filter b30 (3.7.1)
+ *
+ *   Specification does not provide formula for calculating table below.
+ *
+ *   It just says: 
+ *     b30 is based on Hamming windowed sinc functions, truncated at +/-29 and
+ *     padded with zeros at +/-30 b30[30]=0
+ *     
+ *   After some analisys i found this aproximation:
+ * 
+ *   Hamm(x,N) = 0.54-0.46*cos(2*M_PI*x/N));
+ *   Sinc(x,P,A) = A *sin(P*x)/(P*x);
+ *
+ *   b30:= Hamm(30-x,60)*Sinc(x,0.95,0.898517);
+ *
  */
 static const float b30[31]=
 {
