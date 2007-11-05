@@ -641,7 +641,7 @@ static void g729a_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, fl
     for(i=0; i<ctx->subframe_size; i++)
         energy+=fc_v[i]*fc_v[i];
 
-    energy=30-10.*log(energy/40.0)/M_LN10; //FIXME: should there be subframe_size ?
+    energy=30-10.*log(energy/ctx->subframe_size)/M_LN10;
 
     /* 3.9.1, Equation 69 */
     for(i=0; i<4; i++)
