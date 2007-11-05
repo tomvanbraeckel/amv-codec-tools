@@ -917,10 +917,10 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
     }
 
     /* Rotate lq_prev */
-    tmp=ctx->lq_prev[0];
-    for(k=1; k<MA_NP; k++)
-        ctx->lq_prev[k-1]=ctx->lq_prev[k];
-    ctx->lq_prev[MA_NP-1]=tmp;
+    tmp=ctx->lq_prev[MA_NP-1];
+    for(k=MA_NP-1; k>0; k--)
+        ctx->lq_prev[k]=ctx->lq_prev[k-1];
+    ctx->lq_prev[0]=tmp;
     for(i=0; i<10; i++)
         ctx->lq_prev[0][i]=lq[i];
     ctx->prev_mode=L0;
