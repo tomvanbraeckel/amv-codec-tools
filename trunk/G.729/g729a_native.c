@@ -813,7 +813,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
 
     /* 4.2.1, Equation 78 */
     for(n=0; n<ctx->subframe_size; n++)
-        residual_filt[n]=ctx->residual[n]*inv_glgp+ctx->residual[n-intT0]*glgp_inv_glgp;
+        residual_filt[n]=ctx->residual[n+PITCH_MAX]*inv_glgp+ctx->residual[n+PITCH_MAX-intT0]*glgp_inv_glgp;
 
     gain_temp1=0;
     for(n=0; n<ctx->subframe_size; n++)
