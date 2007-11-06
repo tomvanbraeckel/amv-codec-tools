@@ -41,6 +41,7 @@ typedef struct
     float lsp_prev[10];     ///< q[i], LSP coefficients from previous frame (3.2.5)
     float pred_vect_q[4];   ///< quantized prediction error
     float gain_pitch;       ///< Pitch gain of previous subframe (3.8) [GAIN_PITCH_MIN ... GAIN_PITCH_MAX]
+    float gain_code;        ///< Gain code of previous subframe
     float *residual;        ///< Residual signal buffer (used in long-term postfilter)
     float syn_filter_data[10];
     float res_filter_data[10];
@@ -682,6 +683,8 @@ static void g729a_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, fl
     /* 3.9.1, Equation 74 */
     *gc = energy*(cb_GA[nGA][1]+cb_GB[nGB][1]);  //quantized fixed-codebook gain (gain pitch)
 
+    /* save gain code value for next subframe */
+    ctx->gain_code=*gc;
     /* save pitch gain value for next subframe */
     ctx->gain_pitch=*gp;
     ctx->gain_pitch = FFMAX(ctx->gain_pitch, GAIN_PITCH_MIN);
