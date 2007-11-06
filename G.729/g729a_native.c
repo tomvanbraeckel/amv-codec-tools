@@ -645,6 +645,23 @@ static void g729a_fix_fc_vector(G729A_Context *ctx, int T, float* fc_v)
 }
 
 /**
+ * \brief Decoding of the adaptive and fixed codebook gains from previous subframe
+ * \param ctx private data structure
+ * \param gp pointer to variable receiving quantized fixed-codebook gain (gain pitch)
+ * \param gc pointer to variable receiving quantized adaptive-codebook gain (gain code)
+ */
+static void g729a_get_gain_from_previous(G729A_Context *ctx, float* gp, float* gc)
+{
+    /* 4.4.2, Equation 93 */
+    *gc=0.98*ctx->gain_code;
+    ctx->gain_code=*gc;
+
+    /* 4.4.2, Equation 94 */
+    *gp=FFMIN(0.9*ctx->gain_pitch, 0.9);;
+    ctx->gain_pitch = *gp;
+}
+
+/**
  * \brief Decoding of the adaptive and fixed codebook gains (4.1.5 and 3.9.1)
  * \param ctx private data structure
  * \param GA Gain codebook (stage 2)
@@ -891,6 +908,43 @@ static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, 
 
     free(tmp_speech_buf);
 
+}
+
+/**
+ * \brief Restore LSP parameters using previous frame data
+ * \param ctx private data structure
+ * \param lsfq Decoded LSP coefficients
+ */
+static void g729a_lsp_restore_from_previous(G729A_Context *ctx, float* lsfq)
+{
+    float lq[10];
+    int i,k;
+    float* tmp;
+
+    //Restore LSF from previous frame
+    for(i=0;i<10; i++)
+        lsfq[i]=ctx->lsf_prev[i];
+
+    /* 4.4.1, Equation 92 */
+    for(i=0; i<10; i++)
+    {
+        lq[i]=lsfq[i];
+	for(k=0;k<MA_NP; k++)
+	    lq[i]-=ma_predictor[ctx->prev_mode][k][i];
+        lq[i]/=ma_predictor_sum[ctx->prev_mode][i];
+    }
+
+    /* Rotate lq_prev */
+    tmp=ctx->lq_prev[MA_NP-1];
+    for(k=MA_NP-1; k>0; k--)
+        ctx->lq_prev[k]=ctx->lq_prev[k-1];
+    ctx->lq_prev[0]=tmp;
+    for(i=0; i<10; i++)
+        ctx->lq_prev[0][i]=lq[i];
+
+    /* Convert LSF to LSP */
+    for(i=0;i<10; i++)
+        lsfq[i]=cos(lsfq[i]);
 }
 
 /**
@@ -1226,28 +1280,42 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     if(!g729_parity_check(parm[4], parm[5]))
         ctx->data_error=1;
 
-    /* stub: error concealment routine required */
+    /* error concealment code below is temporary disabled */
     if(ctx->data_error)
         return 0;
 
+    if(ctx->data_error)
+        g729a_lsp_restore_from_previous(ctx, lsp);
+    else
     g729a_lsp_decode(ctx, parm[0], parm[1], parm[2], parm[3], lsp);
+
     g729a_lp_decode(ctx, lsp, lp);
 
     /* first subframe */
     g729a_decode_ac_delay_subframe1(ctx, parm[4], &k, &t);
     g729a_decode_ac_vector(ctx, k, t, ctx->exc);
+    if(ctx->data_error)
+        g729a_get_gain_from_previous(ctx, &gp, &gc);
+    else
+    {
     g729a_decode_fc_vector(ctx, parm[6], parm[7], fc);
     g729a_fix_fc_vector(ctx, k, fc);
     g729a_get_gain(ctx, parm[8], parm[9], fc, &gp, &gc);
+    }
     g729a_mem_update(ctx, fc, gp, gc, ctx->exc);
     g729a_reconstruct_speech(ctx, lp, ctx->exc, speech_buf);
 
     /* second subframe */
     g729a_decode_ac_delay_subframe2(ctx, parm[10], k, &k, &t);
     g729a_decode_ac_vector(ctx, k, t, ctx->exc+ctx->subframe_size);
+    if(ctx->data_error)
+        g729a_get_gain_from_previous(ctx, &gp, &gc);
+    else
+    {
     g729a_decode_fc_vector(ctx, parm[11], parm[12], fc);
     g729a_fix_fc_vector(ctx, k, fc);
     g729a_get_gain(ctx, parm[13], parm[14], fc, &gp, &gc);
+    }
     g729a_mem_update(ctx, fc, gp, gc, ctx->exc+ctx->subframe_size);
     g729a_reconstruct_speech(ctx, lp+10, ctx->exc+ctx->subframe_size, speech_buf+ctx->subframe_size);
 
