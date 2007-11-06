@@ -39,6 +39,7 @@ typedef struct
     int intT1;              ///< int(T1) value of first subframe
     float *lq_prev[MA_NP];  ///< l[i], LSP quantizer output (3.2.4)
     float lsp_prev[10];     ///< q[i], LSP coefficients from previous frame (3.2.5)
+    float lsf_prev[10];     ///< lq[i], LSF coefficients from previous frame
     float pred_vect_q[4];   ///< quantized prediction error
     float gain_pitch;       ///< Pitch gain of previous subframe (3.8) [GAIN_PITCH_MIN ... GAIN_PITCH_MAX]
     float gain_code;        ///< Gain code of previous subframe
@@ -937,6 +938,8 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
         lsfq[i]=lq[i] * ma_predictor_sum[L0][i];
         for(k=0; k<MA_NP; k++)
             lsfq[i] += (ctx->lq_prev[k][i] * ma_predictor[L0][k][i]);
+        //Saving LSF for using when error occured in next frames
+        ctx->lsf_prev[i]=lsfq[i];
     }
 
     /* Rotate lq_prev */
