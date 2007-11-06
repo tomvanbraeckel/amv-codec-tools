@@ -976,6 +976,7 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
         lsfq[i+1]=FFMAX(lsfq[i+1], lsfq[i]+LSFQ_DIFF_MIN);
     lsfq[9] = FFMIN(lsfq[9],LSFQ_MAX);//Is warning required ?
 
+    /* Convert LSF to LSP */
     for(i=0;i<10; i++)
         lsfq[i]=cos(lsfq[i]);
 }
