@@ -911,6 +911,23 @@ static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, 
 }
 
 /**
+ * \brief Convert LSF to LSP 
+ * \param ctx private data structure
+ * \param lsf LSF coefficients
+ * \param lsp LSP coefficients
+ *
+ * \remark It is safe to pass the same array in lsf and lsp parameters
+ */
+static void g729a_lsf2lsp(G729A_Context *ctx float *lsf, float *lsp)
+{
+    int i;
+
+    /* Convert LSF to LSP */
+    for(i=0;i<10; i++)
+        lsp[i]=cos(lsf[i]);
+}
+
+/**
  * \brief Restore LSP parameters using previous frame data
  * \param ctx private data structure
  * \param lsfq Decoded LSP coefficients
@@ -942,9 +959,7 @@ static void g729a_lsp_restore_from_previous(G729A_Context *ctx, float* lsfq)
     for(i=0; i<10; i++)
         ctx->lq_prev[0][i]=lq[i];
 
-    /* Convert LSF to LSP */
-    for(i=0;i<10; i++)
-        lsfq[i]=cos(lsfq[i]);
+    g729a_lsf2lsp(ctx, lsfq, lsfq);
 }
 
 /**
@@ -1036,9 +1051,7 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
         lsfq[i+1]=FFMAX(lsfq[i+1], lsfq[i]+LSFQ_DIFF_MIN);
     lsfq[9] = FFMIN(lsfq[9],LSFQ_MAX);//Is warning required ?
 
-    /* Convert LSF to LSP */
-    for(i=0;i<10; i++)
-        lsfq[i]=cos(lsfq[i]);
+    g729a_lsf2lsp(ctx, lsfq, lsfq);
 }
 
 /**
