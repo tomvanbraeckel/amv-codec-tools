@@ -289,13 +289,27 @@ static const float cb_L3[32][5] = {
  *   It just says: 
  *     b30 is based on Hamming windowed sinc functions, truncated at +/-29 and
  *     padded with zeros at +/-30 b30[30]=0
+ *     The filter has a cut-off frequency (-3 dB) at 3600 Hz in the oversampled domain.
  *     
  *   After some analisys i found this aproximation:
- * 
- *   Hamm(x,N) = 0.54-0.46*cos(2*M_PI*x/N));
- *   Sinc(x,P,A) = A *sin(P*x)/(P*x);
  *
- *   b30:= Hamm(30-x,60)*Sinc(x,0.95,0.898517);
+ *                                    PI * x
+ *   Hamm(x,N) = 0.53836-0.46164*cos(--------)
+ *                                      N-1
+ *                                      ---
+ *                                       2
+ *
+ *                         N-1                               PI * x
+ *   Hamm'(x,N) = Hamm(x - ---, N) =  0.53836 + 0.46164*cos(--------)
+ *                          2                                  N-1
+ *                                                             ---
+ *             sin(PI * x)                                      2
+ *   Sinc(x) = -----------
+ *               PI * x
+ *
+ *   b30[n]:= 3*Hamm'(n,61)*[ 0.3 * Sinc(0.3 * n) ], n=0..30
+ *
+ * FIXME: what means 0.3 and 3 here?
  *
  */
 static const float b30[31]=
