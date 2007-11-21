@@ -420,10 +420,10 @@ static const struct{
     char vector_bits[VECTOR_SIZE];
     char silence_compression;
 } formats[]={
-  {"8Kb/s",   8000, 80, 3, {1,7,5,5,8,1,/*fc_index_bits*/3*FC_PULSE_COUNT+1,FC_PULSE_COUNT,GA_BITS,GB_BITS,5,3+3+3+4, FC_PULSE_COUNT,GA_BITS,GB_BITS}, 0},
+  {"8Kb/s",   8000, 80, 3, {1,7,5,5,8,1,/*fc_index_bits*/3*FC_PULSE_COUNT+1,FC_PULSE_COUNT,GA_BITS,GB_BITS,5,/*fc_index_bits*/3*FC_PULSE_COUNT+1, FC_PULSE_COUNT,GA_BITS,GB_BITS}, 0},
 #ifdef G729_SUPPORT_4400
 // Note: 
-  {"4.4Kb/s", 4400, 88, 4, {1,7,5,5,8,1,/*fc_index_bits*/4*FC_PULSE_COUNT+1,FC_PULSE_COUNT,GA_BITS,GB_BITS,5,4+4+4+5, FC_PULSE_COUNT,GA_BITS,GB_BITS}, 0},
+  {"4.4Kb/s", 4400, 88, 4, {1,7,5,5,8,1,/*fc_index_bits*/4*FC_PULSE_COUNT+1,FC_PULSE_COUNT,GA_BITS,GB_BITS,5,/*fc_index_bits*/4*FC_PULSE_COUNT+1, FC_PULSE_COUNT,GA_BITS,GB_BITS}, 0},
 #endif //G729_SUPPORT_4400
   { NULL,     0,    0,  0, {0,0,0,0,0,0, 0, 0,0,0,0, 0, 0,0,0}, 0}
 };
