@@ -932,7 +932,7 @@ static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, 
  *
  * \remark It is safe to pass the same array in lsf and lsp parameters
  */
-static void g729a_lsf2lsp(G729A_Context *ctx float *lsf, float *lsp)
+static void g729a_lsf2lsp(G729A_Context *ctx, float *lsf, float *lsp)
 {
     int i;
 
