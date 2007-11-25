@@ -1331,10 +1331,6 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     if(!g729_parity_check(parm[4], parm[5]))
         ctx->data_error=1;
 
-    /* error concealment code below is temporary disabled */
-    if(ctx->data_error)
-        return 0;
-
     if(ctx->data_error)
         g729a_lsp_restore_from_previous(ctx, lsp);
     else
