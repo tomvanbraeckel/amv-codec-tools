@@ -1363,7 +1363,10 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     g729a_decode_ac_delay_subframe2(ctx, parm[10], k, &k, &t);
     g729a_decode_ac_vector(ctx, k, t, ctx->exc+ctx->subframe_size);
     if(ctx->data_error)
+    {
         g729a_get_gain_from_previous(ctx, &gp, &gc);
+        g729a_update_gain(ctx);
+    {
     else
     {
         g729a_decode_fc_vector(ctx, parm[11], parm[12], fc);
