@@ -1143,6 +1143,39 @@ static void g729a_lp_decode(G729A_Context* ctx, float* lsp_curr, float* lp)
         ctx->lsp_prev[i]=lsp_curr[i];
 }
 
+/**
+ * \brief high-pass filtering and upscaling (4.2.5)
+ * \param ctx private data structure
+ * \param speech reconstructed speech signal for applying filter to
+ *
+ * Filter has cut-off frequency 100Hz
+ */
+static void g729a_high_pass_filter(G729A_Context* ctx, short* speech)
+{
+    const float az[3] = {0.93980581, -1.8795834,  0.93980581};
+    const float af[3] = {1.00000000,  1.9330735, -0.93589199};
+    short z_0=0;
+    short z_1=0;
+    short z_2=0;
+
+    float f_2=0;
+    float f_1=0;
+    float f_0=0;
+    int i;
+
+    for(i=0; i<2*ctx->subframe_size; i++)
+    {
+        z_2=z_1;
+        z_1=z_0;
+        z_0=speech[i];
+
+        f_2=f_1;
+        f_1=f_0;
+        f_0 = f_1*af[1]+f_2*af[2] + z_0*az[0]+z_1*az[1]+z_2*az[2]; 
+        speech[i]=g729a_round(f_0*2);
+    }
+}
+
 /*
 -------------------------------------------------------------------------------
           API
@@ -1320,6 +1353,9 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
 
     //Save signal for using in next frame
     memmove(ctx->exc_base, ctx->exc_base+2*ctx->subframe_size, (PITCH_MAX+INTERPOL_LEN)*sizeof(float));
+
+    //Postprocessing
+    g729a_high_pass_filter(ctx, speech_buf);
 
     /* Return reconstructed speech to caller */
     memcpy(out_frame, speech_buf, 2*ctx->subframe_size*sizeof(short));
