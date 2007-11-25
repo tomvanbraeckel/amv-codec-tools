@@ -435,6 +435,17 @@ static const struct{
 */
 
 /**
+ * \brief rouding function from reference code 
+ *
+ * FIXME: found system replacement for it
+ */
+static inline int g729a_round(float f)
+{
+    int i=ceil(f*2);
+    return i>>1;
+}
+
+/**
  * \brief pseudo random number generator
  */
 static inline uint16_t g729a_random(G729A_Context* ctx)
@@ -577,7 +588,7 @@ static void g729a_decode_ac_vector(G729A_Context* ctx, int k, int t, float* ac_v
             v+=ac_v[n-k-i]*b30[t+3*i];
             v+=ac_v[n-k+i+1]*b30[3-t+3*i];
         }
-        ac_v[n]=lrintf(v);
+        ac_v[n]=g729a_round(v);
     }
 }
 
@@ -725,7 +736,7 @@ static void g729a_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc
     int i;
 
     for(i=0; i<ctx->subframe_size; i++)
-        exc[i]=lrintf(exc[i]*gp+fc_v[i]*gc);
+        exc[i]=g729a_round(exc[i]*gp+fc_v[i]*gc);
 }
 
 /**
@@ -750,7 +761,7 @@ static void g729a_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, 
         tmp[n]=in[n];
         for(i=0; i<10; i++)
             tmp[n]-= lp[i]*tmp[n-i-1];
-        tmp[n]=lrintf(tmp[n]);
+        tmp[n]=g729a_round(tmp[n]);
     }
     memcpy(filter_data, tmp+ctx->subframe_size-10, 10*sizeof(float));
     memcpy(out, tmp, ctx->subframe_size*sizeof(float));
@@ -906,7 +917,7 @@ static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, 
 //    g729a_postfilter(ctx, lp, tmp_speech_buf);
 
     for(i=0; i<ctx->subframe_size; i++)
-        speech[i]=lrintf(tmp_speech[i]);
+        speech[i]=g729a_round(tmp_speech[i]);
 
     free(tmp_speech_buf);
 
