@@ -1181,7 +1181,6 @@ void* g729a_decoder_init()
     for(k=0; k<MA_NP; k++)
         ctx->lq_prev[k]=malloc(sizeof(float)*frame_size);
 
-#if 0
     /*
      This is initialization from specification. But it produces different result from
      reference decoder
@@ -1191,32 +1190,6 @@ void* g729a_decoder_init()
         ctx->lq_prev[0][i]=(i+1)*M_PI/(frame_size+1);
         ctx->lsp_prev[i]=cos(ctx->lq_prev[0][i]);
     }
-#else
-    /* 
-      This is code from reference decoder. Have to be reimplemented 
-    */
-    ctx->lq_prev[0][0]=4*FP2FL(2339);
-    ctx->lq_prev[0][1]=4*FP2FL(4679);
-    ctx->lq_prev[0][2]=4*FP2FL(7018);
-    ctx->lq_prev[0][3]=4*FP2FL(9358);
-    ctx->lq_prev[0][4]=4*FP2FL(11698);
-    ctx->lq_prev[0][5]=4*FP2FL(14037);
-    ctx->lq_prev[0][6]=4*FP2FL(16377);
-    ctx->lq_prev[0][7]=4*FP2FL(18717);
-    ctx->lq_prev[0][8]=4*FP2FL(21056);
-    ctx->lq_prev[0][9]=4*FP2FL(23396);
-
-    ctx->lsp_prev[0]=FP2FL(30000);
-    ctx->lsp_prev[1]=FP2FL(26000);
-    ctx->lsp_prev[2]=FP2FL(21000);
-    ctx->lsp_prev[3]=FP2FL(15000);
-    ctx->lsp_prev[4]=FP2FL(8000);
-    ctx->lsp_prev[5]=FP2FL(0);
-    ctx->lsp_prev[6]=FP2FL(-8000);
-    ctx->lsp_prev[7]=FP2FL(-15000);
-    ctx->lsp_prev[8]=FP2FL(-21000);
-    ctx->lsp_prev[9]=FP2FL(-26000);
-#endif
 
     for(k=1; k<MA_NP; k++)
         for(i=0;i<frame_size; i++)
