@@ -434,18 +434,6 @@ static const struct{
 ------------------------------------------------------------------------------
 */
 
-#define Q15_BASE (1<<15)
-#define FL_Q(a,Q_BASE) ((int32_t)((a)*(Q15_BASE)))
-#define Q_FL(a,Q_BASE) (((1.0)*(a))/(Q15_BASE))
-
-#define Q_MUL(a,b,Q_BASE) (((int32_t)(a))*(b)/(Q_BASE))
-#define Q_DIV(a,b, Q_BASE) ((int32_t)(a))*(Q_BASE)/(b))
-
-
-#define FL2FP(a) FL_Q(a, Q15_BASE)
-#define FP2FL(a) Q_FL(a, Q15_BASE)
-#define FP_MUL(a,b) Q_MUL(a,b, Q15_BASE)
-#define FP_DIV(a,b) Q_DIV(a,b, Q15_BASE)
 /**
  * \brief pseudo random number generator
  */
