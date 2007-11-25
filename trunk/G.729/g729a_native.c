@@ -439,7 +439,7 @@ static const struct{
  *
  * FIXME: found system replacement for it
  */
-static inline int g729a_round(float f)
+static inline int g729_round(float f)
 {
     int i=ceil(f*2);
     return i>>1;
@@ -448,7 +448,7 @@ static inline int g729a_round(float f)
 /**
  * \brief pseudo random number generator
  */
-static inline uint16_t g729a_random(G729A_Context* ctx)
+static inline uint16_t g729_random(G729A_Context* ctx)
 {
     return ctx->rand_seed = (uint16_t)(31821 * (uint32_t)ctx->rand_seed + 13849 + ctx->rand_seed);
 }
@@ -514,7 +514,7 @@ int g729_parity_check(int P1, int P0)
  * \param intT [out] integer part of delay
  * \param frac [out] fractional part of delay [-1, 0, 1]
  */
-static void g729a_decode_ac_delay_subframe1(G729A_Context* ctx, int P1, int* intT, int* frac)
+static void g729_decode_ac_delay_subframe1(G729A_Context* ctx, int P1, int* intT, int* frac)
 {
     /* if no parity error */
     if(!ctx->data_error)
@@ -545,7 +545,7 @@ static void g729a_decode_ac_delay_subframe1(G729A_Context* ctx, int P1, int* int
  * \param intT [out] integer part of delay
  * \param frac [out] fractional part of delay [-1, 0, 1]
  */
-static void g729a_decode_ac_delay_subframe2(G729A_Context* ctx, int P2, int intT1, int* intT, int* frac)
+static void g729_decode_ac_delay_subframe2(G729A_Context* ctx, int P2, int intT1, int* intT, int* frac)
 {
 
     int tmin=FFMIN(FFMAX(intT1-5, PITCH_MIN)+9, PITCH_MAX)-9;
@@ -565,7 +565,7 @@ static void g729a_decode_ac_delay_subframe2(G729A_Context* ctx, int P2, int intT
  * \param t pitch delay, fraction paart [-1, 0, 1]
  * \param ac_v buffer to store decoded vector into
  */
-static void g729a_decode_ac_vector(G729A_Context* ctx, int k, int t, float* ac_v)
+static void g729_decode_ac_vector(G729A_Context* ctx, int k, int t, float* ac_v)
 {
     int n, i;
     float v;
@@ -588,7 +588,7 @@ static void g729a_decode_ac_vector(G729A_Context* ctx, int k, int t, float* ac_v
             v+=ac_v[n-k-i]*b30[t+3*i];
             v+=ac_v[n-k+i+1]*b30[3-t+3*i];
         }
-        ac_v[n]=g729a_round(v);
+        ac_v[n]=g729_round(v);
     }
 }
 
@@ -605,7 +605,7 @@ static void g729a_decode_ac_vector(G729A_Context* ctx, int k, int t, float* ac_v
  *
  * FIXME: error handling required
  */
-static void g729a_decode_fc_vector(G729A_Context* ctx, int C, int S, float* fc_v)
+static void g729_decode_fc_vector(G729A_Context* ctx, int C, int S, float* fc_v)
 {
     int accC=C;
     int accS=S;
@@ -641,13 +641,13 @@ static void g729a_decode_fc_vector(G729A_Context* ctx, int C, int S, float* fc_v
 }
 
 /**
- * \brief fixed codebook vector modification if delay is less than 40
+ * \brief fixed codebook vector modification if delay is less than 40 (4.1.4 and 3.8)
  * \param T pitch delay to check
  * \param fc_v [in/out] fixed codebook vector to change
  *
  * \remark if T>=subframe_size no changes to vector are made
  */
-static void g729a_fix_fc_vector(G729A_Context *ctx, int T, float* fc_v)
+static void g729_fix_fc_vector(G729A_Context *ctx, int T, float* fc_v)
 {
     int i;
 
@@ -659,12 +659,12 @@ static void g729a_fix_fc_vector(G729A_Context *ctx, int T, float* fc_v)
 }
 
 /**
- * \brief Decoding of the adaptive and fixed codebook gains from previous subframe
+ * \brief Decoding of the adaptive and fixed codebook gains from previous subframe (4.4.2)
  * \param ctx private data structure
  * \param gp pointer to variable receiving quantized fixed-codebook gain (gain pitch)
  * \param gc pointer to variable receiving quantized adaptive-codebook gain (gain code)
  */
-static void g729a_get_gain_from_previous(G729A_Context *ctx, float* gp, float* gc)
+static void g729_get_gain_from_previous(G729A_Context *ctx, float* gp, float* gc)
 {
     /* 4.4.2, Equation 93 */
     *gc=0.98*ctx->gain_code;
@@ -679,7 +679,7 @@ static void g729a_get_gain_from_previous(G729A_Context *ctx, float* gp, float* g
  * \brief Attenuation of the memory of the gain predictor (4.4.3)
  * \param ctx private data structure
  */
-static void g729a_update_gain(G729A_Context *ctx)
+static void g729_update_gain(G729A_Context *ctx)
 {
     float avg_gain=0;
 
@@ -703,7 +703,7 @@ static void g729a_update_gain(G729A_Context *ctx)
  * \param gp pointer to variable receiving quantized fixed-codebook gain (gain pitch)
  * \param gc pointer to variable receiving quantized adaptive-codebook gain (gain code)
  */
-static void g729a_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, float* gp, float* gc)
+static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, float* gp, float* gc)
 {
     float energy=0;
     int i;
@@ -750,12 +750,12 @@ static void g729a_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, fl
  * \param gc quantized adaptive-codebook gain (gain code)
  * \param exc last excitation signal buffer for current subframe
  */
-static void g729a_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc, float* exc)
+static void g729_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc, float* exc)
 {
     int i;
 
     for(i=0; i<ctx->subframe_size; i++)
-        exc[i]=g729a_round(exc[i]*gp+fc_v[i]*gc);
+        exc[i]=g729_round(exc[i]*gp+fc_v[i]*gc);
 }
 
 /**
@@ -767,7 +767,7 @@ static void g729a_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc
  * \param filter_data filter data array
  *
  */
-static void g729a_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, float *out, float *filter_data)
+static void g729_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, float *out, float *filter_data)
 {
     float* tmp_buf=calloc(10+ctx->subframe_size,sizeof(float));
     float* tmp=tmp_buf+10;
@@ -780,7 +780,7 @@ static void g729a_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, 
         tmp[n]=in[n];
         for(i=0; i<10; i++)
             tmp[n]-= lp[i]*tmp[n-i-1];
-        tmp[n]=g729a_round(tmp[n]);
+        tmp[n]=g729_round(tmp[n]);
     }
     memcpy(filter_data, tmp+ctx->subframe_size-10, 10*sizeof(float));
     memcpy(out, tmp, ctx->subframe_size*sizeof(float));
@@ -894,7 +894,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
        gain_temp1+=speech[n]*speech[n];
 
     /* Long-term postfilter end */
-    g729a_lp_synthesis_filter(ctx, lp_gd, residual_filt, speech, ctx->res_filter_data);
+    g729_lp_synthesis_filter(ctx, lp_gd, residual_filt, speech, ctx->res_filter_data);
 
     /* adaptive gain control (A.4.2.4) */
     gain_temp2=0;
@@ -923,20 +923,20 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
  * \param exc excitation
  * \param speech reconstructed speech buffer (ctx->subframe_size items)
  */
-static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, short* speech)
+static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, short* speech)
 {
     float* tmp_speech_buf=calloc(ctx->subframe_size+10,sizeof(float));
     float* tmp_speech=tmp_speech_buf+10;
     int i,n, intT0;
 
     /* 4.1.6, Equation 77  */
-    g729a_lp_synthesis_filter(ctx, lp, exc, tmp_speech, ctx->syn_filter_data);
+    g729_lp_synthesis_filter(ctx, lp, exc, tmp_speech, ctx->syn_filter_data);
 
     /* 4.2 */
 //    g729a_postfilter(ctx, lp, tmp_speech_buf);
 
     for(i=0; i<ctx->subframe_size; i++)
-        speech[i]=g729a_round(tmp_speech[i]);
+        speech[i]=g729_round(tmp_speech[i]);
 
     free(tmp_speech_buf);
 
@@ -950,7 +950,7 @@ static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, 
  *
  * \remark It is safe to pass the same array in lsf and lsp parameters
  */
-static void g729a_lsf2lsp(G729A_Context *ctx, float *lsf, float *lsp)
+static void g729_lsf2lsp(G729A_Context *ctx, float *lsf, float *lsp)
 {
     int i;
 
@@ -964,7 +964,7 @@ static void g729a_lsf2lsp(G729A_Context *ctx, float *lsf, float *lsp)
  * \param ctx private data structure
  * \param lsfq Decoded LSP coefficients
  */
-static void g729a_lsp_restore_from_previous(G729A_Context *ctx, float* lsfq)
+static void g729_lsp_restore_from_previous(G729A_Context *ctx, float* lsfq)
 {
     float lq[10];
     int i,k;
@@ -991,7 +991,7 @@ static void g729a_lsp_restore_from_previous(G729A_Context *ctx, float* lsfq)
     for(i=0; i<10; i++)
         ctx->lq_prev[0][i]=lq[i];
 
-    g729a_lsf2lsp(ctx, lsfq, lsfq);
+    g729_lsf2lsp(ctx, lsfq, lsfq);
 }
 
 /**
@@ -1003,7 +1003,7 @@ static void g729a_lsp_restore_from_previous(G729A_Context *ctx, float* lsfq)
  * \param L3 Second stage higher vector of LSP quantizer
  * \param lsfq Decoded LSP coefficients
  */
-static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t L2, int16_t L3, float* lsfq)
+static void g729_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t L2, int16_t L3, float* lsfq)
 {
     int i,j,k;
     float J[2]={0.0012, 0.0006};
@@ -1083,7 +1083,7 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
         lsfq[i+1]=FFMAX(lsfq[i+1], lsfq[i]+LSFQ_DIFF_MIN);
     lsfq[9] = FFMIN(lsfq[9],LSFQ_MAX);//Is warning required ?
 
-    g729a_lsf2lsp(ctx, lsfq, lsfq);
+    g729_lsf2lsp(ctx, lsfq, lsfq);
 }
 
 /**
@@ -1092,7 +1092,7 @@ static void g729a_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t
  * \param q LSP coefficients
  * \param a decoded LP coefficients
  */
-static void g729a_lsp2lp(G729A_Context* ctx, float* q, float* a)
+static void g729_lsp2lp(G729A_Context* ctx, float* q, float* a)
 {
     int i,j, qidx=0, fidx=0;
     float f1[6];
@@ -1143,7 +1143,7 @@ static void g729a_lsp2lp(G729A_Context* ctx, float* q, float* a)
  * \param lsp_curr current LSP coefficients
  * \param lp [out] decoded LP coefficients
  */
-static void g729a_lp_decode(G729A_Context* ctx, float* lsp_curr, float* lp)
+static void g729_lp_decode(G729A_Context* ctx, float* lsp_curr, float* lp)
 {
     float lsp[10];
     int i;
@@ -1152,10 +1152,10 @@ static void g729a_lp_decode(G729A_Context* ctx, float* lsp_curr, float* lp)
     for(i=0;i<10;i++)
         lsp[i]=(lsp_curr[i]+ctx->lsp_prev[i])/2;
 
-    g729a_lsp2lp(ctx, lsp, lp);
+    g729_lsp2lp(ctx, lsp, lp);
 
     /* LSP values for second subframe (3.2.5)*/
-    g729a_lsp2lp(ctx, lsp_curr, lp+10);
+    g729_lsp2lp(ctx, lsp_curr, lp+10);
 
     /* saving LSP coefficients for using in next frame */
     for(i=0;i<10;i++)
@@ -1169,7 +1169,7 @@ static void g729a_lp_decode(G729A_Context* ctx, float* lsp_curr, float* lp)
  *
  * Filter has cut-off frequency 100Hz
  */
-static void g729a_high_pass_filter(G729A_Context* ctx, short* speech)
+static void g729_high_pass_filter(G729A_Context* ctx, short* speech)
 {
     const float az[3] = {0.93980581, -1.8795834,  0.93980581};
     const float af[3] = {1.00000000,  1.9330735, -0.93589199};
@@ -1191,7 +1191,7 @@ static void g729a_high_pass_filter(G729A_Context* ctx, short* speech)
         f_2=f_1;
         f_1=f_0;
         f_0 = f_1*af[1]+f_2*af[2] + z_0*az[0]+z_1*az[1]+z_2*az[2]; 
-        speech[i]=g729a_round(f_0*2);
+        speech[i]=g729_round(f_0*2);
     }
 }
 
@@ -1332,67 +1332,67 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
         ctx->data_error=1;
 
     if(ctx->data_error)
-        g729a_lsp_restore_from_previous(ctx, lsp);
+        g729_lsp_restore_from_previous(ctx, lsp);
     else
-        g729a_lsp_decode(ctx, parm[0], parm[1], parm[2], parm[3], lsp);
+        g729_lsp_decode(ctx, parm[0], parm[1], parm[2], parm[3], lsp);
 
-    g729a_lp_decode(ctx, lsp, lp);
+    g729_lp_decode(ctx, lsp, lp);
 
     /* first subframe */
-    g729a_decode_ac_delay_subframe1(ctx, parm[4], &k, &t);
-    g729a_decode_ac_vector(ctx, k, t, ctx->exc);
+    g729_decode_ac_delay_subframe1(ctx, parm[4], &k, &t);
+    g729_decode_ac_vector(ctx, k, t, ctx->exc);
 
     if(ctx->data_error)
     {
-        parm[6] = g729a_random() & 0x1fff;
-        parm[7] = g729a_random() & 0x000f;
+        parm[6] = g729_random() & 0x1fff;
+        parm[7] = g729_random() & 0x000f;
     }
 
-    g729a_decode_fc_vector(ctx, parm[6], parm[7], fc);
-    g729a_fix_fc_vector(ctx, k, fc);
+    g729_decode_fc_vector(ctx, parm[6], parm[7], fc);
+    g729_fix_fc_vector(ctx, k, fc);
 
     if(ctx->data_error)
     {
-        g729a_get_gain_from_previous(ctx, &gp, &gc);
-        g729a_update_gain(ctx);
+        g729_get_gain_from_previous(ctx, &gp, &gc);
+        g729_update_gain(ctx);
     }
     else
     {
-        g729a_get_gain(ctx, parm[8], parm[9], fc, &gp, &gc);
+        g729_get_gain(ctx, parm[8], parm[9], fc, &gp, &gc);
     }
-    g729a_mem_update(ctx, fc, gp, gc, ctx->exc);
-    g729a_reconstruct_speech(ctx, lp, ctx->exc, speech_buf);
+    g729_mem_update(ctx, fc, gp, gc, ctx->exc);
+    g729_reconstruct_speech(ctx, lp, ctx->exc, speech_buf);
 
     /* second subframe */
-    g729a_decode_ac_delay_subframe2(ctx, parm[10], k, &k, &t);
-    g729a_decode_ac_vector(ctx, k, t, ctx->exc+ctx->subframe_size);
+    g729_decode_ac_delay_subframe2(ctx, parm[10], k, &k, &t);
+    g729_decode_ac_vector(ctx, k, t, ctx->exc+ctx->subframe_size);
 
     if(ctx->data_error)
     {
-        parm[11] = g729a_random() & 0x1fff;
-        parm[12] = g729a_random() & 0x000f;
+        parm[11] = g729_random() & 0x1fff;
+        parm[12] = g729_random() & 0x000f;
     }
 
-    g729a_decode_fc_vector(ctx, parm[11], parm[12], fc);
-    g729a_fix_fc_vector(ctx, k, fc);
+    g729_decode_fc_vector(ctx, parm[11], parm[12], fc);
+    g729_fix_fc_vector(ctx, k, fc);
 
     if(ctx->data_error)
     {
-        g729a_get_gain_from_previous(ctx, &gp, &gc);
-        g729a_update_gain(ctx);
+        g729_get_gain_from_previous(ctx, &gp, &gc);
+        g729_update_gain(ctx);
     {
     else
     {
-        g729a_get_gain(ctx, parm[13], parm[14], fc, &gp, &gc);
+        g729_get_gain(ctx, parm[13], parm[14], fc, &gp, &gc);
     }
-    g729a_mem_update(ctx, fc, gp, gc, ctx->exc+ctx->subframe_size);
-    g729a_reconstruct_speech(ctx, lp+10, ctx->exc+ctx->subframe_size, speech_buf+ctx->subframe_size);
+    g729_mem_update(ctx, fc, gp, gc, ctx->exc+ctx->subframe_size);
+    g729_reconstruct_speech(ctx, lp+10, ctx->exc+ctx->subframe_size, speech_buf+ctx->subframe_size);
 
     //Save signal for using in next frame
     memmove(ctx->exc_base, ctx->exc_base+2*ctx->subframe_size, (PITCH_MAX+INTERPOL_LEN)*sizeof(float));
 
     //Postprocessing
-    g729a_high_pass_filter(ctx, speech_buf);
+    g729_high_pass_filter(ctx, speech_buf);
 
     /* Return reconstructed speech to caller */
     memcpy(out_frame, speech_buf, 2*ctx->subframe_size*sizeof(short));
