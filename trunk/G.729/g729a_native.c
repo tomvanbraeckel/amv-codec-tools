@@ -1345,6 +1345,10 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     /* first subframe */
     g729a_decode_ac_delay_subframe1(ctx, parm[4], &k, &t);
     g729a_decode_ac_vector(ctx, k, t, ctx->exc);
+
+    g729a_decode_fc_vector(ctx, parm[6], parm[7], fc);
+    g729a_fix_fc_vector(ctx, k, fc);
+
     if(ctx->data_error)
     {
         g729a_get_gain_from_previous(ctx, &gp, &gc);
@@ -1352,8 +1356,6 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     }
     else
     {
-        g729a_decode_fc_vector(ctx, parm[6], parm[7], fc);
-        g729a_fix_fc_vector(ctx, k, fc);
         g729a_get_gain(ctx, parm[8], parm[9], fc, &gp, &gc);
     }
     g729a_mem_update(ctx, fc, gp, gc, ctx->exc);
@@ -1362,6 +1364,10 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     /* second subframe */
     g729a_decode_ac_delay_subframe2(ctx, parm[10], k, &k, &t);
     g729a_decode_ac_vector(ctx, k, t, ctx->exc+ctx->subframe_size);
+
+    g729a_decode_fc_vector(ctx, parm[11], parm[12], fc);
+    g729a_fix_fc_vector(ctx, k, fc);
+
     if(ctx->data_error)
     {
         g729a_get_gain_from_previous(ctx, &gp, &gc);
@@ -1369,8 +1375,6 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     {
     else
     {
-        g729a_decode_fc_vector(ctx, parm[11], parm[12], fc);
-        g729a_fix_fc_vector(ctx, k, fc);
         g729a_get_gain(ctx, parm[13], parm[14], fc, &gp, &gc);
     }
     g729a_mem_update(ctx, fc, gp, gc, ctx->exc+ctx->subframe_size);
