@@ -750,7 +750,7 @@ static void g729a_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc
  */
 static void g729a_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, float *out, float *filter_data)
 {
-    float* tmp_buf=calloc(1, (10+ctx->subframe_size)*sizeof(float));
+    float* tmp_buf=calloc(10+ctx->subframe_size,sizeof(float));
     float* tmp=tmp_buf+10;
     int i,n;
 
@@ -784,7 +784,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
 {
     int i,k, n, intT0;
     float *speech=speech_buf+10;
-    float* residual_filt_buf=calloc(1,(ctx->subframe_size+10)*sizeof(float));
+    float* residual_filt_buf=calloc(ctx->subframe_size+10,sizeof(float));
     float* residual_filt=residual_filt_buf+10;
     float factor;
     float corellation, corr_max;
@@ -907,7 +907,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
  */
 static void g729a_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, short* speech)
 {
-    float* tmp_speech_buf=calloc(1,(ctx->subframe_size+10)*sizeof(float));
+    float* tmp_speech_buf=calloc(ctx->subframe_size+10,sizeof(float));
     float* tmp_speech=tmp_speech_buf+10;
     int i,n, intT0;
 
@@ -1223,13 +1223,13 @@ void* g729a_decoder_init()
             ctx->lq_prev[k][i]=ctx->lq_prev[0][i];
 
     // Two subframes + PITCH_MAX inetries for last excitation signal data + ???
-    ctx->exc_base=calloc(sizeof(float), frame_size*8+PITCH_MAX+INTERPOL_LEN);
+    ctx->exc_base=calloc(frame_size*8+PITCH_MAX+INTERPOL_LEN, sizeof(float));
     if(!ctx->exc_base)
         return NULL;
 
     ctx->exc=ctx->exc_base+PITCH_MAX+INTERPOL_LEN;
     
-    ctx->residual=calloc(1, (PITCH_MAX+ctx->subframe_size)*sizeof(float));
+    ctx->residual=calloc(PITCH_MAX+ctx->subframe_size,sizeof(float));
     /* random seed initialization (4.4.4) */
     ctx->rand_seed=21845;
 
@@ -1287,8 +1287,8 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
 
     short* speech_buf; ///< reconstructed speech
 
-    fc=calloc(1, ctx->subframe_size*sizeof(float));
-    speech_buf=calloc(1, 2*ctx->subframe_size*sizeof(short));
+    fc=calloc(ctx->subframe_size,sizeof(float));
+    speech_buf=calloc(2*ctx->subframe_size,sizeof(short));
 
     ctx->data_error=0;
 
