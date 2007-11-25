@@ -1346,6 +1346,12 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     g729a_decode_ac_delay_subframe1(ctx, parm[4], &k, &t);
     g729a_decode_ac_vector(ctx, k, t, ctx->exc);
 
+    if(ctx->data_error)
+    {
+        parm[6] = g729a_random() & 0x1fff;
+        parm[7] = g729a_random() & 0x000f;
+    }
+
     g729a_decode_fc_vector(ctx, parm[6], parm[7], fc);
     g729a_fix_fc_vector(ctx, k, fc);
 
@@ -1364,6 +1370,12 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     /* second subframe */
     g729a_decode_ac_delay_subframe2(ctx, parm[10], k, &k, &t);
     g729a_decode_ac_vector(ctx, k, t, ctx->exc+ctx->subframe_size);
+
+    if(ctx->data_error)
+    {
+        parm[11] = g729a_random() & 0x1fff;
+        parm[12] = g729a_random() & 0x000f;
+    }
 
     g729a_decode_fc_vector(ctx, parm[11], parm[12], fc);
     g729a_fix_fc_vector(ctx, k, fc);
