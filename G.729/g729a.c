@@ -59,13 +59,11 @@ int g729a_decode_frame(void* context, Word16* serial, int ibuflen, Word16* obuf,
     bits2prm_ld8k( &serial[2], &parm[1]);
 
     parm[4] = Check_Parity_Pitch(parm[3], parm[4]);
-
     Decod_ld8a(parm, synth, Az_dec, T2);
 
-    Post_Filter(synth, Az_dec, T2);        /* Post-filter */
-
-    Post_Process(synth, L_FRAME);
-
+//dmp_fp16("pf: speech_buf", synth-10, 40, 0);
+//    Post_Filter(synth, Az_dec, T2);        /* Post-filter */
+//    Post_Process(synth, L_FRAME);
     Copy(synth, obuf, L_FRAME);
     return L_FRAME;
 }
