@@ -18,9 +18,9 @@
  */
 #include <stdlib.h>
 #include <inttypes.h>
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
-#include <math.h>
 
 #define VECTOR_SIZE 15
 #define MA_NP 4
@@ -897,6 +897,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     memmove(ctx->residual, ctx->residual+ctx->subframe_size, PITCH_MAX*sizeof(float));
 
     free(residual_filt_buf);
+    return gl;
 }
 /**
  * \brief Computing the reconstructed speech (4.1.6)

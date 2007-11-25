@@ -6,7 +6,7 @@ DECODERNAME = decoder
 G729DIR := g729anxaE
 AR= ar
 
-CFLAGS += -D__unix -I$(G729DIR) -lm
+CFLAGS += -D__unix -I$(G729DIR)
 
 COMMON-OBJECTS := BASIC_OP.o\
  BITS.o\
@@ -66,10 +66,10 @@ distclean: clean
 	rm $(DECODERNAME)
 
 $(ENCODERNAME): $(ENCODER-OBJECTS)
-	gcc $(CFLAGS) -o $@ $^
+	gcc -o $@ $^
 
 $(DECODERNAME) : $(DECODER-OBJECTS)
-	gcc $(CFLAGS) -o $@ $^
+	gcc -o $@ $^
 
 # linker
 $(LIBNAME) : $(LIB-OBJECTS)
