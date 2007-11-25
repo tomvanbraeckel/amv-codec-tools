@@ -20,6 +20,7 @@
 #include <inttypes.h>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 
 #define VECTOR_SIZE 15
 #define MA_NP 4
