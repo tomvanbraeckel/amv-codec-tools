@@ -676,6 +676,25 @@ static void g729a_get_gain_from_previous(G729A_Context *ctx, float* gp, float* g
 }
 
 /**
+ * \brief Attenuation of the memory of the gain predictor (4.4.3)
+ * \param ctx private data structure
+ */
+static void g729a_update_gain(G729A_Context *ctx)
+{
+    float avg_gain=0;
+
+    /* 4.4.3. Equation 95 */
+    for(i=0; i<4; i++)
+        avg_gain+=ctx->pred_vect_q[i];
+
+    avg_gain = FFMIN(avg_gain * 0.25 - 4.0, -14);
+
+    for(i=3; i>0; i--)
+        ctx->pred_vect_q[i]=ctx->pred_vect_q[i-1];
+    ctx->pred_vect_q[0]=avg_gain;
+}
+
+/**
  * \brief Decoding of the adaptive and fixed codebook gains (4.1.5 and 3.9.1)
  * \param ctx private data structure
  * \param GA Gain codebook (stage 2)
@@ -1327,7 +1346,10 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     g729a_decode_ac_delay_subframe1(ctx, parm[4], &k, &t);
     g729a_decode_ac_vector(ctx, k, t, ctx->exc);
     if(ctx->data_error)
+    {
         g729a_get_gain_from_previous(ctx, &gp, &gc);
+        g729a_update_gain(ctx);
+    }
     else
     {
         g729a_decode_fc_vector(ctx, parm[6], parm[7], fc);
