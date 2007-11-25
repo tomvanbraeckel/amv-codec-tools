@@ -682,6 +682,7 @@ static void g729_get_gain_from_previous(G729A_Context *ctx, float* gp, float* gc
 static void g729_update_gain(G729A_Context *ctx)
 {
     float avg_gain=0;
+    int i;
 
     /* 4.4.3. Equation 95 */
     for(i=0; i<4; i++)
@@ -1344,8 +1345,8 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
 
     if(ctx->data_error)
     {
-        parm[6] = g729_random() & 0x1fff;
-        parm[7] = g729_random() & 0x000f;
+        parm[6] = g729_random(ctx) & 0x1fff;
+        parm[7] = g729_random(ctx) & 0x000f;
     }
 
     g729_decode_fc_vector(ctx, parm[6], parm[7], fc);
@@ -1369,8 +1370,8 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
 
     if(ctx->data_error)
     {
-        parm[11] = g729_random() & 0x1fff;
-        parm[12] = g729_random() & 0x000f;
+        parm[11] = g729_random(ctx) & 0x1fff;
+        parm[12] = g729_random(ctx) & 0x000f;
     }
 
     g729_decode_fc_vector(ctx, parm[11], parm[12], fc);
@@ -1380,7 +1381,7 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     {
         g729_get_gain_from_previous(ctx, &gp, &gc);
         g729_update_gain(ctx);
-    {
+    }
     else
     {
         g729_get_gain(ctx, parm[13], parm[14], fc, &gp, &gc);
