@@ -47,6 +47,7 @@ typedef struct
     float *residual;        ///< Residual signal buffer (used in long-term postfilter)
     float syn_filter_data[10];
     float res_filter_data[10];
+    float ht_prev_data;     ///< previous data for 4.2.3, equation 86
     float g;                ///< gain coefficient (4.2.4)
     int rand_seed;          ///< seed for random number generator (4.4.4)
     int prev_mode;
@@ -64,6 +65,7 @@ typedef struct
 /* 4.2.2 */
 #define GAMMA_N 0.55
 #define GAMMA_D 0.70
+#define GAMMA_T 0.80
 
 /* 4.2.1 */
 #define GAMMA_P 0.50
@@ -853,53 +855,20 @@ static void g729a_weighted_filter(G729A_Context *ctx, float* Az, float gamma, fl
     }
 }
 
-/**
- * \brief Signal postfiltering (4.2, with A.4.2 simplification)
- * \param ctx private data structure
- * \param speech_buf signal buffer, containing at the top 10 samples from previous subframe
- *
- * Filtering has following  stages:
- *   Long-term postfilter (4.2.1)
- *   Short-term postfilter (4.2.2).
- *   Tilt-compensation (4.2.3)
- *   Adaptive gain control (4.2.4)
- *
- * \note This routine is G.729 Annex A specific.
- */
-static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
+static void g729a_long_term_filter(G729A_Context *ctx, float *residual_filt)
 {
-    int i,k, n, intT0;
-    float *speech=speech_buf+10;
-    float* residual_filt_buf=calloc(ctx->subframe_size+10,sizeof(float));
-    float* residual_filt=residual_filt_buf+10;
-    float factor;
-    float corellation, corr_max;
+    int i, k, n, intT0;
     float gl;      ///< gain coefficient for long-term postfilter
     float corr_t0; ///< corellation of residual signal with delay intT0
     float corr_0;  ///< corellation of residual signal with delay 0
+    float corellation, corr_max;
     float inv_glgp;///< 1.0/(1+gl*GAMMA_P)
     float glgp_inv_glgp; ///< gl*GAMMA_P/(1+gl*GAMMA_P);
-    float lp_gn[10];
-    float lp_gd[10];
-    float gain_before, gain_after;
 
     /* A.4.2.1 */
     int minT0=FFMIN(ctx->intT1, PITCH_MAX-3)-3;
     int maxT0=FFMIN(ctx->intT1, PITCH_MAX-3)+3;
-
-    g729a_weighted_filter(ctx, lp, GAMMA_N, lp_gn);
-    g729a_weighted_filter(ctx, lp, GAMMA_D, lp_gd);
-
-    /* 4.2.1, Equation 79 Residual signal calculation */
-    for(n=0; n<ctx->subframe_size; n++)
-    {
-        ctx->residual[n+PITCH_MAX]=speech[n];
-        for(i=0; i<10; i++)
-            ctx->residual[n+PITCH_MAX] += lp_gn[i]*speech[n-i-1];
-    }
-
     /* Long-term postfilter start */
-
     k=minT0;
     corellation=0;
     /* 4.2.1, Equation 80 */
@@ -945,18 +914,127 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     for(n=0; n<ctx->subframe_size; n++)
         residual_filt[n]=ctx->residual[n+PITCH_MAX]*inv_glgp+ctx->residual[n+PITCH_MAX-intT0]*glgp_inv_glgp;
 
-    gain_before=g729a_get_gain(ctx, speech);;
+    //Shift residual for using in next subframe
+    memmove(ctx->residual, ctx->residual+ctx->subframe_size, PITCH_MAX*sizeof(float));
+}
 
-    /* Long-term postfilter end */
+/**
+ * \brief compensates the tilt in the short-term postfilter
+ * \param lp_gn coefficients of A(z/GAMMA_N) filter
+ * \param lp_gd coefficients of A(z/GAMMA_D) filter
+ * \param res_pst residual signal (partially filtered)
+*/
+static void g729a_tilt_compensation(G729A_Context *ctx,float *lp_gn, float *lp_gd, float* res_pst)
+{
+    float tmp;
+    float gt,k,rh1,rh0;
+    float hf[22];
+    float tmp_buf[11+22];
+    int i, n;
+
+    hf[0]=1;
+    for(i=1;i<11; i++)
+        hf[i]=lp_gn[i];
+
+    for(i=11; i<22;i++)
+        hf[i]=0;
+
+    /* Applying 1/A(z/GAMMA_D) to hf */
+    for(i=0;i<11;i++)
+        tmp_buf[i]=hf[i+11];
+    for(n=0; n<22; n++)
+    {
+        tmp_buf[n+11]=hf[n];
+        for(i=0; i<10; i++)
+            tmp_buf[n+11]-= lp_gd[i]*tmp_buf[n-i-1+11];
+        tmp_buf[n+11]=g729_round(tmp_buf[n+11]);
+    }
+    for(i=0;i<22;i++)
+        hf[i]=tmp_buf[i+11];
+
+    /* Now hf contains impulse response of A(z/GAMMA_N)/A(z/GAMMA_D) filter */
+
+    /* A.4.2.3, Equation A.14 */
+    rh0=0;
+    for(i=0; i<22; i++)
+        rh0+=hf[i]*hf[i];
+
+    rh1=0;
+    for(i=0; i<22-1; i++)
+        rh0+=hf[i]*hf[i+1];
+
+    /* A.4.2.3, Equation A.14 */
+    k=-rh1/rh0;
+
+    if(k>=0)
+        gt=0;
+    else
+        gt*=GAMMA_T*k;
+    
+    /* A.4.2.3. Equation A.13 */
+    tmp=res_pst[ctx->subframe_size-1];
+
+    for(i=ctx->subframe_size-1; i>=1; i--)
+        res_pst[i]+=gt*res_pst[i-1];
+    res_pst[0]+=gt*ctx->ht_prev_data;
+
+    ctx->ht_prev_data=tmp;
+}
+
+/**
+ * \brief Signal postfiltering (4.2, with A.4.2 simplification)
+ * \param ctx private data structure
+ * \param speech_buf signal buffer, containing at the top 10 samples from previous subframe
+ *
+ * Filtering has following  stages:
+ *   Long-term postfilter (4.2.1)
+ *   Short-term postfilter (4.2.2).
+ *   Tilt-compensation (4.2.3)
+ *   Adaptive gain control (4.2.4)
+ *
+ * \note This routine is G.729 Annex A specific.
+ */
+static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
+{
+    int i, n;
+    float *speech=speech_buf+10;
+    float* residual_filt_buf=calloc(ctx->subframe_size+10,sizeof(float));
+    float* residual_filt=residual_filt_buf+10;
+    float factor;
+    float lp_gn[10];
+    float lp_gd[10];
+    float gain_before, gain_after;
+    float hf[20]; // A(Z/GAMMA_N)/A(z/GAMMA_D)
+
+
+    g729a_weighted_filter(ctx, lp, GAMMA_N, lp_gn);
+    g729a_weighted_filter(ctx, lp, GAMMA_D, lp_gd);
+
+    /* 
+      4.2.1, Equation 79 Residual signal calculation 
+      ( filtering through A(z/GAMMA_N) , one half of short-term filter)
+    */
+    for(n=0; n<ctx->subframe_size; n++)
+    {
+        ctx->residual[n+PITCH_MAX]=speech[n];
+        for(i=0; i<10; i++)
+            ctx->residual[n+PITCH_MAX] += lp_gn[i]*speech[n-i-1];
+    }
+
+    gain_before=g729a_get_gain(ctx, speech);
+
+    /* long-term filter (A.4.2.1) */
+    g729a_long_term_filter(ctx, residual_filt);
+
+    /* short-term filter tilt compensation (A.4.2.3) */
+    g729a_tilt_compensation(ctx, lp_gn, lp_gd, residual_filt);
+
     g729_lp_synthesis_filter(ctx, lp_gd, residual_filt, speech, ctx->res_filter_data);
 
-    gain_after=g729a_get_gain(ctx, speech);;
+    gain_after=g729a_get_gain(ctx,speech);
 
     /* adaptive gain control (A.4.2.4) */
     g729a_adaptive_gain_control(ctx, gain_before, gain_after, speech);
-
-    //Shift residual for using in next subframe
-    memmove(ctx->residual, ctx->residual+ctx->subframe_size, PITCH_MAX*sizeof(float));
 
     free(residual_filt_buf);
 }
