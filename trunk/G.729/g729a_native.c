@@ -812,13 +812,10 @@ static float g729a_get_gain(G729A_Context *ctx, float *speech)
  * \param gain gain of speech before applying postfilters
  * \param speech signal buffer
  */
-static void g729a_adaptive_gain_control(G729A_Context *ctx, float gain_before, float *speech)
+static void g729a_adaptive_gain_control(G729A_Context *ctx, float gain_before, float gain_after, float *speech)
 {
-    float gain,gain_after;
+    float gain;
     int n;
-
-    /* adaptive gain control (A.4.2.4) */
-    gain_after=g729a_get_gain(ctx,speech);;
 
     if(!gain_after)
         return;
@@ -860,7 +857,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     float glgp_inv_glgp; ///< gl*GAMMA_P/(1+gl*GAMMA_P);
     float lp_gn[10];
     float lp_gd[10];
-    float gain_before;
+    float gain_before, gain_after;
 
     /* A.4.2.1 */
     int minT0=FFMIN(ctx->intT1, PITCH_MAX-3)-3;
@@ -940,8 +937,10 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     /* Long-term postfilter end */
     g729_lp_synthesis_filter(ctx, lp_gd, residual_filt, speech, ctx->res_filter_data);
 
+    gain_after=g729a_get_gain(ctx, speech);;
+
     /* adaptive gain control (A.4.2.4) */
-    g729a_adaptive_gain_control(ctx, gain_before, speech);
+    g729a_adaptive_gain_control(ctx, gain_before, gain_after, speech);
 
     //Shift residual for using in next subframe
     memmove(ctx->residual, ctx->residual+ctx->subframe_size, PITCH_MAX*sizeof(float));
