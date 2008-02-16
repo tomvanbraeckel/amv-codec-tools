@@ -831,6 +831,29 @@ static void g729a_adaptive_gain_control(G729A_Context *ctx, float gain_before, f
 }
 
 /**
+ * \brief Calculates coefficients of weighted A(z/GAMMA) filter
+ * \param ctx private data structure
+ * \param Az source filter
+ * \param gamma weight coefficients
+ * \param Azg resulted weighted A(z/GAMMA) filter
+ *
+ * Azg[i]=GAMMA^i*Az[i] , i=0..subframe_size
+ *
+ */
+static void g729a_weighted_filter(G729A_Context *ctx, float* Az, float gamma, float *Azg)
+{
+    float gamma_tmp;
+    int n;
+
+    gamma_tmp=gamma;
+    for(n=0; n<10; n++)
+    {
+        Azg[n]=Az[n]*gamma_tmp;
+        gamma_tmp*=gamma;
+    }
+}
+
+/**
  * \brief Signal postfiltering (4.2, with A.4.2 simplification)
  * \param ctx private data structure
  * \param speech_buf signal buffer, containing at the top 10 samples from previous subframe
@@ -864,19 +887,8 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     int minT0=FFMIN(ctx->intT1, PITCH_MAX-3)-3;
     int maxT0=FFMIN(ctx->intT1, PITCH_MAX-3)+3;
 
-    factor=GAMMA_N;
-    for(i=0; i<10; i++)
-    {
-        lp_gn[i]=lp[i]*factor;
-        factor*=GAMMA_N;
-    }
-
-    factor=GAMMA_D;
-    for(i=0; i<10; i++)
-    {
-        lp_gd[i]=lp[i]*factor;
-        factor*=GAMMA_D;
-    }
+    g729a_weighted_filter(ctx, lp, GAMMA_N, lp_gn);
+    g729a_weighted_filter(ctx, lp, GAMMA_D, lp_gd);
 
     /* 4.2.1, Equation 79 Residual signal calculation */
     for(n=0; n<ctx->subframe_size; n++)
