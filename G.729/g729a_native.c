@@ -788,6 +788,51 @@ static void g729_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, f
 }
 
 /**
+ * \brief Calculates gain value of speech signal
+ * \param ctx private data structure
+ * \param speech signal buffer
+ *
+ * \return gain value
+ */
+static float g729a_get_gain(G729A_Context *ctx, float *speech)
+{
+    int n;
+    float gain;
+
+    gain=0;
+    for(n=0; n<ctx->subframe_size; n++)
+       gain+=speech[n]*speech[n];
+
+    return gain;
+}
+
+/**
+ * \brief Adaptive gain control (4.2.4)
+ * \param ctx private data structure
+ * \param gain gain of speech before applying postfilters
+ * \param speech signal buffer
+ */
+static void g729a_adaptive_gain_control(G729A_Context *ctx, float gain_before, float *speech)
+{
+    float gain,gain_after;
+    int n;
+
+    /* adaptive gain control (A.4.2.4) */
+    gain_after=g729a_get_gain(ctx,speech);;
+
+    if(!gain_after)
+        return;
+
+    gain=sqrt(gain_before/gain_after);
+
+    for(n=0; n<ctx->subframe_size; n++)
+    {
+        speech[n] *= ctx->g;
+        ctx->g=0.9*ctx->g+0.1*gain;
+    }
+}
+
+/**
  * \brief Signal postfiltering (4.2, with A.4.2 simplification)
  * \param ctx private data structure
  * \param speech_buf signal buffer, containing at the top 10 samples from previous subframe
@@ -815,7 +860,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     float glgp_inv_glgp; ///< gl*GAMMA_P/(1+gl*GAMMA_P);
     float lp_gn[10];
     float lp_gd[10];
-    float gain,gain_temp1,gain_temp2;
+    float gain_before;
 
     /* A.4.2.1 */
     int minT0=FFMIN(ctx->intT1, PITCH_MAX-3)-3;
@@ -890,27 +935,13 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     for(n=0; n<ctx->subframe_size; n++)
         residual_filt[n]=ctx->residual[n+PITCH_MAX]*inv_glgp+ctx->residual[n+PITCH_MAX-intT0]*glgp_inv_glgp;
 
-    gain_temp1=0;
-    for(n=0; n<ctx->subframe_size; n++)
-       gain_temp1+=speech[n]*speech[n];
+    gain_before=g729a_get_gain(ctx, speech);;
 
     /* Long-term postfilter end */
     g729_lp_synthesis_filter(ctx, lp_gd, residual_filt, speech, ctx->res_filter_data);
 
     /* adaptive gain control (A.4.2.4) */
-    gain_temp2=0;
-    for(n=0; n<ctx->subframe_size; n++)
-       gain_temp2+=speech[n]*speech[n];
-
-    if(gain_temp2)
-    {
-        gain=sqrt(gain_temp1/gain_temp2);
-        for(n=0; n<ctx->subframe_size; n++)
-        {
-            speech[n] *= ctx->g;
-            ctx->g=0.9*ctx->g+0.1*gain;
-        }
-    }
+    g729a_adaptive_gain_control(ctx, gain_before, speech);
 
     //Shift residual for using in next subframe
     memmove(ctx->residual, ctx->residual+ctx->subframe_size, PITCH_MAX*sizeof(float));
