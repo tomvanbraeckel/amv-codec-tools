@@ -809,7 +809,8 @@ static float g729a_get_gain(G729A_Context *ctx, float *speech)
 /**
  * \brief Adaptive gain control (4.2.4)
  * \param ctx private data structure
- * \param gain gain of speech before applying postfilters
+ * \param gain_before gain of speech before applying postfilters
+ * \param gain_after  gain of speech after applying postfilters
  * \param speech signal buffer
  */
 static void g729a_adaptive_gain_control(G729A_Context *ctx, float gain_before, float gain_after, float *speech)
