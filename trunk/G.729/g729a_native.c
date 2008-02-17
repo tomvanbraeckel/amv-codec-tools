@@ -1537,6 +1537,46 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     return ctx->subframe_size;
 }
 
+#if 0
+static int ff_g729a_decode_frame(AVCodecContext *avctx,
+                             void *data, int *data_size,
+                             uint8_t *buf, int buf_size)
+{
+    G729A_Context *ctx=avctx->priv_data;
+    GetBitContext gb;
+    int i,j,k;
+    int l_frame=formats[ctx->format].frame_size;
+    uint16_t serial[200];
+
+    init_get_bits(&gb, buf, buf_size);
+
+    *data_size=0;
+    for(j=0; j<2; j++){
+        int dst=0;
+        serial[dst++]=0x6b21;
+        serial[dst++]=80;
+        
+        for(i=0;i<FFMIN((200-2)/8, buf_size);i++)
+            for(k=0; k<8; k++){
+                serial[dst++]=get_bits1(&gb)?0x81:0x7f;
+            }
+        g729a_decode_frame(ctx,serial, 0/*not used yet*/,(short*)data+j*l_frame, l_frame);
+        *data_size+=2*l_frame;
+    }
+    return buf_size;
+}
+
+AVCodec g729a_decoder = {
+    "g729a",
+    CODEC_TYPE_AUDIO,
+    CODEC_ID_G729A,
+    sizeof(G729A_Context),
+    ff_g729a_decoder_init,
+    NULL,
+    ff_g729a_decoder_close,
+    ff_g729a_decode_frame,
+};
+#endif
 /*
 ---------------------------------------------------------------------------
     Encoder
