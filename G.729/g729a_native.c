@@ -728,6 +728,11 @@ static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, flo
     for(i=0; i<ctx->subframe_size; i++)
         energy+=fc_v[i]*fc_v[i];
 
+    /* 
+      energy=mean_energy-E
+      mean_energy=30dB
+      E is calculated in 3.9.1 Equation 66
+    */
     energy=30-10.*log(energy/ctx->subframe_size)/M_LN10;
 
     /* 3.9.1, Equation 69 */
@@ -777,7 +782,7 @@ static void g729_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc,
 /**
  * \brief LP synthesis filter
  * \param ctx private data structure
- * \param lp LP coefficients
+ * \param lp filter coefficients
  * \param in input signal
  * \param out output (filtered) signal
  * \param filter_data filter data array (previous synthesis data)
@@ -809,7 +814,7 @@ static void g729_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, f
  * \param ctx private data structure
  * \param speech signal buffer
  *
- * \return gain value
+ * \return squared gain value
  */
 static float g729a_get_gain(G729A_Context *ctx, float *speech)
 {
@@ -870,6 +875,11 @@ static void g729a_weighted_filter(G729A_Context *ctx, float* Az, float gamma, fl
     }
 }
 
+/**
+ * \brief long-term postfilter (4.2.1)
+ * \param ctx private data structure
+ * \param residual_filt speech signal with applied A(z/GAMMA_N) filter
+ */
 static void g729a_long_term_filter(G729A_Context *ctx, float *residual_filt)
 {
     int k, n, intT0;
@@ -884,6 +894,11 @@ static void g729a_long_term_filter(G729A_Context *ctx, float *residual_filt)
     int minT0=FFMIN(ctx->intT1, PITCH_MAX-3)-3;
     int maxT0=FFMIN(ctx->intT1, PITCH_MAX-3)+3;
     /* Long-term postfilter start */
+
+    /*
+       First pass: searching the best T0 (pitch delay)
+       Second pass is not used in G.729A: fractional part is always zero
+    */
     k=minT0;
     corellation=0;
     /* 4.2.1, Equation 80 */
@@ -916,7 +931,7 @@ static void g729a_long_term_filter(G729A_Context *ctx, float *residual_filt)
         corellation+=ctx->residual[n+PITCH_MAX]*ctx->residual[n+PITCH_MAX];
     corr_0=corellation;
 
-    /* 4.2.1, Equation 82 */
+    /* 4.2.1, Equation 82. checking if filter should be disabled */
     if(corr_max*corr_max < 0.5*corr_0*corr_t0)
         gl=0;
     else if(!corr_t0)
@@ -927,7 +942,7 @@ static void g729a_long_term_filter(G729A_Context *ctx, float *residual_filt)
     inv_glgp=1.0/(1+gl*GAMMA_P);
     glgp_inv_glgp=gl*GAMMA_P/(1+gl*GAMMA_P);
 
-    /* 4.2.1, Equation 78 */
+    /* 4.2.1, Equation 78, reconstructing delayed signal */
     for(n=0; n<ctx->subframe_size; n++)
         residual_filt[n]=ctx->residual[n+PITCH_MAX]*inv_glgp+ctx->residual[n+PITCH_MAX-intT0]*glgp_inv_glgp;
 
@@ -936,7 +951,8 @@ static void g729a_long_term_filter(G729A_Context *ctx, float *residual_filt)
 }
 
 /**
- * \brief compensates the tilt in the short-term postfilter
+ * \brief compensates the tilt in the short-term postfilter (4.2.3)
+ * \param ctx private data structure
  * \param lp_gn coefficients of A(z/GAMMA_N) filter
  * \param lp_gd coefficients of A(z/GAMMA_D) filter
  * \param res_pst residual signal (partially filtered)
@@ -945,7 +961,7 @@ static void g729a_tilt_compensation(G729A_Context *ctx,float *lp_gn, float *lp_g
 {
     float tmp;
     float gt,k,rh1,rh0;
-    float hf[22]; // A(Z/GAMMA_N)/A(z/GAMMA_D)
+    float hf[22]; // A(Z/GAMMA_N)/A(z/GAMMA_D) filter impulse response
     float tmp_buf[11+22];
     int i, n;
 
@@ -971,11 +987,12 @@ static void g729a_tilt_compensation(G729A_Context *ctx,float *lp_gn, float *lp_g
 
     /* Now hf contains impulse response of A(z/GAMMA_N)/A(z/GAMMA_D) filter */
 
-    /* A.4.2.3, Equation A.14 */
+    /* A.4.2.3, Equation A.14, calcuating rh(0)  */
     rh0=0;
     for(i=0; i<22; i++)
         rh0+=hf[i]*hf[i];
 
+    /* A.4.2.3, Equation A.14, calcuating rh(1)  */
     rh1=0;
     for(i=0; i<22-1; i++)
         rh0+=hf[i]*hf[i+1];
@@ -988,7 +1005,7 @@ static void g729a_tilt_compensation(G729A_Context *ctx,float *lp_gn, float *lp_g
     else
         gt=GAMMA_T*k;
     
-    /* A.4.2.3. Equation A.13 */
+    /* A.4.2.3. Equation A.13, applying filter to signal */
     tmp=res_pst[ctx->subframe_size-1];
 
     for(i=ctx->subframe_size-1; i>=1; i--)
@@ -1021,8 +1038,9 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     float lp_gd[10];
     float gain_before, gain_after;
 
-
+    /* Calculating coefficients of A(z/GAMMA_N) filter */
     g729a_weighted_filter(ctx, lp, GAMMA_N, lp_gn);
+    /* Calculating coefficients of A(z/GAMMA_D) filter */
     g729a_weighted_filter(ctx, lp, GAMMA_D, lp_gd);
 
     /* 
@@ -1036,6 +1054,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
             ctx->residual[n+PITCH_MAX] += lp_gn[i]*speech[n-i-1];
     }
 
+    /* Calculating gain of unfiltered signal for using in AGC */
     gain_before=g729a_get_gain(ctx, speech);
 
     /* long-term filter (A.4.2.1) */
@@ -1044,8 +1063,10 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     /* short-term filter tilt compensation (A.4.2.3) */
     g729a_tilt_compensation(ctx, lp_gn, lp_gd, residual_filt);
 
+    /* Applying second half of short-term postfilter: 1/A(z/GAMMA_D)*/
     g729_lp_synthesis_filter(ctx, lp_gd, residual_filt, speech, ctx->res_filter_data);
 
+    /* Calculating gain of filtered signal for using in AGC */
     gain_after=g729a_get_gain(ctx,speech);
 
     /* adaptive gain control (A.4.2.4) */
@@ -1429,7 +1450,7 @@ void ff_g729a_decoder_close(void *context)
  * \param serial array if bits (0x81 - 1, 0x7F -0)
  * \param serial_size number of items in array
  * \param out_frame array for output PCM samples
- * \param out_frame_size maximumnumber of elements in output array
+ * \param out_frame_size maximum number of elements in output array
  */
 int  g729a_decode_frame(void* context, short* serial, int serial_size, short* out_frame, int out_frame_size)
 {
