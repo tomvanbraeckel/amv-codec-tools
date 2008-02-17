@@ -986,7 +986,7 @@ static void g729a_tilt_compensation(G729A_Context *ctx,float *lp_gn, float *lp_g
     if(k>=0)
         gt=0;
     else
-        gt*=GAMMA_T*k;
+        gt=GAMMA_T*k;
     
     /* A.4.2.3. Equation A.13 */
     tmp=res_pst[ctx->subframe_size-1];
@@ -1344,7 +1344,7 @@ static void g729_high_pass_filter(G729A_Context* ctx, short* speech)
  */
 void* g729a_decoder_init()
 {
-    G729A_Context* ctx=av_mcallocz(sizeof(G729A_Context));
+    G729A_Context* ctx=av_mallocz(sizeof(G729A_Context));
     int frame_size=10;
     int i,k;
 
@@ -1405,7 +1405,7 @@ void* g729a_decoder_init()
  * G.729A decoder uninitialization
  * \param ctx private data structure
  */
-void g729a_decoder_uninit(void *context)
+void ff_g729a_decoder_close(void *context)
 {
     G729A_Context* ctx=context;
     int k;
@@ -1577,6 +1577,11 @@ AVCodec g729a_decoder = {
     ff_g729a_decode_frame,
 };
 #endif
+/* debugging  stubs */
+int g729a_decoder_uninit(void* ctx)
+{
+  ff_g729a_decoder_close(ctx);
+}
 /*
 ---------------------------------------------------------------------------
     Encoder
