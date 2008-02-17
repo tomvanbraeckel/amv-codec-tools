@@ -857,7 +857,7 @@ static void g729a_weighted_filter(G729A_Context *ctx, float* Az, float gamma, fl
 
 static void g729a_long_term_filter(G729A_Context *ctx, float *residual_filt)
 {
-    int i, k, n, intT0;
+    int k, n, intT0;
     float gl;      ///< gain coefficient for long-term postfilter
     float corr_t0; ///< corellation of residual signal with delay intT0
     float corr_0;  ///< corellation of residual signal with delay 0
@@ -930,7 +930,7 @@ static void g729a_tilt_compensation(G729A_Context *ctx,float *lp_gn, float *lp_g
 {
     float tmp;
     float gt,k,rh1,rh0;
-    float hf[22];
+    float hf[22]; // A(Z/GAMMA_N)/A(z/GAMMA_D)
     float tmp_buf[11+22];
     int i, n;
 
@@ -1002,11 +1002,9 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     float *speech=speech_buf+10;
     float* residual_filt_buf=calloc(ctx->subframe_size+10,sizeof(float));
     float* residual_filt=residual_filt_buf+10;
-    float factor;
     float lp_gn[10];
     float lp_gd[10];
     float gain_before, gain_after;
-    float hf[20]; // A(Z/GAMMA_N)/A(z/GAMMA_D)
 
 
     g729a_weighted_filter(ctx, lp, GAMMA_N, lp_gn);
@@ -1051,7 +1049,7 @@ static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, s
 {
     float* tmp_speech_buf=calloc(ctx->subframe_size+10,sizeof(float));
     float* tmp_speech=tmp_speech_buf+10;
-    int i,n, intT0;
+    int i;
 
     /* 4.1.6, Equation 77  */
     g729_lp_synthesis_filter(ctx, lp, exc, tmp_speech, ctx->syn_filter_data);
@@ -1132,7 +1130,6 @@ static void g729_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
     int i,j,k;
     float J[2]={0.0012, 0.0006};
     float lq[10];
-    int32_t mode_index;
     float diff;
     float* tmp;
 
@@ -1218,7 +1215,7 @@ static void g729_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
  */
 static void g729_lsp2lp(G729A_Context* ctx, float* q, float* a)
 {
-    int i,j, qidx=0, fidx=0;
+    int i,j, qidx=0;
     float f1[6];
     float f2[6];
 
@@ -1333,7 +1330,6 @@ static void g729_high_pass_filter(G729A_Context* ctx, short* speech)
 void* g729a_decoder_init()
 {
     G729A_Context* ctx=calloc(1, sizeof(G729A_Context));
-    int interpol_filt_len=11;
     int frame_size=10;
     int i,k;
 
