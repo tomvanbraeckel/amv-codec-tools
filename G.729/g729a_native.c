@@ -22,6 +22,12 @@
 #include <string.h>
 #include <math.h>
 
+//stubs for porting to FFmpeg
+
+#define av_free(ptr) if(ptr) free(ptr)
+#define av_mallocz(A) calloc(A,1)
+#define av_malloc(A) malloc(A)
+
 #define VECTOR_SIZE 15
 #define MA_NP 4
 
@@ -772,7 +778,7 @@ static void g729_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc,
  */
 static void g729_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, float *out, float *filter_data)
 {
-    float* tmp_buf=calloc(10+ctx->subframe_size,sizeof(float));
+    float* tmp_buf=av_mallocz((10+ctx->subframe_size)*sizeof(float));
     float* tmp=tmp_buf+10;
     int i,n;
 
@@ -1000,7 +1006,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
 {
     int i, n;
     float *speech=speech_buf+10;
-    float* residual_filt_buf=calloc(ctx->subframe_size+10,sizeof(float));
+    float* residual_filt_buf=av_mallocz((ctx->subframe_size+10)*sizeof(float));
     float* residual_filt=residual_filt_buf+10;
     float lp_gn[10];
     float lp_gd[10];
@@ -1036,7 +1042,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     /* adaptive gain control (A.4.2.4) */
     g729a_adaptive_gain_control(ctx, gain_before, gain_after, speech);
 
-    free(residual_filt_buf);
+    av_free(residual_filt_buf);
 }
 /**
  * \brief Computing the reconstructed speech (4.1.6)
@@ -1047,7 +1053,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
  */
 static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, short* speech)
 {
-    float* tmp_speech_buf=calloc(ctx->subframe_size+10,sizeof(float));
+    float* tmp_speech_buf=av_mallocz((ctx->subframe_size+10)*sizeof(float));
     float* tmp_speech=tmp_speech_buf+10;
     int i;
 
@@ -1060,7 +1066,7 @@ static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, s
     for(i=0; i<ctx->subframe_size; i++)
         speech[i]=g729_round(tmp_speech[i]);
 
-    free(tmp_speech_buf);
+    av_free(tmp_speech_buf);
 
 }
 
@@ -1329,7 +1335,7 @@ static void g729_high_pass_filter(G729A_Context* ctx, short* speech)
  */
 void* g729a_decoder_init()
 {
-    G729A_Context* ctx=calloc(1, sizeof(G729A_Context));
+    G729A_Context* ctx=av_mcallocz(sizeof(G729A_Context));
     int frame_size=10;
     int i,k;
 
@@ -1350,7 +1356,7 @@ void* g729a_decoder_init()
 
     /* LSP coefficients */
     for(k=0; k<MA_NP; k++)
-        ctx->lq_prev[k]=malloc(sizeof(float)*frame_size);
+        ctx->lq_prev[k]=av_malloc(sizeof(float)*frame_size);
 
     /*
      This is initialization from specification. But it produces different result from
@@ -1367,13 +1373,13 @@ void* g729a_decoder_init()
             ctx->lq_prev[k][i]=ctx->lq_prev[0][i];
 
     // Two subframes + PITCH_MAX inetries for last excitation signal data + ???
-    ctx->exc_base=calloc(frame_size*8+PITCH_MAX+INTERPOL_LEN, sizeof(float));
+    ctx->exc_base=av_mallocz((frame_size*8+PITCH_MAX+INTERPOL_LEN)*sizeof(float));
     if(!ctx->exc_base)
         return NULL;
 
     ctx->exc=ctx->exc_base+PITCH_MAX+INTERPOL_LEN;
     
-    ctx->residual=calloc(PITCH_MAX+ctx->subframe_size,sizeof(float));
+    ctx->residual=av_mallocz((PITCH_MAX+ctx->subframe_size)*sizeof(float));
     /* random seed initialization (4.4.4) */
     ctx->rand_seed=21845;
 
@@ -1395,16 +1401,16 @@ void g729a_decoder_uninit(void *context)
     G729A_Context* ctx=context;
     int k;
 
-    if(ctx->residual) free(ctx->residual);
+    av_free(ctx->residual);
     ctx->residual=NULL;
 
-    if(ctx->exc_base) free(ctx->exc_base);
+    av_free(ctx->exc_base);
     ctx->exc_base=NULL;
     ctx->exc=NULL;
 
     for(k=0; k<MA_NP; k++)
     {
-        if(ctx->lq_prev[k]) free(ctx->lq_prev[k]);
+        av_free(ctx->lq_prev[k]);
         ctx->lq_prev[k]=NULL;
     }
 }
@@ -1431,8 +1437,8 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
 
     short* speech_buf; ///< reconstructed speech
 
-    fc=calloc(ctx->subframe_size,sizeof(float));
-    speech_buf=calloc(2*ctx->subframe_size,sizeof(short));
+    fc=av_mallocz(ctx->subframe_size * sizeof(float));
+    speech_buf=av_mallocz(2*ctx->subframe_size * sizeof(short));
 
     ctx->data_error=0;
 
@@ -1517,8 +1523,8 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     /* Return reconstructed speech to caller */
     memcpy(out_frame, speech_buf, 2*ctx->subframe_size*sizeof(short));
 
-    free(speech_buf);
-    free(fc);
+    av_free(speech_buf);
+    av_free(fc);
     return ctx->subframe_size;
 }
 
