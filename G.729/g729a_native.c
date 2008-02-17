@@ -27,13 +27,45 @@
 #define av_free(ptr) if(ptr) free(ptr)
 #define av_mallocz(A) calloc(A,1)
 #define av_malloc(A) malloc(A)
+#define FFSWAP(type,a,b) do{type SWAP_tmp= b; b= a; a= SWAP_tmp;}while(0)
+#define FFMAX(a,b) ((a) > (b) ? (a) : (b))
+#define FFMIN(a,b) ((a) > (b) ? (b) : (a))
+
 
 #define VECTOR_SIZE 15
 #define MA_NP 4
 
-#define FFSWAP(type,a,b) do{type SWAP_tmp= b; b= a; a= SWAP_tmp;}while(0)
-#define FFMAX(a,b) ((a) > (b) ? (a) : (b))
-#define FFMIN(a,b) ((a) > (b) ? (b) : (a))
+/*
+-------------------------------------------------------------------------------
+    Formats description
+-------------------------------------------------------------------------------
+*/
+/// Number of pulses in fixed-codebook vector
+#define FC_PULSE_COUNT 4
+/**
+ * GA codebook (3.9.2)
+ */
+#define GA_BITS 3
+/*
+ * GB codebook (3.9.2)
+ */
+#define GB_BITS 4
+
+static const struct{
+    char* name;
+    int sample_rate;
+    char frame_size; //bits
+    char fc_index_bits;
+    char vector_bits[VECTOR_SIZE];
+    char silence_compression;
+} formats[]={
+  {"8Kb/s",   8000, 80, 3, {1,7,5,5,8,1,/*fc_index_bits*/3*FC_PULSE_COUNT+1,FC_PULSE_COUNT,GA_BITS,GB_BITS,5,/*fc_index_bits*/3*FC_PULSE_COUNT+1, FC_PULSE_COUNT,GA_BITS,GB_BITS}, 0},
+#ifdef G729_SUPPORT_4400
+// Note: may not work
+  {"4.4Kb/s", 4400, 88, 4, {1,7,5,5,8,1,/*fc_index_bits*/4*FC_PULSE_COUNT+1,FC_PULSE_COUNT,GA_BITS,GB_BITS,5,/*fc_index_bits*/4*FC_PULSE_COUNT+1, FC_PULSE_COUNT,GA_BITS,GB_BITS}, 0},
+#endif //G729_SUPPORT_4400
+  { NULL,     0,    0,  0, {0,0,0,0,0,0, 0, 0,0,0,0, 0, 0,0,0}, 0}
+};
 
 typedef struct
 {
@@ -339,7 +371,6 @@ static const float b30[31]=
 /**
  * GA codebook (3.9.2)
  */
-#define GA_BITS 3
 #define GA_CB_SIZE (1<<GA_BITS)
 static const float cb_GA[GA_CB_SIZE][2] =
 {
@@ -356,7 +387,6 @@ static const float cb_GA[GA_CB_SIZE][2] =
 /**
  * GB codebook (3.9.2)
  */
-#define GB_BITS 4
 #define GB_CB_SIZE (1<<GB_BITS)
 static const float cb_GB[GB_CB_SIZE][2] = {
   { 0.313843,  0.072266}, //2
@@ -413,29 +443,6 @@ static const float ma_prediction_coeff[4] =
   0.68, 0.58, 0.34, 0.19
 };
 
-/*
--------------------------------------------------------------------------------
-    Formats description
--------------------------------------------------------------------------------
-*/
-/// Number of pulses in fixed-codebook vector
-#define FC_PULSE_COUNT 4
-
-static const struct{
-    char* name;
-    int sample_rate;
-    char frame_size;
-    char fc_index_bits;
-    char vector_bits[VECTOR_SIZE];
-    char silence_compression;
-} formats[]={
-  {"8Kb/s",   8000, 80, 3, {1,7,5,5,8,1,/*fc_index_bits*/3*FC_PULSE_COUNT+1,FC_PULSE_COUNT,GA_BITS,GB_BITS,5,/*fc_index_bits*/3*FC_PULSE_COUNT+1, FC_PULSE_COUNT,GA_BITS,GB_BITS}, 0},
-#ifdef G729_SUPPORT_4400
-// Note: 
-  {"4.4Kb/s", 4400, 88, 4, {1,7,5,5,8,1,/*fc_index_bits*/4*FC_PULSE_COUNT+1,FC_PULSE_COUNT,GA_BITS,GB_BITS,5,/*fc_index_bits*/4*FC_PULSE_COUNT+1, FC_PULSE_COUNT,GA_BITS,GB_BITS}, 0},
-#endif //G729_SUPPORT_4400
-  { NULL,     0,    0,  0, {0,0,0,0,0,0, 0, 0,0,0,0, 0, 0,0,0}, 0}
-};
 /*
 -------------------------------------------------------------------------------
           Internal routines
