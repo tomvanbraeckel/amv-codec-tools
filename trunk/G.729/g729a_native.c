@@ -904,6 +904,8 @@ static void g729a_long_term_filter(G729A_Context *ctx, float *residual_filt)
     /* 4.2.1, Equation 82 */
     if(corr_max*corr_max < 0.5*corr_0*corr_t0)
         gl=0;
+    else if(!corr_t0)
+        gl=1;
     else
         gl=FFMIN(corr_max/corr_t0, 1);
 
@@ -1055,7 +1057,7 @@ static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, s
     g729_lp_synthesis_filter(ctx, lp, exc, tmp_speech, ctx->syn_filter_data);
 
     /* 4.2 */
-//    g729a_postfilter(ctx, lp, tmp_speech_buf);
+    g729a_postfilter(ctx, lp, tmp_speech_buf);
 
     for(i=0; i<ctx->subframe_size; i++)
         speech[i]=g729_round(tmp_speech[i]);
