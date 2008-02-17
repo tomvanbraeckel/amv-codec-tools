@@ -772,8 +772,10 @@ static void g729_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc,
  * \param ctx private data structure
  * \param lp LP coefficients
  * \param in input signal
- * \param out output signal
- * \param filter_data filter data array
+ * \param out output (filtered) signal
+ * \param filter_data filter data array (previous synthesis data)
+ *
+ * Routine applies 1/A(z) filter to given speech data
  *
  */
 static void g729_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, float *out, float *filter_data)
