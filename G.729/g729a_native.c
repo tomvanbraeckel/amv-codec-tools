@@ -1572,7 +1572,7 @@ static int ff_g729a_decode_frame(AVCodecContext *avctx,
     init_get_bits(&gb, buf, buf_size);
 
     *data_size=0;
-    for(j=0; j<2; j++){
+    for(j=0; j<1; j++){
         int dst=0;
         serial[dst++]=0x6b21;
         serial[dst++]=80;
