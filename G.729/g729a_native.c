@@ -36,7 +36,7 @@ algthm  : PASS
 erasure : FAILED
 fixed   : PASS
 lsp     : PASS
-overflow: FAILED
+overflow: PASS
 parity  : PASS
 pitch   : PASS
 speech  : PASS
@@ -1126,7 +1126,11 @@ static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, s
     g729a_postfilter(ctx, lp, tmp_speech_buf);
 
     for(i=0; i<ctx->subframe_size; i++)
+    {
+        tmp_speech[i] = FFMIN(tmp_speech[i],32767.0);
+        tmp_speech[i] = FFMAX(tmp_speech[i],-32768.0);
         speech[i]=g729_round(tmp_speech[i]);
+    }
 
     av_free(tmp_speech_buf);
 
@@ -1365,6 +1369,7 @@ static void g729_high_pass_filter(G729A_Context* ctx, short* speech)
     short z_2=0;
 
     float f_0=0;
+    float fsp;
     int i;
 
     for(i=0; i<2*ctx->subframe_size; i++)
@@ -1374,7 +1379,10 @@ static void g729_high_pass_filter(G729A_Context* ctx, short* speech)
         ctx->hpf_z0=speech[i];
 
         f_0 = ctx->hpf_f1*af[1]+ctx->hpf_f2*af[2] + ctx->hpf_z0*az[0]+ctx->hpf_z1*az[1]+z_2*az[2]; 
-        speech[i]=g729_round(f_0*2);
+        fsp=f_0*2.0;
+        fsp = FFMIN(fsp,32767.0/2);
+        fsp = FFMAX(fsp,-32768.0/2);
+        speech[i]=g729_round(fsp);
 
         ctx->hpf_f2=ctx->hpf_f1;
         ctx->hpf_f1=f_0;
