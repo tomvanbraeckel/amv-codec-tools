@@ -587,14 +587,20 @@ static void g729_decode_ac_delay_subframe1(G729A_Context* ctx, int P1, int* intT
  * \param T1 first subframe's vector delay integer part 
  * \param intT [out] integer part of delay
  * \param frac [out] fractional part of delay [-1, 0, 1]
- *
- * TODO: Add case for frame erasure
  */
 static void g729_decode_ac_delay_subframe2(G729A_Context* ctx, int P2, int intT1, int* intT, int* frac)
 {
 
     int tmin=FFMIN(FFMAX(intT1-5, PITCH_MIN)+9, PITCH_MAX)-9;
     
+    if(ctx->bad_frame)
+    {
+        *intT=intT1;
+        *frac=0;
+        ctx->intT2_prev=FFMIN(intT1+1, PITCH_MAX)
+        return;
+    }
+
     *intT=(P2+2)/3-1;
     *frac=P2-2-3*(*intT);
 
