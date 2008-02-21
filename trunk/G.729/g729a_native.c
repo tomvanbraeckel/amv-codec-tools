@@ -585,7 +585,13 @@ static void g729_decode_ac_vector(G729A_Context* ctx, int k, int t, float* ac_v)
     int n, i;
     float v;
 
-    t=(3-t)%3;
+    //Make sure that t will be always positive
+    t=-t;
+    if(t<0)
+    {
+        t+=3;
+        k++;
+    }
 
     //t [0, 1, 2]
     //k [PITCH_MIN-1; PITCH_MAX]
