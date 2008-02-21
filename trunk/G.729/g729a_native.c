@@ -89,6 +89,11 @@ typedef struct
     float g;                ///< gain coefficient (4.2.4)
     int rand_seed;          ///< seed for random number generator (4.4.4)
     int prev_mode;
+    //High-pass filter data
+    float hpf_f1;
+    float hpf_f2;
+    short hpf_z0;
+    short hpf_z1;
 }  G729A_Context;
 
 //Stability constants (3.2.4)
@@ -1332,25 +1337,22 @@ static void g729_high_pass_filter(G729A_Context* ctx, short* speech)
 {
     const float az[3] = {0.93980581, -1.8795834,  0.93980581};
     const float af[3] = {1.00000000,  1.9330735, -0.93589199};
-    short z_0=0;
-    short z_1=0;
     short z_2=0;
 
-    float f_2=0;
-    float f_1=0;
     float f_0=0;
     int i;
 
     for(i=0; i<2*ctx->subframe_size; i++)
     {
-        z_2=z_1;
-        z_1=z_0;
-        z_0=speech[i];
+        z_2=ctx->hpf_z1;
+        ctx->hpf_z1=ctx->hpf_z0;
+        ctx->hpf_z0=speech[i];
 
-        f_2=f_1;
-        f_1=f_0;
-        f_0 = f_1*af[1]+f_2*af[2] + z_0*az[0]+z_1*az[1]+z_2*az[2]; 
+        f_0 = ctx->hpf_f1*af[1]+ctx->hpf_f2*af[2] + ctx->hpf_z0*az[0]+ctx->hpf_z1*az[1]+z_2*az[2]; 
         speech[i]=g729_round(f_0*2);
+
+        ctx->hpf_f2=ctx->hpf_f1;
+        ctx->hpf_f1=f_0;
     }
 }
 
