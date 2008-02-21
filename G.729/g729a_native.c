@@ -22,6 +22,29 @@
 #include <string.h>
 #include <math.h>
 
+/*
+
+Validation results on ITU test vectors for Fixed-point G729.A:
+
+   All vectors are not bit-exactly equal (but reference C code for
+   floating point implementation fails to provide bit-exact equal files
+   while fixed-point code passes all tests). Thus test was based
+   on presence of hearable artefacts/differences
+
+Per-vector results (PASS means no hearable differences, FAILED means hearable artefacts):
+algthm  : PASS
+erasure : FAILED
+fixed   : PASS
+lsp     : PASS
+overflow: FAILED
+parity  : FAILED
+pitch   : PASS
+speech  : PASS
+tame    : FAILED
+test    : PASS
+
+*/
+
 //stubs for porting to FFmpeg
 
 #define av_free(ptr) if(ptr) free(ptr)
