@@ -576,8 +576,8 @@ static void g729_decode_ac_delay_subframe2(G729A_Context* ctx, int P2, int intT1
 /**
  * \brief Decoding of the adaptive-codebook vector (4.1.3)
  * \param ctx private data structure
- * \param k pitch delat, integer part
- * \param t pitch delay, fraction paart [-1, 0, 1]
+ * \param k pitch delay, integer part
+ * \param t pitch delay, fraction part [-1, 0, 1]
  * \param ac_v buffer to store decoded vector into
  */
 static void g729_decode_ac_vector(G729A_Context* ctx, int k, int t, float* ac_v)
@@ -595,13 +595,9 @@ static void g729_decode_ac_vector(G729A_Context* ctx, int k, int t, float* ac_v)
         v=0;
         for(i=0; i<10; i++)
         {
-            /*
-              (EE) This does not comply with specification.
-              Specification uses "n-k+i" (note "+i") index in vector, while
-              reference code uses "n-k-i" (note "-i") here.
-	    */
-            v+=ac_v[n-k-i]*b30[t+3*i];
-            v+=ac_v[n-k+i+1]*b30[3-t+3*i];
+            /*  R(x):=ac_v[-k+x] */
+            v+=ac_v[n-k-i]*b30[t+3*i];     //R(n-i)*b30(t+3i)
+            v+=ac_v[n-k+i+1]*b30[3-t+3*i]; //R(n+i+1)*b30(3-t+3i)
         }
         ac_v[n]=g729_round(v);
     }
