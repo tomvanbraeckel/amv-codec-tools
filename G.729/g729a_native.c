@@ -1445,6 +1445,12 @@ void* g729a_decoder_init()
 
     memset(ctx->syn_filter_data, 0, 10*sizeof(float));
     memset(ctx->res_filter_data, 0, 10*sizeof(float));
+
+    //High-pass filter data
+    ctx->hpf_f1=0.0;
+    ctx->hpf_f2=0.0;
+    ctx->hpf_z0=0;
+    ctx->hpf_z1=0;
     return ctx;
 }
 
