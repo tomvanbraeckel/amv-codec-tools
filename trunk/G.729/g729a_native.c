@@ -33,7 +33,7 @@ Validation results on ITU test vectors for Fixed-point G729.A:
 
 Per-vector results (PASS means no hearable differences, FAILED means hearable artefacts):
 algthm  : PASS
-erasure : FAILED
+erasure : PASS
 fixed   : PASS
 lsp     : PASS
 overflow: PASS
@@ -593,11 +593,11 @@ static void g729_decode_ac_delay_subframe2(G729A_Context* ctx, int P2, int intT1
 
     int tmin=FFMIN(FFMAX(intT1-5, PITCH_MIN)+9, PITCH_MAX)-9;
     
-    if(ctx->bad_frame)
+    if(ctx->data_error)
     {
         *intT=intT1;
         *frac=0;
-        ctx->intT2_prev=FFMIN(intT1+1, PITCH_MAX)
+        ctx->intT2_prev=FFMIN(intT1+1, PITCH_MAX);
         return;
     }
 
