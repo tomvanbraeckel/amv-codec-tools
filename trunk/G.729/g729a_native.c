@@ -1638,6 +1638,7 @@ AVCodec g729a_decoder = {
 int g729a_decoder_uninit(void* ctx)
 {
   ff_g729a_decoder_close(ctx);
+  return 0;
 }
 /*
 ---------------------------------------------------------------------------
