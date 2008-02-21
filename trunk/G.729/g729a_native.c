@@ -816,7 +816,7 @@ static void g729_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, f
  *
  * \return squared gain value
  */
-static float g729a_get_gain(G729A_Context *ctx, float *speech)
+static float g729_get_signal_gain(G729A_Context *ctx, float *speech)
 {
     int n;
     float gain;
@@ -1055,7 +1055,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     }
 
     /* Calculating gain of unfiltered signal for using in AGC */
-    gain_before=g729a_get_gain(ctx, speech);
+    gain_before=g729_get_signal_gain(ctx, speech);
 
     /* long-term filter (A.4.2.1) */
     g729a_long_term_filter(ctx, residual_filt);
@@ -1067,7 +1067,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     g729_lp_synthesis_filter(ctx, lp_gd, residual_filt, speech, ctx->res_filter_data);
 
     /* Calculating gain of filtered signal for using in AGC */
-    gain_after=g729a_get_gain(ctx,speech);
+    gain_after=g729_get_signal_gain(ctx,speech);
 
     /* adaptive gain control (A.4.2.4) */
     g729a_adaptive_gain_control(ctx, gain_before, gain_after, speech);
