@@ -37,7 +37,7 @@ erasure : FAILED
 fixed   : PASS
 lsp     : PASS
 overflow: FAILED
-parity  : FAILED
+parity  : PASS
 pitch   : PASS
 speech  : PASS
 tame    : FAILED
@@ -95,6 +95,7 @@ typedef struct
     int format;             ///< format index from formats array
     int subframe_size;      ///< number of samples produced from one subframe
     int data_error;         ///< data error detected during decoding
+    int bad_pitch;          ///< parity check failed
     float* exc_base;          ///< past excitation signal buffer
     float* exc;               ///< start of past excitation data in buffer
     int intT2_prev;         ///< int(T2) value of previous frame (4.1.3)
@@ -559,7 +560,7 @@ int g729_parity_check(int P1, int P0)
 static void g729_decode_ac_delay_subframe1(G729A_Context* ctx, int P1, int* intT, int* frac)
 {
     /* if no parity error */
-    if(!ctx->data_error)
+    if(!ctx->bad_pitch)
     {
         if(P1<197)
         {
@@ -586,6 +587,8 @@ static void g729_decode_ac_delay_subframe1(G729A_Context* ctx, int P1, int* intT
  * \param T1 first subframe's vector delay integer part 
  * \param intT [out] integer part of delay
  * \param frac [out] fractional part of delay [-1, 0, 1]
+ *
+ * TODO: Add case for frame erasure
  */
 static void g729_decode_ac_delay_subframe2(G729A_Context* ctx, int P2, int intT1, int* intT, int* frac)
 {
@@ -1503,6 +1506,7 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     speech_buf=av_mallocz(2*ctx->subframe_size * sizeof(short));
 
     ctx->data_error=0;
+    ctx->bad_pitch=0;
 
     for(i=0; i<VECTOR_SIZE; i++)
     {
@@ -1517,7 +1521,7 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
     }
 
     if(!g729_parity_check(parm[4], parm[5]))
-        ctx->data_error=1;
+        ctx->bad_pitch=1;
 
     if(ctx->data_error)
         g729_lsp_restore_from_previous(ctx, lsp);
