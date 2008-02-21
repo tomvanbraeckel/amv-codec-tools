@@ -40,7 +40,7 @@ overflow: PASS
 parity  : PASS
 pitch   : PASS
 speech  : PASS
-tame    : FAILED
+tame    : FAILED ?? taming procedure is not used in decoder
 test    : PASS
 
 */
