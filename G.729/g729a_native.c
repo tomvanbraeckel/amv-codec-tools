@@ -45,8 +45,15 @@ test    : PASS
 
 */
 
+//Defined in Makefile while building test executable
+#ifdef G729A_NATIVE
 //stubs for porting to FFmpeg
 #include "g729a_native.h"
+#else
+#include "avcodec.h"
+#include "avutil.h"
+#include "bitstream.h"
+#endif
 
 #define VECTOR_SIZE 15
 #define MA_NP 4
@@ -1581,7 +1588,6 @@ static int  g729a_decode_frame_internal(void* context, short* serial, int serial
     return ctx->subframe_size;
 }
 
-#if 0
 static int ff_g729a_decode_frame(AVCodecContext *avctx,
                              void *data, int *data_size,
                              const uint8_t *buf, int buf_size)
@@ -1590,7 +1596,7 @@ static int ff_g729a_decode_frame(AVCodecContext *avctx,
     GetBitContext gb;
     int i,j,k;
     int l_frame=formats[ctx->format].frame_size;
-    uint16_t serial[200];
+    int16_t serial[200];
 
     init_get_bits(&gb, buf, buf_size);
 
@@ -1620,7 +1626,8 @@ AVCodec g729a_decoder = {
     ff_g729a_decoder_close,
     ff_g729a_decode_frame,
 };
-#endif
+
+#ifdef G729A_NATIVE
 /* debugging  stubs */
 void* g729a_decoder_init()
 {
@@ -1656,3 +1663,4 @@ int g729a_encode_frame(void * context, int16_t* data, int ibuflen, int16_t* seri
 void g729_encoder_uninit(void* context)
 {
 }
+#endif /* G729A_NATIVE */
