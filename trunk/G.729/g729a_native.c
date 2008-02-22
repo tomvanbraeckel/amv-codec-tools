@@ -730,6 +730,7 @@ static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, flo
 {
     float energy=0;
     int i;
+    float cb1_sum;
 
     /* 3.9.1, Equation 66 */
     for(i=0; i<ctx->subframe_size; i++)
@@ -753,14 +754,15 @@ static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, flo
     for(i=3; i>0; i--)
         ctx->pred_vect_q[i]=ctx->pred_vect_q[i-1];
 
+    cb1_sum=cb_GA[nGA][1]+cb_GB[nGB][1];
     /* 3.9.1, Equation 72 */
-    ctx->pred_vect_q[0]=20*log(cb_GA[nGA][1]+cb_GB[nGB][1])/M_LN10; //FIXME: should there be subframe_size/2 ?
+    ctx->pred_vect_q[0]=20*log(cb1_sum)/M_LN10; //FIXME: should there be subframe_size/2 ?
 
     /* 3.9.1, Equation 73 */
     *gp = cb_GA[nGA][0]+cb_GB[nGB][0];           // quantized adaptive-codebook gain (gain code)
     
     /* 3.9.1, Equation 74 */
-    *gc = energy*(cb_GA[nGA][1]+cb_GB[nGB][1]);  //quantized fixed-codebook gain (gain pitch)
+    *gc = energy*(cb1_sum);  //quantized fixed-codebook gain (gain pitch)
 
     /* save gain code value for next subframe */
     ctx->gain_code=*gc;
