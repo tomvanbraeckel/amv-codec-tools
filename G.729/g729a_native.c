@@ -1475,7 +1475,7 @@ void* g729a_decoder_init()
  * G.729A decoder uninitialization
  * \param ctx private data structure
  */
-void ff_g729a_decoder_close(void *context)
+static int ff_g729a_decoder_close(void *context)
 {
     G729A_Context* ctx=context;
     int k;
@@ -1611,7 +1611,7 @@ int  g729a_decode_frame(void* context, short* serial, int serial_size, short* ou
 #if 0
 static int ff_g729a_decode_frame(AVCodecContext *avctx,
                              void *data, int *data_size,
-                             uint8_t *buf, int buf_size)
+                             const uint8_t *buf, int buf_size)
 {
     G729A_Context *ctx=avctx->priv_data;
     GetBitContext gb;
