@@ -21,6 +21,34 @@ typedef struct
     int frame_size;
 } AVCodecContext;
 
+#define     CODEC_TYPE_AUDIO 1
+#define     CODEC_ID_G729A   1
+
+typedef struct{
+  char* name;
+  int type;
+  int id;
+  int size;
+    int (*init)(AVCodecContext *);
+    int (*encode)(AVCodecContext *, uint8_t *buf, int buf_size, void *data);
+    int (*close)(AVCodecContext *);
+    int (*decode)(AVCodecContext *, void *outdata, int *outdata_size,
+                  const uint8_t *buf, int buf_size);
+}AVCodec;
+
+typedef struct {
+  int dummy;
+} GetBitContext;
+
+static void init_get_bits(GetBitContext* pgb, const unsigned char* buf, int buf_size)
+{
+}
+
+static int get_bits1(GetBitContext* pgb)
+{
+    return 0;
+}
+
 static void dmp_d(char* name, float* arr, int size)
 {
     int i;
