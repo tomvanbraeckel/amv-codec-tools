@@ -693,7 +693,7 @@ static void g729_get_gain_from_previous(G729A_Context *ctx, float* gp, float* gc
     ctx->gain_code=*gc;
 
     /* 4.4.2, Equation 94 */
-    *gp=FFMIN(0.9*ctx->gain_pitch, 0.9);;
+    *gp=FFMIN(0.9*ctx->gain_pitch, 0.9);
     ctx->gain_pitch = *gp;
 }
 
