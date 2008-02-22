@@ -710,7 +710,7 @@ static void g729_update_gain(G729A_Context *ctx)
     for(i=0; i<4; i++)
         avg_gain+=ctx->pred_vect_q[i];
 
-    avg_gain = FFMIN(avg_gain * 0.25 - 4.0, -14);
+    avg_gain = FFMAX(avg_gain * 0.25 - 4.0, -14);
 
     for(i=3; i>0; i--)
         ctx->pred_vect_q[i]=ctx->pred_vect_q[i-1];
