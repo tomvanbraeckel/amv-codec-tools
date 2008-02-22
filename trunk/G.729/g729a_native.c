@@ -46,14 +46,7 @@ test    : PASS
 */
 
 //stubs for porting to FFmpeg
-
-#define av_free(ptr) if(ptr) free(ptr)
-#define av_mallocz(A) calloc(A,1)
-#define av_malloc(A) malloc(A)
-#define FFSWAP(type,a,b) do{type SWAP_tmp= b; b= a; a= SWAP_tmp;}while(0)
-#define FFMAX(a,b) ((a) > (b) ? (a) : (b))
-#define FFMIN(a,b) ((a) > (b) ? (b) : (a))
-
+#include "g729a_native.h"
 
 #define VECTOR_SIZE 15
 #define MA_NP 4
@@ -496,37 +489,6 @@ static inline uint16_t g729_random(G729A_Context* ctx)
     return ctx->rand_seed = (uint16_t)(31821 * (uint32_t)ctx->rand_seed + 13849 + ctx->rand_seed);
 }
 
-
-static void dmp_d(char* name, float* arr, int size)
-{
-    int i;
-    printf("%s: ",name);
-    for(i=0; i<size; i++)
-    {
-        printf("%9f ", arr[i]);
-    }
-    printf("\n");
-}
-static void dmp_fp16(char* name, short* arr, int size, int base)
-{
-    int i;
-    printf("%s: ",name);
-    for(i=0; i<size; i++)
-    {
-        printf("%9f ", (1.0*arr[i])/(1<<base));
-    }
-    printf("\n");
-}
-static void dmp_fp32(char* name, int* arr, int size, int base)
-{
-    int i;
-    printf("%s: ",name);
-    for(i=0; i<size; i++)
-    {
-        printf("%9f ", (1.0*arr[i])/(1<<base));
-    }
-    printf("\n");
-}
 
 /**
  * \brief Check parity bit (3.7.2)
@@ -1406,15 +1368,23 @@ static void g729_high_pass_filter(G729A_Context* ctx, short* speech)
  * \param ctx private data structure
  * \return 0 if success, non-zero otherwise
  */
-void* g729a_decoder_init()
+static int ff_g729a_decoder_init(AVCodecContext * avctx)
 {
-    G729A_Context* ctx=av_mallocz(sizeof(G729A_Context));
+    G729A_Context* ctx=avctx->priv_data;
     int frame_size=10;
     int i,k;
 
-    /* stub */
-    ctx->format=0;
+    for(ctx->format=0; formats[ctx->format].name; ctx->format++)
+        if(formats[ctx->format].sample_rate==avctx->sample_rate)
+            break;
+    if(!formats[ctx->format].name){
+        av_log(avctx, AV_LOG_ERROR, "Sample rate %d is not supported\n", avctx->sample_rate);
+        return -1;
+    }
+    frame_size=formats[ctx->format].frame_size>>3; //frame_size is in bits
+
     ctx->subframe_size=formats[ctx->format].frame_size>>1;
+
     /* Decoder initialization. 4.3, Table 9 */
 
     /* 
@@ -1448,7 +1418,7 @@ void* g729a_decoder_init()
     // Two subframes + PITCH_MAX inetries for last excitation signal data + ???
     ctx->exc_base=av_mallocz((frame_size*8+PITCH_MAX+INTERPOL_LEN)*sizeof(float));
     if(!ctx->exc_base)
-        return NULL;
+        return AVERROR(ENOMEM);
 
     ctx->exc=ctx->exc_base+PITCH_MAX+INTERPOL_LEN;
     
@@ -1468,16 +1438,18 @@ void* g729a_decoder_init()
     ctx->hpf_f2=0.0;
     ctx->hpf_z0=0;
     ctx->hpf_z1=0;
-    return ctx;
+
+    avctx->frame_size=frame_size;
+    return 0;
 }
 
 /**
  * G.729A decoder uninitialization
  * \param ctx private data structure
  */
-static int ff_g729a_decoder_close(void *context)
+static int ff_g729a_decoder_close(AVCodecContext *avctx)
 {
-    G729A_Context* ctx=context;
+    G729A_Context *ctx=avctx->priv_data;
     int k;
 
     av_free(ctx->residual);
@@ -1492,6 +1464,7 @@ static int ff_g729a_decoder_close(void *context)
         av_free(ctx->lq_prev[k]);
         ctx->lq_prev[k]=NULL;
     }
+    return 0;
 }
 
 /**
@@ -1501,7 +1474,7 @@ static int ff_g729a_decoder_close(void *context)
  * \param out_frame array for output PCM samples
  * \param out_frame_size maximum number of elements in output array
  */
-int  g729a_decode_frame(void* context, short* serial, int serial_size, short* out_frame, int out_frame_size)
+static int  g729a_decode_frame_internal(void* context, short* serial, int serial_size, short* out_frame, int out_frame_size)
 {
     G729A_Context* ctx=context;
     int parm[VECTOR_SIZE];
@@ -1631,7 +1604,7 @@ static int ff_g729a_decode_frame(AVCodecContext *avctx,
             for(k=0; k<8; k++){
                 serial[dst++]=get_bits1(&gb)?0x81:0x7f;
             }
-        g729a_decode_frame(ctx,serial, 0/*not used yet*/,(short*)data+j*l_frame, l_frame);
+        g729a_decode_frame_internal(ctx,serial, 0/*not used yet*/,(short*)data+j*l_frame, l_frame);
         *data_size+=2*l_frame;
     }
     return buf_size;
@@ -1649,10 +1622,23 @@ AVCodec g729a_decoder = {
 };
 #endif
 /* debugging  stubs */
+void* g729a_decoder_init()
+{
+    AVCodecContext *avctx=av_mallocz(sizeof(AVCodecContext));
+    avctx->priv_data=av_mallocz(sizeof(G729A_Context));
+    avctx->sample_rate=8000;
+
+    ff_g729a_decoder_init(avctx);
+    return avctx;
+}
 int g729a_decoder_uninit(void* ctx)
 {
   ff_g729a_decoder_close(ctx);
   return 0;
+}
+int  g729a_decode_frame(AVCodecContext* avctx, short* serial, int serial_size, short* out_frame, int out_frame_size)
+{
+    return g729a_decode_frame_internal(avctx->priv_data, serial, serial_size, out_frame, out_frame_size);
 }
 /*
 ---------------------------------------------------------------------------
