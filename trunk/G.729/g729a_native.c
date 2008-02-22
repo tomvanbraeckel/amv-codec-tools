@@ -610,7 +610,7 @@ static void g729_decode_ac_vector(G729A_Context* ctx, int k, int t, float* ac_v)
             v+=ac_v[n-k-i]*b30[t+3*i];     //R(n-i)*b30(t+3i)
             v+=ac_v[n-k+i+1]*b30[3-t+3*i]; //R(n+i+1)*b30(3-t+3i)
         }
-        ac_v[n]=g729_round(v);
+        ac_v[n]=v;
     }
 }
 
@@ -785,7 +785,7 @@ static void g729_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc,
     int i;
 
     for(i=0; i<ctx->subframe_size; i++)
-        exc[i]=g729_round(exc[i]*gp+fc_v[i]*gc);
+        exc[i]=exc[i]*gp+fc_v[i]*gc;
 }
 
 /**
@@ -812,7 +812,6 @@ static void g729_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, f
         tmp[n]=in[n];
         for(i=0; i<10; i++)
             tmp[n]-= lp[i]*tmp[n-i-1];
-        tmp[n]=g729_round(tmp[n]);
     }
     memcpy(filter_data, tmp+ctx->subframe_size-10, 10*sizeof(float));
     memcpy(out, tmp, ctx->subframe_size*sizeof(float));
@@ -989,7 +988,6 @@ static void g729a_tilt_compensation(G729A_Context *ctx,float *lp_gn, float *lp_g
         tmp_buf[n+11]=hf[n];
         for(i=0; i<10; i++)
             tmp_buf[n+11]-= lp_gd[i]*tmp_buf[n-i-1+11];
-        tmp_buf[n+11]=g729_round(tmp_buf[n+11]);
     }
     for(i=0;i<22;i++)
         hf[i]=tmp_buf[i+11];
