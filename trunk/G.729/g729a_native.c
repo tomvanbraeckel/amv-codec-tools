@@ -118,6 +118,7 @@ typedef struct
     float hpf_f2;
     short hpf_z0;
     short hpf_z1;
+    int subframe_idx;      ///< subframe index (for debugging)
 }  G729A_Context;
 
 //Stability constants (3.2.4)
@@ -1548,6 +1549,7 @@ static int  g729a_decode_frame_internal(void* context, short* serial, int serial
     }
     g729_mem_update(ctx, fc, gp, gc, ctx->exc);
     g729_reconstruct_speech(ctx, lp, ctx->exc, speech_buf);
+    ctx->subframe_idx++;
 
     /* second subframe */
     g729_decode_ac_delay_subframe2(ctx, parm[10], k, &k, &t);
@@ -1573,6 +1575,7 @@ static int  g729a_decode_frame_internal(void* context, short* serial, int serial
     }
     g729_mem_update(ctx, fc, gp, gc, ctx->exc+ctx->subframe_size);
     g729_reconstruct_speech(ctx, lp+10, ctx->exc+ctx->subframe_size, speech_buf+ctx->subframe_size);
+    ctx->subframe_idx++;
 
     //Save signal for using in next frame
     memmove(ctx->exc_base, ctx->exc_base+2*ctx->subframe_size, (PITCH_MAX+INTERPOL_LEN)*sizeof(float));
