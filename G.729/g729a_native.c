@@ -985,26 +985,28 @@ static void g729a_tilt_compensation(G729A_Context *ctx,float *lp_gn, float *lp_g
     float gt,k,rh1,rh0;
     float hf[22]; // A(Z/GAMMA_N)/A(z/GAMMA_D) filter impulse response
     float tmp_buf[11+22];
+    float sum;
     int i, n;
 
     hf[0]=1;
-    for(i=1;i<11; i++)
-        hf[i]=lp_gn[i];
+    for(i=0; i<10; i++)
+        hf[i+1]=lp_gn[i];
 
     for(i=11; i<22;i++)
         hf[i]=0;
 
     /* Applying 1/A(z/GAMMA_D) to hf */
-    for(i=0;i<11;i++)
+    for(i=0; i<10; i++)
         tmp_buf[i]=hf[i+11];
+
     for(n=0; n<22; n++)
     {
-        tmp_buf[n+11]=hf[n];
+        sum=hf[n];
         for(i=0; i<10; i++)
-            tmp_buf[n+11]-= lp_gd[i]*tmp_buf[n-i-1+11];
+            sum-= lp_gd[i]*tmp_buf[n-i-1+10];
+        tmp_buf[n+10]=sum;
+        hf[n]=sum;
     }
-    for(i=0;i<22;i++)
-        hf[i]=tmp_buf[i+11];
 
     /* Now hf contains impulse response of A(z/GAMMA_N)/A(z/GAMMA_D) filter */
 
