@@ -463,13 +463,26 @@ static const float ma_predictor_sum[2][10] = {
   { 0.4451000094414, 0.5595000386238, 0.6034000515938, 0.5292999744415, 0.5012999176979, 0.5023000240326, 0.4625000357628, 0.4645000100136, 0.4895999729633, 0.4793999791145}
 };
 
-
 /**
  * MA prediction coefficients (3.9.1, near Equation 69)
  */
 static const float ma_prediction_coeff[4] =
 {
   0.68, 0.58, 0.34, 0.19
+};
+
+/**
+ * Initial lq values
+ */
+static const lq_init[10] = {
+  0.285599,  0.571199,  0.856798,  1.142397,  1.427997, 1.713596,  1.999195,  2.284795,  2.570394,  2.855993,
+};
+
+/**
+ * Initial LSP values
+ */
+static const lsp_init[10] = {
+  0.9595, 0.8413, 0.6549, 0.4154, 0.1423, 0.1423, 0.4154, 0.6549, 0.8413, 0.9595,
 };
 
 /*
@@ -1410,15 +1423,11 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
     for(k=0; k<MA_NP; k++)
         ctx->lq_prev[k]=av_malloc(sizeof(float)*frame_size);
 
-    /*
-     This is initialization from specification. But it produces different result from
-     reference decoder
-    */
-    for(i=0; i<frame_size;i++)
-    {
-        ctx->lq_prev[0][i]=(i+1)*M_PI/(frame_size+1);
-        ctx->lsp_prev[i]=cos(ctx->lq_prev[0][i]);
-    }
+    for(i=0; i<10; i++)
+        ctx->lq_prev[0][i]=lq_init[i];
+
+    for(i=0; i<10; i++)
+        ctx->lsp_prev[i]=lsqp_init[i];
 
     for(k=1; k<MA_NP; k++)
         for(i=0;i<frame_size; i++)
