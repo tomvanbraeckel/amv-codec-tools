@@ -1003,7 +1003,7 @@ static void g729a_tilt_compensation(G729A_Context *ctx,float *lp_gn, float *lp_g
     /* A.4.2.3, Equation A.14, calcuating rh(1)  */
     rh1=0;
     for(i=0; i<22-1; i++)
-        rh0+=hf[i]*hf[i+1];
+        rh1+=hf[i]*hf[i+1];
 
     /* A.4.2.3, Equation A.14 */
     k=-rh1/rh0;
