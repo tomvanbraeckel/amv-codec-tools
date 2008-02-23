@@ -357,11 +357,11 @@ static const float cb_L3[32][5] = {
  *
  *   Specification does not provide formula for calculating table below.
  *
- *   It just says: 
+ *   It just says:
  *     b30 is based on Hamming windowed sinc functions, truncated at +/-29 and
  *     padded with zeros at +/-30 b30[30]=0
  *     The filter has a cut-off frequency (-3 dB) at 3600 Hz in the oversampled domain.
- *     
+ *
  *   After some analisys i found this aproximation:
  *
  *                                    PI * x
@@ -492,7 +492,7 @@ static const float lsp_init[10] = {
 */
 
 /**
- * \brief rouding function from reference code 
+ * \brief rouding function from reference code
  *
  * FIXME: found system replacement for it
  */
@@ -566,8 +566,8 @@ static void g729_decode_ac_delay_subframe1(G729A_Context* ctx, int P1, int* intT
 /**
  * \brief Decoding of the adaptive-codebook vector delay for second subframe (4.1.3)
  * \param ctx private data structure
- * \param P1 Pitch delay second subframe 
- * \param T1 first subframe's vector delay integer part 
+ * \param P1 Pitch delay second subframe
+ * \param T1 first subframe's vector delay integer part
  * \param intT [out] integer part of delay
  * \param frac [out] fractional part of delay [-1, 0, 1]
  */
@@ -575,7 +575,7 @@ static void g729_decode_ac_delay_subframe2(G729A_Context* ctx, int P2, int intT1
 {
 
     int tmin=FFMIN(FFMAX(intT1-5, PITCH_MIN)+9, PITCH_MAX)-9;
-    
+
     if(ctx->data_error)
     {
         *intT=intT1;
@@ -635,7 +635,7 @@ static void g729_decode_ac_vector(G729A_Context* ctx, int k, int t, float* ac_v)
  * \param S Signs of fixed-codebook pulses (0 bit value means negative sign)
  * \param fc_v [out] decoded fixed codebook vector
  *
- * bit allocations: 
+ * bit allocations:
  *   8k mode: 3+3+3+1+3
  * 4.4k mode: 4+4+4+1+4 (non-standard)
  *
@@ -671,7 +671,7 @@ static void g729_decode_fc_vector(G729A_Context* ctx, int C, int S, float* fc_v)
     if(index>=ctx->subframe_size)
     {
         ctx->data_error=1;
-        return;        
+        return;
     }
     fc_v[ index ] = (accS&1) ? 1 : -1;
 }
@@ -750,7 +750,7 @@ static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, flo
     for(i=0; i<ctx->subframe_size; i++)
         energy+=fc_v[i]*fc_v[i];
 
-    /* 
+    /*
       energy=mean_energy-E
       mean_energy=30dB
       E is calculated in 3.9.1 Equation 66
@@ -774,7 +774,7 @@ static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, flo
 
     /* 3.9.1, Equation 73 */
     *gp = cb_GA[nGA][0]+cb_GB[nGB][0];           // quantized adaptive-codebook gain (gain code)
-    
+
     /* 3.9.1, Equation 74 */
     *gc = energy*(cb1_sum);  //quantized fixed-codebook gain (gain pitch)
 
@@ -1027,7 +1027,7 @@ static void g729a_tilt_compensation(G729A_Context *ctx,float *lp_gn, float *lp_g
         gt=0;
     else
         gt=GAMMA_T*k;
-    
+
     /* A.4.2.3. Equation A.13, applying filter to signal */
     tmp=res_pst[ctx->subframe_size-1];
 
@@ -1066,8 +1066,8 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     /* Calculating coefficients of A(z/GAMMA_D) filter */
     g729a_weighted_filter(ctx, lp, GAMMA_D, lp_gd);
 
-    /* 
-      4.2.1, Equation 79 Residual signal calculation 
+    /*
+      4.2.1, Equation 79 Residual signal calculation
       ( filtering through A(z/GAMMA_N) , one half of short-term filter)
     */
     for(n=0; n<ctx->subframe_size; n++)
@@ -1120,7 +1120,7 @@ static void g729_high_pass_filter(G729A_Context* ctx, float* speech)
         ctx->hpf_z1=ctx->hpf_z0;
         ctx->hpf_z0=speech[i];
 
-        f_0 = ctx->hpf_f1*af[1]+ctx->hpf_f2*af[2] + ctx->hpf_z0*az[0]+ctx->hpf_z1*az[1]+z_2*az[2]; 
+        f_0 = ctx->hpf_f1*af[1]+ctx->hpf_f2*af[2] + ctx->hpf_z0*az[0]+ctx->hpf_z1*az[1]+z_2*az[2];
         speech[i]=f_0*2.0;
 
         ctx->hpf_f2=ctx->hpf_f1;
@@ -1164,7 +1164,7 @@ static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, s
 }
 
 /**
- * \brief Convert LSF to LSP 
+ * \brief Convert LSF to LSP
  * \param ctx private data structure
  * \param lsf LSF coefficients
  * \param lsp LSP coefficients
@@ -1199,8 +1199,8 @@ static void g729_lsp_restore_from_previous(G729A_Context *ctx, float* lsfq)
     for(i=0; i<10; i++)
     {
         lq[i]=lsfq[i];
-	for(k=0;k<MA_NP; k++)
-	    lq[i]-=ma_predictor[ctx->prev_mode][k][i];
+        for(k=0;k<MA_NP; k++)
+            lq[i]-=ma_predictor[ctx->prev_mode][k][i];
         lq[i]/=ma_predictor_sum[ctx->prev_mode][i];
     }
 
@@ -1319,13 +1319,13 @@ static void get_lsp_coefficients(float* q, float* f)
     {
         b=-2*q[qidx];
         f[i]=b*f[i-1]+2*f[i-2];
- 
+
         for(j=i-1; j>1; j--)
         {
             f[j]+=b  * f[j-1] + f[j-2];
         }
         f[1]+=b;
-	qidx+=2;
+        qidx+=2;
     }
 }
 /**
@@ -1392,7 +1392,7 @@ static void g729_lp_decode(G729A_Context* ctx, float* lsp_curr, float* lp)
           API
 ------------------------------------------------------------------------------
 */
- 
+
 /**
  * \brief G.729A decoder initialization
  * \param ctx private data structure
@@ -1417,8 +1417,8 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
 
     /* Decoder initialization. 4.3, Table 9 */
 
-    /* 
-    Pitch gain of previous subframe. 
+    /*
+    Pitch gain of previous subframe.
 
     (EE) This does not comply with specification, but reference
          and Intel decoder uses here minimum sharpen value instead of maximum. */
@@ -1447,7 +1447,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
         return AVERROR(ENOMEM);
 
     ctx->exc=ctx->exc_base+PITCH_MAX+INTERPOL_LEN;
-    
+
     ctx->residual=av_mallocz((PITCH_MAX+ctx->subframe_size)*sizeof(float));
     /* random seed initialization (4.4.4) */
     ctx->rand_seed=21845;
