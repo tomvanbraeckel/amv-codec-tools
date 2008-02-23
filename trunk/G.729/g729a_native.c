@@ -1141,6 +1141,8 @@ static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, s
     float* tmp_speech=tmp_speech_buf+10;
     int i;
 
+    memcpy(tmp_speech_buf, ctx->syn_filter_data, 10 * sizeof(float));
+
     /* 4.1.6, Equation 77  */
     g729_lp_synthesis_filter(ctx, lp, exc, tmp_speech, ctx->syn_filter_data);
 
