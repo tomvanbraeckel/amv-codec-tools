@@ -1304,6 +1304,28 @@ static void g729_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
     g729_lsf2lsp(ctx, lsfq, lsfq);
 }
 
+static void get_lsp_coefficients(float* q, float* f)
+{
+    int i, j;
+    int qidx=2;
+    float b;
+
+    f[0]=1.0;
+    f[1]=-2*q[0];
+
+    for(i=2; i<=5; i++)
+    {
+        b=-2*q[qidx];
+        f[i]=b*f[i-1]+2*f[i-2];
+ 
+        for(j=i-1; j>1; j--)
+        {
+            f[j]+=b  * f[j-1] + f[j-2];
+        }
+        f[1]+=b;
+	qidx+=2;
+    }
+}
 /**
  * \brief LSP to LP conversion (3.2.6)
  * \param ctx private data structure
@@ -1312,33 +1334,15 @@ static void g729_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
  */
 static void g729_lsp2lp(G729A_Context* ctx, float* q, float* a)
 {
-    int i,j, qidx=0;
+    int i;
     float f1[6];
     float f2[6];
 
     float ff1[5];
     float ff2[5];
 
-    f1[0]=1.0;
-    f2[0]=1.0;
-    f1[1]=-2*q[0];
-    f2[1]=-2*q[1];
-    qidx+=2;
-
-    for(i=2; i<=5; i++)
-    {
-        f1[i]=f1[i-2];
-        f2[i]=f2[i-2];
- 
-        for(j=i; j>1; j--)
-        {
-            f1[j]+=-2*q[qidx]  * f1[j-1] + f1[j-2];
-            f2[j]+=-2*q[qidx+1]* f2[j-1] + f2[j-2];
-        }
-        f1[1]-=2*q[qidx];
-        f2[1]-=2*q[qidx+1];
-        qidx+=2;
-    }
+    get_lsp_coefficients(q, f1);
+    get_lsp_coefficients(q+1, f2);
 
     /* 3.2.6, Equation 25*/
     for(i=0;i<5;i++)
