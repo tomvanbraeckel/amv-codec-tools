@@ -1632,8 +1632,8 @@ static int ff_g729a_decode_frame(AVCodecContext *avctx,
     g729_bytes2parm(ctx, buf, buf_size, parm);
 
     *data_size=0;
-    g729a_decode_frame_internal(ctx,(short*)data, l_frame, parm);
-    *data_size+=l_frame;
+    g729a_decode_frame_internal(ctx,(short*)data, l_frame*sizeof(short), parm);
+    *data_size+=l_frame*sizeof(short);
 
     return buf_size;
 }
