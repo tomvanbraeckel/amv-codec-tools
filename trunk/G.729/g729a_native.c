@@ -856,8 +856,8 @@ static void g729a_adaptive_gain_control(G729A_Context *ctx, float gain_before, f
 
     for(n=0; n<ctx->subframe_size; n++)
     {
-        speech[n] *= ctx->g;
         ctx->g=0.9*ctx->g+0.1*gain;
+        speech[n] *= ctx->g;
     }
 }
 
