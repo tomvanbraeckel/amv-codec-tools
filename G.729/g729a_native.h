@@ -11,6 +11,7 @@
 #define AVERROR(x) x
 
 #define ENOMEM -1
+#define EIO -2
 
 #define av_log(ctx,lvl,fmt,param1) printf(fmt,param1)
 
@@ -45,6 +46,11 @@ static void init_get_bits(GetBitContext* pgb, const unsigned char* buf, int buf_
 }
 
 static int get_bits1(GetBitContext* pgb)
+{
+    return 0;
+}
+
+static int get_bits(GetBitContext* pgb, int n)
 {
     return 0;
 }
