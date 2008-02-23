@@ -1500,12 +1500,9 @@ static int ff_g729a_decoder_close(AVCodecContext *avctx)
  * \param out_frame array for output PCM samples
  * \param out_frame_size maximum number of elements in output array
  */
-static int  g729a_decode_frame_internal(void* context, short* serial, int serial_size, short* out_frame, int out_frame_size)
+static int  g729a_decode_frame_internal(void* context, short* out_frame, int out_frame_size, int *parm)
 {
     G729A_Context* ctx=context;
-    int parm[VECTOR_SIZE];
-    int idx=2;
-    int i,j;
     float lp[20];
     float lsp[10];
     int t;     ///< pitch delay, fraction part
@@ -1520,18 +1517,6 @@ static int  g729a_decode_frame_internal(void* context, short* serial, int serial
 
     ctx->data_error=0;
     ctx->bad_pitch=0;
-
-    for(i=0; i<VECTOR_SIZE; i++)
-    {
-        if(formats[ctx->format].vector_bits[i]>16)
-            return 0;
-        parm[i]=0;
-        for(j=0; j<formats[ctx->format].vector_bits[i]; j++)
-        {
-            parm[i]<<= 1;
-            parm[i] |= serial[idx++]==0x81?1:0;
-        }
-    }
 
     if(!g729_parity_check(parm[4], parm[5]))
         ctx->bad_pitch=1;
@@ -1606,31 +1591,50 @@ static int  g729a_decode_frame_internal(void* context, short* serial, int serial
     return ctx->subframe_size;
 }
 
+/**
+ * \brief decodes one G.729 frame (10 bytes long) into parameters vector
+ * \param ctx private data structure
+ * \param buf 10 bytes of decoder parameters
+ * \param buf_size size of input buffer
+ * \param int parm output vector of decoded parameters
+ *
+ * \return 0 if success, nonzero - otherwise
+ */
+static int g729_bytes2parm(G729A_Context *ctx, const uint8_t *buf, int buf_size, int *parm)
+{
+    GetBitContext gb;
+    int i;
+    int l_frame=formats[ctx->format].frame_size>>3;
+
+    if(buf_size<l_frame)
+        return AVERROR(EIO);
+
+    init_get_bits(&gb, buf, buf_size);
+
+    for(i=0; i<VECTOR_SIZE; i++)
+    {
+        if(formats[ctx->format].vector_bits[i]>16)
+            return AVERROR(EIO);
+        parm[i]=get_bits(&gb, formats[ctx->format].vector_bits[i]);
+    }
+    return 0;
+}
+
+
 static int ff_g729a_decode_frame(AVCodecContext *avctx,
                              void *data, int *data_size,
                              const uint8_t *buf, int buf_size)
 {
+    int parm[VECTOR_SIZE];
     G729A_Context *ctx=avctx->priv_data;
-    GetBitContext gb;
-    int i,j,k;
     int l_frame=formats[ctx->format].frame_size;
-    int16_t serial[200];
 
-    init_get_bits(&gb, buf, buf_size);
+    g729_bytes2parm(ctx, buf, buf_size, parm);
 
     *data_size=0;
-    for(j=0; j<1; j++){
-        int dst=0;
-        serial[dst++]=0x6b21;
-        serial[dst++]=80;
-        
-        for(i=0;i<FFMIN((200-2)/8, buf_size);i++)
-            for(k=0; k<8; k++){
-                serial[dst++]=get_bits1(&gb)?0x81:0x7f;
-            }
-        g729a_decode_frame_internal(ctx,serial, 0/*not used yet*/,(short*)data+j*l_frame, l_frame);
-        *data_size+=2*l_frame;
-    }
+    g729a_decode_frame_internal(ctx,(short*)data, l_frame, parm);
+    *data_size+=l_frame;
+
     return buf_size;
 }
 
@@ -1646,6 +1650,37 @@ AVCodec g729a_decoder = {
 };
 
 #ifdef G729A_NATIVE
+/**
+ * \brief decodes ITU's bitstream format frame intovector of  parameters
+ * \param ctx private data structure
+ * \param serial input bitstream
+ * \param serial_size size of input bitstream buffer
+ * \param parm output vector of parameters
+ *
+ * \return 0 if success, nonzero - otherwise
+ */
+static int g729_bitstream2parm(G729A_Context *ctx, short* serial, int serial_size, int *parm)
+{
+    int i,j;
+    int idx=2;
+
+    if(serial_size<2*ctx->subframe_size+2)
+        return AVERROR(EIO);
+
+    for(i=0; i<VECTOR_SIZE; i++)
+    {
+        if(formats[ctx->format].vector_bits[i]>16)
+            return AVERROR(EIO);
+        parm[i]=0;
+        for(j=0; j<formats[ctx->format].vector_bits[i]; j++)
+        {
+            parm[i]<<= 1;
+            parm[i] |= serial[idx++]==0x81?1:0;
+        }
+    }
+    return 0;
+}
+
 /* debugging  stubs */
 void* g729a_decoder_init()
 {
@@ -1663,7 +1698,9 @@ int g729a_decoder_uninit(void* ctx)
 }
 int  g729a_decode_frame(AVCodecContext* avctx, short* serial, int serial_size, short* out_frame, int out_frame_size)
 {
-    return g729a_decode_frame_internal(avctx->priv_data, serial, serial_size, out_frame, out_frame_size);
+    int parm[VECTOR_SIZE];
+    g729_bitstream2parm(avctx->priv_data, serial, 82, parm);
+    return g729a_decode_frame_internal(avctx->priv_data, out_frame, out_frame_size, parm);
 }
 /*
 ---------------------------------------------------------------------------
