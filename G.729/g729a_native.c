@@ -80,9 +80,9 @@ test    : PASS
 #define L2_BITS 5
 ///First stage hihjer vector of quantizer (size in bits)
 #define L3_BITS 5
-///Pitch delay first subframe (size in bits)
+///Adaptive codebook index for first subframe (size in bits)
 #define P1_BITS 8
-///Pitch delay second subframe (size in bits)
+///Adaptive codebook index for second subframe (size in bits)
 #define P2_BITS 5
 ///Parity bit for pitch delay (size in bits)
 #define P0_BITS 1
@@ -529,8 +529,8 @@ static inline uint16_t g729_random(G729A_Context* ctx)
 
 /**
  * \brief Check parity bit (3.7.2)
- * \param P1 Pitch delay first subframe
- * \param P0 Parity bit for Pitch delay
+ * \param P1 Adaptive codebook index for first subframe
+ * \param P0 Parity bit for P1
  *
  * \return 1 if parity check is ok, 0 - otherwise
  */
@@ -543,7 +543,7 @@ int g729_parity_check(uint8_t P1, int P0)
 /**
  * \brief Decoding of the adaptive-codebook vector delay for first subframe (4.1.3)
  * \param ctx private data structure
- * \param P1 Pitch delay first subframe
+ * \param P1 Adaptive codebook index for first subframe
  * \param intT [out] integer part of delay
  * \param frac [out] fractional part of delay [-1, 0, 1]
  */
@@ -573,7 +573,7 @@ static void g729_decode_ac_delay_subframe1(G729A_Context* ctx, int P1, int* intT
 /**
  * \brief Decoding of the adaptive-codebook vector delay for second subframe (4.1.3)
  * \param ctx private data structure
- * \param P1 Pitch delay second subframe
+ * \param P1 Adaptive codebook index for second subframe
  * \param T1 first subframe's vector delay integer part
  * \param intT [out] integer part of delay
  * \param frac [out] fractional part of delay [-1, 0, 1]
