@@ -511,17 +511,14 @@ static inline uint16_t g729_random(G729A_Context* ctx)
  */
 int g729_parity_check(int P1, int P0)
 {
-    int P=P1>>2;
-    int S=P0&1;
-    int i;
+    //Parity is calculated on six most significant bits of P1
+    P1 >>= 1;
+    P1 = (P1 & ~1)|(P0 & 1);
+    P1 ^= P1 >> 4;
+    P1 ^= P1 >> 2;
+    P1 ^= P1 >> 1;
 
-    for(i=0; i<6; i++)
-    {
-        S ^= P&1;
-        P >>= 1;
-    }
-    S ^= 1;
-    return (!S);
+    return P1 & 1;
 }
 
 /**
