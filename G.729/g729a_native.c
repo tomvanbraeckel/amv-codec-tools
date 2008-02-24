@@ -824,18 +824,18 @@ static void g729_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, f
 
 /**
  * \brief Calculates gain value of speech signal
- * \param ctx private data structure
  * \param speech signal buffer
+ * \param length signal buffer length
  *
  * \return squared gain value
  */
-static float g729_get_signal_gain(G729A_Context *ctx, float *speech)
+static float g729_get_signal_gain(float *speech, int length)
 {
     int n;
     float gain;
 
-    gain=0;
-    for(n=0; n<ctx->subframe_size; n++)
+    gain=speech[0]*speech[0];
+    for(n=1; n<length; n++)
        gain+=speech[n]*speech[n];
 
     return gain;
@@ -867,7 +867,6 @@ static void g729a_adaptive_gain_control(G729A_Context *ctx, float gain_before, f
 
 /**
  * \brief Calculates coefficients of weighted A(z/GAMMA) filter
- * \param ctx private data structure
  * \param Az source filter
  * \param gamma weight coefficients
  * \param Azg resulted weighted A(z/GAMMA) filter
@@ -875,16 +874,16 @@ static void g729a_adaptive_gain_control(G729A_Context *ctx, float gain_before, f
  * Azg[i]=GAMMA^i*Az[i] , i=0..subframe_size
  *
  */
-static void g729a_weighted_filter(G729A_Context *ctx, float* Az, float gamma, float *Azg)
+static void g729a_weighted_filter(float* Az, float gamma, float *Azg)
 {
-    float gamma_tmp;
+    float gamma_pow;
     int n;
 
-    gamma_tmp=gamma;
+    gamma_pow=gamma;
     for(n=0; n<10; n++)
     {
-        Azg[n]=Az[n]*gamma_tmp;
-        gamma_tmp*=gamma;
+        Azg[n]=Az[n]*gamma_pow;
+        gamma_pow*=gamma;
     }
 }
 
@@ -897,9 +896,9 @@ static void g729a_long_term_filter(G729A_Context *ctx, float *residual_filt)
 {
     int k, n, intT0;
     float gl;      ///< gain coefficient for long-term postfilter
-    float corr_t0; ///< corellation of residual signal with delay intT0
-    float corr_0;  ///< corellation of residual signal with delay 0
-    float corellation, corr_max;
+    float corr_t0; ///< correlation of residual signal with delay intT0
+    float corr_0;  ///< correlation of residual signal with delay 0
+    float correlation, corr_max;
     float inv_glgp;///< 1.0/(1+gl*GAMMA_P)
     float glgp_inv_glgp; ///< gl*GAMMA_P/(1+gl*GAMMA_P);
 
@@ -913,36 +912,29 @@ static void g729a_long_term_filter(G729A_Context *ctx, float *residual_filt)
        Second pass is not used in G.729A: fractional part is always zero
     */
     k=minT0;
-    corellation=0;
+    correlation=0;
     /* 4.2.1, Equation 80 */
     for(n=0; n<ctx->subframe_size; n++)
-        corellation+=ctx->residual[n+PITCH_MAX]*ctx->residual[n+PITCH_MAX-k];
+        correlation+=ctx->residual[n+PITCH_MAX]*ctx->residual[n+PITCH_MAX-k];
 
-    corr_max=corellation;
+    corr_max=correlation;
     intT0=k;
 
     for(; k<=maxT0; k++)
     {
-        corellation=0;
+        correlation=0;
         /* 4.2.1, Equation 80 */
         for(n=0; n<ctx->subframe_size; n++)
-            corellation+=ctx->residual[n+PITCH_MAX]*ctx->residual[n+PITCH_MAX-k];
-        if(corellation>corr_max)
+            correlation+=ctx->residual[n+PITCH_MAX]*ctx->residual[n+PITCH_MAX-k];
+        if(correlation>corr_max)
         {
-            corr_max=corellation;
+            corr_max=correlation;
             intT0=k;
         }
     }
 
-    corellation=0;
-    for(n=0; n<ctx->subframe_size; n++)
-        corellation+=ctx->residual[n+PITCH_MAX-intT0]*ctx->residual[n+PITCH_MAX-intT0];
-    corr_t0=corellation;
-
-    corellation=0;
-    for(n=0; n<ctx->subframe_size; n++)
-        corellation+=ctx->residual[n+PITCH_MAX]*ctx->residual[n+PITCH_MAX];
-    corr_0=corellation;
+    corr_t0=g729_get_signal_gain(ctx->residual+PITCH_MAX-intT0, ctx->subframe_size);
+    corr_0=g729_get_signal_gain(ctx->residual+PITCH_MAX, ctx->subframe_size);
 
     /* 4.2.1, Equation 82. checking if filter should be disabled */
     if(corr_max*corr_max < 0.5*corr_0*corr_t0)
@@ -1053,9 +1045,9 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     float gain_before, gain_after;
 
     /* Calculating coefficients of A(z/GAMMA_N) filter */
-    g729a_weighted_filter(ctx, lp, GAMMA_N, lp_gn);
+    g729a_weighted_filter(lp, GAMMA_N, lp_gn);
     /* Calculating coefficients of A(z/GAMMA_D) filter */
-    g729a_weighted_filter(ctx, lp, GAMMA_D, lp_gd);
+    g729a_weighted_filter(lp, GAMMA_D, lp_gd);
 
     /*
       4.2.1, Equation 79 Residual signal calculation
@@ -1069,7 +1061,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     }
 
     /* Calculating gain of unfiltered signal for using in AGC */
-    gain_before=g729_get_signal_gain(ctx, speech);
+    gain_before=g729_get_signal_gain(speech, ctx->subframe_size);
 
     /* long-term filter (A.4.2.1) */
     g729a_long_term_filter(ctx, residual_filt);
@@ -1081,7 +1073,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     g729_lp_synthesis_filter(ctx, lp_gd, residual_filt, speech, ctx->res_filter_data);
 
     /* Calculating gain of filtered signal for using in AGC */
-    gain_after=g729_get_signal_gain(ctx,speech);
+    gain_after=g729_get_signal_gain(speech, ctx->subframe_size);
 
     /* adaptive gain control (A.4.2.4) */
     g729a_adaptive_gain_control(ctx, gain_before, gain_after, speech);
