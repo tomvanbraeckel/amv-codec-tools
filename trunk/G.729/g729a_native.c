@@ -463,36 +463,39 @@ static const float cb_GB[GB_CB_SIZE][2] = {
 
 /**
  * MA predictor (3.2.4)
+ * values are multiplied by 10000
  */
-static const float ma_predictor[2][MA_NP][10] = {
+static const uint16_t ma_predictor[2][MA_NP][10] = {
   {
-    { 0.2570,    0.2780,    0.2800,    0.2736,    0.2757,    0.2764,    0.2675,    0.2678,    0.2779,    0.2647},
-    { 0.2142,    0.2194,    0.2331,    0.2230,    0.2272,    0.2252,    0.2148,    0.2123,    0.2115,    0.2096},
-    { 0.1670,    0.1523,    0.1567,    0.1580,    0.1601,    0.1569,    0.1589,    0.1555,    0.1474,    0.1571},
-    { 0.1238,    0.0925,    0.0798,    0.0923,    0.0890,    0.0828,    0.1010,    0.0988,    0.0872,    0.1060},
+    { 2570,    2780,    2800,    2736,    2757,    2764,    2675,    2678,    2779,    2647},
+    { 2142,    2194,    2331,    2230,    2272,    2252,    2148,    2123,    2115,    2096},
+    { 1670,    1523,    1567,    1580,    1601,    1569,    1589,    1555,    1474,    1571},
+    { 1238,     925,     798,     923,     890,     828,    1010,     988,     872,    1060},
   },
   {
-    { 0.2360,    0.2405,    0.2499,    0.2495,    0.2517,    0.2591,    0.2636,    0.2625,    0.2551,    0.2310},
-    { 0.1285,    0.0925,    0.0779,    0.1060,    0.1183,    0.1176,    0.1277,    0.1268,    0.1193,    0.1211},
-    { 0.0981,    0.0589,    0.0401,    0.0654,    0.0761,    0.0728,    0.0841,    0.0826,    0.0776,    0.0891},
-    { 0.0923,    0.0486,    0.0287,    0.0498,    0.0526,    0.0482,    0.0621,    0.0636,    0.0584,    0.0794}
+    { 2360,    2405,    2499,    2495,    2517,    2591,    2636,    2625,    2551,    2310},
+    { 1285,     925,     779,    1060,    1183,    1176,    1277,    1268,    1193,    1211},
+    {  981,     589,     401,     654,     761,     728,     841,     826,     776,     891},
+    {  923,     486,     287,     498,     526,     482,     621,     636,     584,     794}
   }
 };
 
 /**
  * ma_predicot_sum[i] := 1-sum{1}{4}{ma_predictor[k][i]}
+ * values are multiplied by 10000
  */
-static const float ma_predictor_sum[2][10] = {
-  { 0.2380, 0.2578, 0.2504, 0.2531, 0.2480, 0.2587, 0.2578, 0.2656, 0.2760, 0.2626},
-  { 0.4451, 0.5595, 0.6034, 0.5293, 0.5013, 0.5023, 0.4625, 0.4645, 0.4896, 0.4794}
+static const uint16_t ma_predictor_sum[2][10] = {
+  { 2380, 2578, 2504, 2531, 2480, 2587, 2578, 2656, 2760, 2626},
+  { 4451, 5595, 6034, 5293, 5013, 5023, 4625, 4645, 4896, 4794}
 };
 
 /**
  * MA prediction coefficients (3.9.1, near Equation 69)
+ * values are multiplied by 100
  */
-static const float ma_prediction_coeff[4] =
+static const uint8_t ma_prediction_coeff[4] =
 {
-  0.68, 0.58, 0.34, 0.19
+  68, 58, 34, 19
 };
 
 /**
@@ -769,7 +772,7 @@ static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, flo
 
     /* 3.9.1, Equation 69 */
     for(i=0; i<4; i++)
-        energy+= ctx->pred_vect_q[i] * ma_prediction_coeff[i];
+        energy+= 0.01 * ctx->pred_vect_q[i] * ma_prediction_coeff[i];
 
     /* 3.9.1, Equation 71 */
     energy = exp(M_LN10*energy/20); //FIXME: should there be subframe_size/2 ?
@@ -1193,7 +1196,8 @@ static void g729_lsp_restore_from_previous(G729A_Context *ctx, float* lsfq)
     /* 4.4.1, Equation 92 */
     for(i=0; i<10; i++)
     {
-        lq[i]=lsfq[i];
+        // ma_predictor and ma_predictor_sum are multiplied by 10000
+        lq[i]=10000.0 * lsfq[i];
         for(k=0;k<MA_NP; k++)
             lq[i]-=ma_predictor[ctx->prev_mode][k][i];
         lq[i]/=ma_predictor_sum[ctx->prev_mode][i];
@@ -1254,6 +1258,8 @@ static void g729_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
         lsfq[i]=lq[i] * ma_predictor_sum[L0][i];
         for(k=0; k<MA_NP; k++)
             lsfq[i] += (ctx->lq_prev[k][i] * ma_predictor[L0][k][i]);
+	//ma_predictor and ma_predictor_sum were multiplied by 10000
+	lsfq[i] *= 0.0001;
         //Saving LSF for using when error occured in next frames
         ctx->lsf_prev[i]=lsfq[i];
     }
