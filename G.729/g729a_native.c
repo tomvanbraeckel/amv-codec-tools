@@ -113,7 +113,7 @@ typedef struct
     float res_filter_data[10];
     float ht_prev_data;     ///< previous data for 4.2.3, equation 86
     float g;                ///< gain coefficient (4.2.4)
-    int rand_seed;          ///< seed for random number generator (4.4.4)
+    uint16_t rand_seed;     ///< seed for random number generator (4.4.4)
     int prev_mode;
     //High-pass filter data
     float hpf_f1;
@@ -498,7 +498,7 @@ static const float lsp_init[10] = {
  */
 static inline uint16_t g729_random(G729A_Context* ctx)
 {
-    return ctx->rand_seed = (uint16_t)(31821 * (uint32_t)ctx->rand_seed + 13849 + ctx->rand_seed);
+    return ctx->rand_seed = 31821 * (uint32_t)ctx->rand_seed + 13849;
 }
 
 
