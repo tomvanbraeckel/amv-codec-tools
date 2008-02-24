@@ -72,32 +72,28 @@ test    : PASS
 
 
 
-/*
-    Length in bits of decoder parameters
-*/
-
-//Switched MA predictor of LSP quantizer (size in bits)
+///Switched MA predictor of LSP quantizer (size in bits)
 #define L0_BITS 1
-//First stage vector of quantizer (size in bits)
+///First stage vector of quantizer (size in bits)
 #define L1_BITS 7
-//First stage lowervector of quantizer (size in bits)
+///First stage lowervector of quantizer (size in bits)
 #define L2_BITS 5
-//First stage hihjer vector of quantizer (size in bits)
+///First stage hihjer vector of quantizer (size in bits)
 #define L3_BITS 5
-//Pitch delay first subframe (size in bits)
+///Pitch delay first subframe (size in bits)
 #define P1_BITS 8
-//Pitch delay second subframe (size in bits)
+///Pitch delay second subframe (size in bits)
 #define P2_BITS 5
-//Parity bit for pitch delay (size in bits)
+///Parity bit for pitch delay (size in bits)
 #define P0_BITS 1
-// GA codebook index (size in bits)
+/// GA codebook index (size in bits)
 #define GA_BITS 3
-// GB codebook index (size in bits)
+/// GB codebook index (size in bits)
 #define GB_BITS 4
 /// Number of pulses in fixed-codebook vector
 #define FC_PULSE_COUNT 4
 
-//Size of parameters vector
+///Size of parameters vector
 #define VECTOR_SIZE 15
 
 static const struct{
@@ -112,7 +108,7 @@ static const struct{
 #endif //G729_SUPPORT_4400
 };
 
-/** MA prediction order */
+/// MA prediction order
 #define MA_NP 4
 
 typedef struct
@@ -137,7 +133,7 @@ typedef struct
     float ht_prev_data;     ///< previous data for 4.2.3, equation 86
     float g;                ///< gain coefficient (4.2.4)
     uint16_t rand_seed;     ///< seed for random number generator (4.4.4)
-    int prev_mode;
+    int prev_mode;          ///< L0 from previous frame
     //High-pass filter data
     float hpf_f1;
     float hpf_f2;
