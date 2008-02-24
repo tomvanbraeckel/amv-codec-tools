@@ -132,7 +132,7 @@ typedef struct
     float res_filter_data[10];
     float ht_prev_data;     ///< previous data for 4.2.3, equation 86
     float g;                ///< gain coefficient (4.2.4)
-    uint16_t rand_seed;     ///< seed for random number generator (4.4.4)
+    uint16_t rand_value;    ///< random number generator value (4.4.4)
     int prev_mode;          ///< L0 from previous frame
     //High-pass filter data
     float hpf_f1;
@@ -523,7 +523,7 @@ static const float lsp_init[10] = {
  */
 static inline uint16_t g729_random(G729A_Context* ctx)
 {
-    return ctx->rand_seed = 31821 * (uint32_t)ctx->rand_seed + 13849;
+    return ctx->rand_value = 31821 * (uint32_t)ctx->rand_value + 13849;
 }
 
 
@@ -1456,7 +1456,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
 
     ctx->residual=av_mallocz((PITCH_MAX+ctx->subframe_size)*sizeof(float));
     /* random seed initialization (4.4.4) */
-    ctx->rand_seed=21845;
+    ctx->rand_value=21845;
 
     //quantized prediction error
     for(i=0; i<4; i++)
