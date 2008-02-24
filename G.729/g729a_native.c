@@ -647,7 +647,7 @@ static void g729_decode_fc_vector(G729A_Context* ctx, int C, int S, float* fc_v)
     for(i=0; i<FC_PULSE_COUNT-1; i++)
     {
         index=(accC&mask) * 5 + i;
-        //overflow can occure in 4.4k case
+        //overflow can occur in 4.4k case
         if(index>=ctx->subframe_size)
         {
             ctx->data_error=1;
@@ -658,7 +658,7 @@ static void g729_decode_fc_vector(G729A_Context* ctx, int C, int S, float* fc_v)
         accS>>=1;
     }
     index=((accC>>1)&mask) * 5 + i + (accC&1);
-    //overflow can occure in 4.4k case
+    //overflow can occur in 4.4k case
     if(index>=ctx->subframe_size)
     {
         ctx->data_error=1;
