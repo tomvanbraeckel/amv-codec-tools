@@ -407,7 +407,7 @@ static const int16_t cb_L3[1<<L3_BITS][5] = {
  * FIXME: what means 0.3 and 3 here?
  *
  */
-static const float b30[31]=
+static const float interp_filter[31]=
 {
    0.898517,
    0.769271,   0.448635,   0.095915,
@@ -581,7 +581,7 @@ static void g729_decode_ac_delay_subframe1(G729A_Context* ctx, int P1, int* intT
 static void g729_decode_ac_delay_subframe2(G729A_Context* ctx, int P2, int intT1, int* intT, int* frac)
 {
 
-    int tmin=FFMIN(FFMAX(intT1-5, PITCH_MIN)+9, PITCH_MAX)-9;
+    int tmin=FFMIN(FFMAX(intT1-5, PITCH_MIN), PITCH_MAX-9);
 
     if(ctx->data_error)
     {
@@ -628,8 +628,8 @@ static void g729_decode_ac_vector(G729A_Context* ctx, int k, int t, float* ac_v)
         for(i=0; i<10; i++)
         {
             /*  R(x):=ac_v[-k+x] */
-            v+=ac_v[n-k-i]*b30[t+3*i];     //R(n-i)*b30(t+3i)
-            v+=ac_v[n-k+i+1]*b30[3-t+3*i]; //R(n+i+1)*b30(3-t+3i)
+            v+=ac_v[n-k-i]*interp_filter[t+3*i];     //R(n-i)*b30(t+3i)
+            v+=ac_v[n-k+i+1]*interp_filter[3-t+3*i]; //R(n+i+1)*b30(3-t+3i)
         }
         ac_v[n]=v;
     }
@@ -638,8 +638,8 @@ static void g729_decode_ac_vector(G729A_Context* ctx, int k, int t, float* ac_v)
 /**
  * \brief Decoding fo the fixed-codebook vector (3.8)
  * \param ctx private data structure
- * \param C Fixed codebook
- * \param S Signs of fixed-codebook pulses (0 bit value means negative sign)
+ * \param fc_index Fixed codebook index
+ * \param pulses_signs Signs of the excitation pulses (0 bit value means negative sign)
  * \param fc_v [out] decoded fixed codebook vector
  *
  * bit allocations:
@@ -648,57 +648,55 @@ static void g729_decode_ac_vector(G729A_Context* ctx, int k, int t, float* ac_v)
  *
  * FIXME: error handling required
  */
-static void g729_decode_fc_vector(G729A_Context* ctx, int C, int S, float* fc_v)
+static void g729_decode_fc_vector(G729A_Context* ctx, int fc_index, int pulses_signs, float* fc_v)
 {
-    int accC=C;
-    int accS=S;
     int i;
     int index;
     int bits=formats[ctx->format].fc_index_bits;
-    int mask=(1<<bits)-1;
+    int mask=(1 << bits) - 1;
 
     memset(fc_v, 0, sizeof(float)*ctx->subframe_size);
 
     /* reverted Equation 62 and Equation 45 */
     for(i=0; i<FC_PULSE_COUNT-1; i++)
     {
-        index=(accC&mask) * 5 + i;
+        index=(fc_index & mask) * 5 + i;
         //overflow can occur in 4.4k case
         if(index>=ctx->subframe_size)
         {
             ctx->data_error=1;
             return;
         }
-        fc_v[ index ] = (accS&1) ? 1 : -1;
-        accC>>=bits;
-        accS>>=1;
+        fc_v[ index ] = (pulses_signs & 1) ? 1 : -1;
+        fc_index>>=bits;
+        pulses_signs>>=1;
     }
-    index=((accC>>1)&mask) * 5 + i + (accC&1);
+    index=((fc_index>>1) & mask) * 5 + i + (fc_index & 1);
     //overflow can occur in 4.4k case
     if(index>=ctx->subframe_size)
     {
         ctx->data_error=1;
         return;
     }
-    fc_v[ index ] = (accS&1) ? 1 : -1;
+    fc_v[ index ] = (pulses_signs & 1) ? 1 : -1;
 }
 
 /**
  * \brief fixed codebook vector modification if delay is less than 40 (4.1.4 and 3.8)
- * \param T pitch delay to check
+ * \param pitch_delay integer part of pitch delay
  * \param fc_v [in/out] fixed codebook vector to change
  *
- * \remark if T>=subframe_size no changes to vector are made
+ * \remark if pitch_delay>=subframe_size no changes to vector are made
  */
-static void g729_fix_fc_vector(G729A_Context *ctx, int T, float* fc_v)
+static void g729_fix_fc_vector(G729A_Context *ctx, int pitch_delay, float* fc_v)
 {
     int i;
 
-    if(T>=ctx->subframe_size)
+    if(pitch_delay>=ctx->subframe_size)
         return;
 
-    for(i=T; i<ctx->subframe_size;i++)
-        fc_v[i]+=fc_v[i-T]*ctx->gain_pitch;
+    for(i=pitch_delay; i<ctx->subframe_size;i++)
+        fc_v[i]+=fc_v[i-pitch_delay]*ctx->gain_pitch;
 }
 
 /**
