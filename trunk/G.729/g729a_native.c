@@ -2,6 +2,8 @@
  * G.729 Annex A decoder
  * Copyright (c) 2007 Vladimir Voroshilov
  *
+ * This file is part of FFmpeg.
+ *
  * FFmpeg is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -490,17 +492,6 @@ static const float lsp_init[10] = {
           Internal routines
 ------------------------------------------------------------------------------
 */
-
-/**
- * \brief rouding function from reference code
- *
- * FIXME: found system replacement for it
- */
-static inline int g729_round(float f)
-{
-    int i=ceil(f*2);
-    return i>>1;
-}
 
 /**
  * \brief pseudo random number generator
@@ -1156,7 +1147,7 @@ static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, s
     {
         tmp_speech[i] = FFMIN(tmp_speech[i],32767.0);
         tmp_speech[i] = FFMAX(tmp_speech[i],-32768.0);
-        speech[i]=g729_round(tmp_speech[i]);
+        speech[i]=tmp_speech[i];
     }
 
     av_free(tmp_speech_buf);
