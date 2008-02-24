@@ -534,16 +534,10 @@ static inline uint16_t g729_random(G729A_Context* ctx)
  *
  * \return 1 if parity check is ok, 0 - otherwise
  */
-int g729_parity_check(int P1, int P0)
+int g729_parity_check(uint8_t P1, int P0)
 {
     //Parity is calculated on six most significant bits of P1
-    P1 >>= 1;
-    P1 = (P1 & ~1)|(P0 & 1);
-    P1 ^= P1 >> 4;
-    P1 ^= P1 >> 2;
-    P1 ^= P1 >> 1;
-
-    return P1 & 1;
+   return ((0x6996966996696996ULL >> (P1>>2)) ^ P0) & 1;
 }
 
 /**
