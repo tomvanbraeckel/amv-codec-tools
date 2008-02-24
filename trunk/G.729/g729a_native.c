@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <assert.h>
 
 /*
 
@@ -57,40 +58,62 @@ test    : PASS
 #include "bitstream.h"
 #endif
 
-#define VECTOR_SIZE 15
-#define MA_NP 4
 
 /*
 -------------------------------------------------------------------------------
     Formats description
 -------------------------------------------------------------------------------
 */
+
+/**
+ * Maximum size of one subframe over supported formats
+ */
+#define MAX_SUBFRAME_SIZE 44
+
+
+
+/*
+    Length in bits of decoder parameters
+*/
+
+//Switched MA predictor of LSP quantizer (size in bits)
+#define L0_BITS 1
+//First stage vector of quantizer (size in bits)
+#define L1_BITS 7
+//First stage lowervector of quantizer (size in bits)
+#define L2_BITS 5
+//First stage hihjer vector of quantizer (size in bits)
+#define L3_BITS 5
+//Pitch delay first subframe (size in bits)
+#define P1_BITS 8
+//Pitch delay second subframe (size in bits)
+#define P2_BITS 5
+//Parity bit for pitch delay (size in bits)
+#define P0_BITS 1
+// GA codebook index (size in bits)
+#define GA_BITS 3
+// GB codebook index (size in bits)
+#define GB_BITS 4
 /// Number of pulses in fixed-codebook vector
 #define FC_PULSE_COUNT 4
-/**
- * GA codebook (3.9.2)
- */
-#define GA_BITS 3
-/*
- * GB codebook (3.9.2)
- */
-#define GB_BITS 4
+
+//Size of parameters vector
+#define VECTOR_SIZE 15
 
 static const struct{
-    char* name;
     int sample_rate;
-    char frame_size; //bits
+    char bits_per_frame;
     char fc_index_bits;
-    char vector_bits[VECTOR_SIZE];
-    char silence_compression;
 } formats[]={
-  {"8Kb/s",   8000, 80, 3, {1,7,5,5,8,1,/*fc_index_bits*/3*FC_PULSE_COUNT+1,FC_PULSE_COUNT,GA_BITS,GB_BITS,5,/*fc_index_bits*/3*FC_PULSE_COUNT+1, FC_PULSE_COUNT,GA_BITS,GB_BITS}, 0},
+  {8000, 80, 3},
 #ifdef G729_SUPPORT_4400
 // Note: may not work
-  {"4.4Kb/s", 4400, 88, 4, {1,7,5,5,8,1,/*fc_index_bits*/4*FC_PULSE_COUNT+1,FC_PULSE_COUNT,GA_BITS,GB_BITS,5,/*fc_index_bits*/4*FC_PULSE_COUNT+1, FC_PULSE_COUNT,GA_BITS,GB_BITS}, 0},
+  {4400, 88, 4},
 #endif //G729_SUPPORT_4400
-  { NULL,     0,    0,  0, {0,0,0,0,0,0, 0, 0,0,0,0, 0, 0,0,0}, 0}
 };
+
+/** MA prediction order */
+#define MA_NP 4
 
 typedef struct
 {
@@ -98,8 +121,8 @@ typedef struct
     int subframe_size;      ///< number of samples produced from one subframe
     int data_error;         ///< data error detected during decoding
     int bad_pitch;          ///< parity check failed
-    float* exc_base;          ///< past excitation signal buffer
-    float* exc;               ///< start of past excitation data in buffer
+    float* exc_base;        ///< past excitation signal buffer
+    float* exc;             ///< start of past excitation data in buffer
     int intT2_prev;         ///< int(T2) value of previous frame (4.1.3)
     int intT1;              ///< int(T1) value of first subframe
     float *lq_prev[MA_NP];  ///< l[i], LSP quantizer output (3.2.4)
@@ -442,7 +465,7 @@ static const float cb_GB[GB_CB_SIZE][2] = {
 /**
  * MA predictor (3.2.4)
  */
-static const float ma_predictor[2][4][10] = {
+static const float ma_predictor[2][MA_NP][10] = {
   {
     { 0.2570,    0.2780,    0.2800,    0.2736,    0.2757,    0.2764,    0.2675,    0.2678,    0.2779,    0.2647},
     { 0.2142,    0.2194,    0.2331,    0.2230,    0.2272,    0.2252,    0.2148,    0.2123,    0.2115,    0.2096},
@@ -461,8 +484,8 @@ static const float ma_predictor[2][4][10] = {
  * ma_predicot_sum[i] := 1-sum{1}{4}{ma_predictor[k][i]}
  */
 static const float ma_predictor_sum[2][10] = {
-  { 0.2380000054836, 0.2578000128269, 0.2504000067711, 0.2531000375748, 0.2480000108480, 0.2587000429630, 0.2577999532223, 0.2656000256538, 0.2760000228882, 0.2625999450684},
-  { 0.4451000094414, 0.5595000386238, 0.6034000515938, 0.5292999744415, 0.5012999176979, 0.5023000240326, 0.4625000357628, 0.4645000100136, 0.4895999729633, 0.4793999791145}
+  { 0.2380, 0.2578, 0.2504, 0.2531, 0.2480, 0.2587, 0.2578, 0.2656, 0.2760, 0.2626},
+  { 0.4451, 0.5595, 0.6034, 0.5293, 0.5013, 0.5023, 0.4625, 0.4645, 0.4896, 0.4794}
 };
 
 /**
@@ -803,7 +826,7 @@ static void g729_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc,
  */
 static void g729_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, float *out, float *filter_data)
 {
-    float* tmp_buf=av_mallocz((10+ctx->subframe_size)*sizeof(float));
+    float tmp_buf[MAX_SUBFRAME_SIZE+10];
     float* tmp=tmp_buf+10;
     int i,n;
 
@@ -1035,7 +1058,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
 {
     int i, n;
     float *speech=speech_buf+10;
-    float* residual_filt_buf=av_mallocz((ctx->subframe_size+10)*sizeof(float));
+    float residual_filt_buf[MAX_SUBFRAME_SIZE+10];
     float* residual_filt=residual_filt_buf+10;
     float lp_gn[10];
     float lp_gd[10];
@@ -1074,8 +1097,6 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
 
     /* adaptive gain control (A.4.2.4) */
     g729a_adaptive_gain_control(ctx, gain_before, gain_after, speech);
-
-    av_free(residual_filt_buf);
 }
 
 /**
@@ -1087,10 +1108,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
  */
 static void g729_high_pass_filter(G729A_Context* ctx, float* speech)
 {
-    const float az[3] = {0.93980581, -1.8795834,  0.93980581};
-    const float af[3] = {1.00000000,  1.9330735, -0.93589199};
     float z_2=0;
-
     float f_0=0;
     int i;
 
@@ -1100,7 +1118,8 @@ static void g729_high_pass_filter(G729A_Context* ctx, float* speech)
         ctx->hpf_z1=ctx->hpf_z0;
         ctx->hpf_z0=speech[i];
 
-        f_0 = ctx->hpf_f1*af[1]+ctx->hpf_f2*af[2] + ctx->hpf_z0*az[0]+ctx->hpf_z1*az[1]+z_2*az[2];
+        f_0 = 1.9330735 * ctx->hpf_f1 - 0.93589199 * ctx->hpf_f2 + 
+	        0.93980581 * ctx->hpf_z0 - 1.8795834 * ctx->hpf_z1 + 0.93980581 * z_2;
         speech[i]=f_0*2.0;
 
         ctx->hpf_f2=ctx->hpf_f1;
@@ -1117,7 +1136,7 @@ static void g729_high_pass_filter(G729A_Context* ctx, float* speech)
  */
 static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, short* speech)
 {
-    float* tmp_speech_buf=av_mallocz((ctx->subframe_size+10)*sizeof(float));
+    float tmp_speech_buf[MAX_SUBFRAME_SIZE+10];;
     float* tmp_speech=tmp_speech_buf+10;
     int i;
 
@@ -1138,9 +1157,6 @@ static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, s
         tmp_speech[i] = FFMAX(tmp_speech[i],-32768.0);
         speech[i]=tmp_speech[i];
     }
-
-    av_free(tmp_speech_buf);
-
 }
 
 /**
@@ -1384,16 +1400,21 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
     int frame_size=10;
     int i,k;
 
-    for(ctx->format=0; formats[ctx->format].name; ctx->format++)
-        if(formats[ctx->format].sample_rate==avctx->sample_rate)
-            break;
-    if(!formats[ctx->format].name){
+    if(avctx->sample_rate==8000)
+        ctx->format=0;
+#ifdef G729_SUPPORT_4400
+    else if (avctx->sample_rate==4400)
+        ctx->format=1;
+#endif
+    else{
         av_log(avctx, AV_LOG_ERROR, "Sample rate %d is not supported\n", avctx->sample_rate);
-        return -1;
+        return AVERROR_NOFMT;
     }
-    frame_size=formats[ctx->format].frame_size>>3; //frame_size is in bits
+    frame_size=formats[ctx->format].bits_per_frame>>3; //frame_size is in bits
 
-    ctx->subframe_size=formats[ctx->format].frame_size>>1;
+    ctx->subframe_size=formats[ctx->format].bits_per_frame>>1;
+
+    assert(ctx->subframe_size>0 && ctx->subframe_size<=MAX_SUBFRAME_SIZE);
 
     /* Decoder initialization. 4.3, Table 9 */
 
@@ -1583,20 +1604,28 @@ static int  g729a_decode_frame_internal(void* context, short* out_frame, int out
 static int g729_bytes2parm(G729A_Context *ctx, const uint8_t *buf, int buf_size, int *parm)
 {
     GetBitContext gb;
-    int i;
-    int l_frame=formats[ctx->format].frame_size>>3;
+    int l_frame=formats[ctx->format].bits_per_frame>>3;
 
     if(buf_size<l_frame)
         return AVERROR(EIO);
 
     init_get_bits(&gb, buf, buf_size);
 
-    for(i=0; i<VECTOR_SIZE; i++)
-    {
-        if(formats[ctx->format].vector_bits[i]>16)
-            return AVERROR(EIO);
-        parm[i]=get_bits(&gb, formats[ctx->format].vector_bits[i]);
-    }
+    parm[0]=get_bits(&gb, L0_BITS); //L0
+    parm[1]=get_bits(&gb, L1_BITS); //L1
+    parm[2]=get_bits(&gb, L2_BITS); //L2
+    parm[3]=get_bits(&gb, L3_BITS); //L3
+    parm[4]=get_bits(&gb, P1_BITS); //P1
+    parm[5]=get_bits(&gb, P0_BITS); //Parity
+    parm[6]=get_bits(&gb, formats[ctx->format].fc_index_bits*FC_PULSE_COUNT+1); //C1
+    parm[7]=get_bits(&gb, FC_PULSE_COUNT); //S1
+    parm[5]=get_bits(&gb, GA_BITS); //GA1
+    parm[5]=get_bits(&gb, GB_BITS); //GB1
+    parm[4]=get_bits(&gb, P2_BITS); //P2
+    parm[6]=get_bits(&gb, formats[ctx->format].fc_index_bits*FC_PULSE_COUNT+1); //C2
+    parm[7]=get_bits(&gb, FC_PULSE_COUNT); //S2
+    parm[5]=get_bits(&gb, GA_BITS); //GA2
+    parm[5]=get_bits(&gb, GB_BITS); //GB2
     return 0;
 }
 
@@ -1607,7 +1636,7 @@ static int ff_g729a_decode_frame(AVCodecContext *avctx,
 {
     int parm[VECTOR_SIZE];
     G729A_Context *ctx=avctx->priv_data;
-    int l_frame=formats[ctx->format].frame_size;
+    int l_frame=formats[ctx->format].bits_per_frame;
 
     g729_bytes2parm(ctx, buf, buf_size, parm);
 
@@ -1641,22 +1670,116 @@ AVCodec g729a_decoder = {
  */
 static int g729_bitstream2parm(G729A_Context *ctx, short* serial, int serial_size, int *parm)
 {
-    int i,j;
+    int j;
     int idx=2;
 
     if(serial_size<2*ctx->subframe_size+2)
         return AVERROR(EIO);
 
-    for(i=0; i<VECTOR_SIZE; i++)
+    //L0
+    parm[0]=0;
+    for(j=0; j<L0_BITS; j++)
     {
-        if(formats[ctx->format].vector_bits[i]>16)
-            return AVERROR(EIO);
-        parm[i]=0;
-        for(j=0; j<formats[ctx->format].vector_bits[i]; j++)
-        {
-            parm[i]<<= 1;
-            parm[i] |= serial[idx++]==0x81?1:0;
-        }
+        parm[0]<<= 1;
+        parm[0] |= serial[idx++]==0x81?1:0;
+    }
+    //L1
+    parm[1]=0;
+    for(j=0; j<L1_BITS; j++)
+    {
+        parm[1]<<= 1;
+        parm[1] |= serial[idx++]==0x81?1:0;
+    }
+    //L2
+    parm[2]=0;
+    for(j=0; j<L2_BITS; j++)
+    {
+        parm[2]<<= 1;
+        parm[2] |= serial[idx++]==0x81?1:0;
+    }
+    //L3
+    parm[3]=0;
+    for(j=0; j<L3_BITS; j++)
+    {
+        parm[3]<<= 1;
+        parm[3] |= serial[idx++]==0x81?1:0;
+    }
+    //P1
+    parm[4]=0;
+    for(j=0; j<P1_BITS; j++)
+    {
+        parm[4]<<= 1;
+        parm[4] |= serial[idx++]==0x81?1:0;
+    }
+    //P0
+    parm[5]=0;
+    for(j=0; j<P0_BITS; j++)
+    {
+        parm[5]<<= 1;
+        parm[5] |= serial[idx++]==0x81?1:0;
+    }
+    //C1
+    parm[6]=0;
+    for(j=0; j<formats[ctx->format].fc_index_bits*FC_PULSE_COUNT+1; j++)
+    {
+        parm[6]<<= 1;
+        parm[6] |= serial[idx++]==0x81?1:0;
+    }
+    //S1
+    parm[7]=0;
+    for(j=0; j<FC_PULSE_COUNT; j++)
+    {
+        parm[7]<<= 1;
+        parm[7] |= serial[idx++]==0x81?1:0;
+    }
+    //GA1
+    parm[8]=0;
+    for(j=0; j<GA_BITS; j++)
+    {
+        parm[8]<<= 1;
+        parm[8] |= serial[idx++]==0x81?1:0;
+    }
+    //GB1
+    parm[9]=0;
+    for(j=0; j<GB_BITS; j++)
+    {
+        parm[9]<<= 1;
+        parm[9] |= serial[idx++]==0x81?1:0;
+    }
+    //P2
+    parm[10]=0;
+    for(j=0; j<P2_BITS; j++)
+    {
+        parm[10]<<= 1;
+        parm[10] |= serial[idx++]==0x81?1:0;
+    }
+    //C2
+    parm[11]=0;
+    for(j=0; j<formats[ctx->format].fc_index_bits*FC_PULSE_COUNT+1; j++)
+    {
+        parm[11]<<= 1;
+        parm[11] |= serial[idx++]==0x81?1:0;
+    }
+    //S2
+    parm[12]=0;
+    for(j=0; j<FC_PULSE_COUNT; j++)
+    {
+        parm[12]<<= 1;
+        parm[12] |= serial[idx++]==0x81?1:0;
+    }
+    //GA2
+    parm[13]=0;
+    for(j=0; j<GA_BITS; j++)
+    {
+        parm[13]<<= 1;
+        parm[13] |= serial[idx++]==0x81?1:0;
+    }
+    //GB2
+    parm[14]=0;
+    for(j=0; j<GB_BITS; j++)
+    {
+        parm[14]<<= 1;
+        parm[14] |= serial[idx++]==0x81?1:0;
     }
     return 0;
 }
