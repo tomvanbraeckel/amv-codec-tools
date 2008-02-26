@@ -1185,21 +1185,21 @@ static void g729_lsp_restore_from_previous(G729A_Context *ctx, float* lsfq)
 static void g729_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t L2, int16_t L3, float* lsfq)
 {
     int i,j,k;
-    float J[2]={0.0012, 0.0006};
-    float lq[10];
-    float diff;
+    int16_t J[2]={10, 5}; //Q13
+    int16_t lq[10];       //Q13
+    int16_t diff;         //Q13
     float* tmp;
 
     /* 3.2.4 Equation 19 */
     for(i=0;i<10; i++)
-        lq[i]   = (cb_L1[L1][i] + cb_L2_L3[L2][i]) / Q13_BASE; //Q13
+        lq[i]   = cb_L1[L1][i] + cb_L2_L3[L2][i]; //Q13
 
     /* 3.2.4 rearrangement routine */
     for(j=0; j<2; j++)
     {
         for(i=1; i<10; i++)
         {
-            diff=(lq[i-1]-lq[i]+J[j])/2;
+            diff=(lq[i-1]-lq[i]+J[j])>>1;
             if(diff>0)
             {
                 lq[i-1]-= diff;
@@ -1211,7 +1211,7 @@ static void g729_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
     /* 3.2.4, Equation 20 */
     for(i=0; i<10; i++)
     {
-        lsfq[i]=lq[i] * ma_predictor_sum[L0][i];
+        lsfq[i]=lq[i] * ma_predictor_sum[L0][i] / Q13_BASE;
         for(k=0; k<MA_NP; k++)
             lsfq[i] += (ctx->lq_prev[k][i] * ma_predictor[L0][k][i]); //Q15
 	lsfq[i] /= Q15_BASE;
@@ -1225,32 +1225,14 @@ static void g729_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
         ctx->lq_prev[k]=ctx->lq_prev[k-1];
     ctx->lq_prev[0]=tmp;
     for(i=0; i<10; i++)
-        ctx->lq_prev[0][i]=lq[i];
+        ctx->lq_prev[0][i]=lq[i] / Q13_BASE;
     ctx->prev_mode=L0;
 
     /* sorting lsfq in ascending order. float bubble agorithm*/
-    for(i=0; i<5; i++)
-    {
-        float min=lsfq[i];
-        int mini=i;
-        float max=lsfq[i];
-        int maxi=i;
-        for(j=i; j< 10-i; j++)
-        {
-            if(lsfq[j]>max)
-            {
-                maxi=j;
-                max=lsfq[j];
-            }
-            if(lsfq[j]<min)
-            {
-                mini=j;
-                min=lsfq[j];
-            }
-        }
-        FFSWAP(float, lsfq[i], lsfq[mini]);
-        FFSWAP(float, lsfq[10-i-1], lsfq[maxi]);
-    }
+    for(j=9; j>0; j--)
+        for(i=0; i<j; i++)
+            if(lsfq[i] > lsfq[i+1])
+                FFSWAP(float, lsfq[i], lsfq[i+1]);
 
     /* checking for stability */
     lsfq[0] = FFMAX(lsfq[0],LSFQ_MIN); //Is warning required ?
