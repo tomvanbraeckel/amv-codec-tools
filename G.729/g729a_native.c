@@ -96,11 +96,13 @@ test    : PASS
 ///Size of parameters vector
 #define VECTOR_SIZE 15
 
-static const struct{
+static const struct
+{
     int sample_rate;
     char bits_per_frame;
     char fc_index_bits;
-} formats[]={
+} formats[] =
+{
   {8000, 80, 3},
 #ifdef G729_SUPPORT_4400
 // Note: may not work
@@ -168,7 +170,8 @@ typedef struct
 /**
  * L1 codebook (10-dimensional, with 128 entries (3.24)
  */
-static const int16_t cb_L1[1<<L1_BITS][10] = {        /* Q13 */
+static const int16_t cb_L1[1<<L1_BITS][10] =
+{        /* Q13 */
   { 1486,  2168,  3751,  9074, 12134, 13944, 17983, 19173, 21190, 21820},
   { 1730,  2640,  3450,  4870,  6126,  7876, 15644, 17817, 20294, 21902},
   { 1568,  2256,  3088,  4874, 11063, 13393, 18307, 19293, 21109, 21741},
@@ -302,7 +305,8 @@ static const int16_t cb_L1[1<<L1_BITS][10] = {        /* Q13 */
 /**
  * L2 and L3 codebooks (both 5-dimensional, with 32 entries (3.2.4)
  */
-static const int16_t cb_L2_L3[1<<L2_BITS][10] = {        /* Q13 */
+static const int16_t cb_L2_L3[1<<L2_BITS][10] =
+{        /* Q13 */
   { -435,  -815,  -742,  1033,  -518,   582, -1201,   829,    86,   385},
   { -833,  -891,   463,    -8, -1251,  1450,    72,  -231,   864,   661},
   {-1021,   231,  -306,   321,  -220,  -163,  -526,  -754, -1633,   267},
@@ -368,7 +372,7 @@ static const int16_t cb_L2_L3[1<<L2_BITS][10] = {        /* Q13 */
  * FIXME: what means 0.3 and 3 here?
  *
  */
-static const float interp_filter[31]=
+static const float interp_filter[31] =
 {
    0.898517,
    0.769271,   0.448635,   0.095915,
@@ -403,7 +407,8 @@ static const float cb_GA[GA_CB_SIZE][2] =
  * GB codebook (3.9.2)
  */
 #define GB_CB_SIZE (1<<GB_BITS)
-static const float cb_GB[GB_CB_SIZE][2] = {
+static const float cb_GB[GB_CB_SIZE][2] =
+{
   { 0.313871,  0.072357}, //2
   { 1.055892,  0.227186}, //14
   { 0.375977,  0.292399}, //3
@@ -425,7 +430,8 @@ static const float cb_GB[GB_CB_SIZE][2] = {
 /**
  * MA predictor (3.2.4)
  */
-static const int16_t ma_predictor[2][MA_NP][10] = {       /* Q15 */
+static const int16_t ma_predictor[2][MA_NP][10] =
+{       /* Q15 */
   {
     { 8421,  9109,  9175,  8965,  9034,  9057,  8765,  8775,  9106,  8673},
     { 7018,  7189,  7638,  7307,  7444,  7379,  7038,  6956,  6930,  6868},
@@ -443,7 +449,8 @@ static const int16_t ma_predictor[2][MA_NP][10] = {       /* Q15 */
 /**
  * ma_predicot_sum[i] := 1-sum{1}{4}{ma_predictor[k][i]}
  */
-static const int16_t ma_predictor_sum[2][10] = {      /* Q12 */
+static const int16_t ma_predictor_sum[2][10] =
+{      /* Q12 */
   { 7798,  8447,  8205,  8293,  8126,  8477,  8447,  8703,  9043,  8604},
   {14585, 18333, 19772, 17344, 16426, 16459, 15155, 15220, 16043, 15708}
 };
@@ -460,14 +467,16 @@ static const uint8_t ma_prediction_coeff[4] =
 /**
  * Initial lq values
  */
-static const float lq_init[10] = {
+static const float lq_init[10] =
+{
   0.285599,  0.571199,  0.856798,  1.142397,  1.427997, 1.713596,  1.999195,  2.284795,  2.570394,  2.855993,
 };
 
 /**
  * Initial LSP values
  */
-static const float lsp_init[10] = {
+static const float lsp_init[10] =
+{
   0.9595, 0.8413, 0.6549, 0.4154, 0.1423, -0.1423, -0.4154, -0.6549, -0.8413, -0.9595,
 };
 
@@ -1357,7 +1366,8 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
     else if (avctx->sample_rate==4400)
         ctx->format=1;
 #endif
-    else{
+    else
+    {
         av_log(avctx, AV_LOG_ERROR, "Sample rate %d is not supported\n", avctx->sample_rate);
         return AVERROR_NOFMT;
     }
@@ -1598,7 +1608,8 @@ static int ff_g729a_decode_frame(AVCodecContext *avctx,
     return buf_size;
 }
 
-AVCodec g729a_decoder = {
+AVCodec g729a_decoder =
+{
     "g729a",
     CODEC_TYPE_AUDIO,
     CODEC_ID_G729A,
