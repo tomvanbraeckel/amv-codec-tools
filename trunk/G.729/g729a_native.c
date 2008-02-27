@@ -1453,7 +1453,6 @@ static int  g729a_decode_frame_internal(void* context, short* out_frame, int out
     int pitch_delay_int;                  ///< pitch delay, integer part
     float fc[MAX_SUBFRAME_SIZE];          ///< fixed codebooc vector
     float gp, gc;
-    short speech_buf[2*MAX_SUBFRAME_SIZE];///< reconstructed speech
 
     ctx->data_error=0;
     ctx->bad_pitch=0;
@@ -1491,7 +1490,7 @@ static int  g729a_decode_frame_internal(void* context, short* out_frame, int out
         g729_get_gain(ctx, parm[8], parm[9], fc, &gp, &gc);
     }
     g729_mem_update(ctx, fc, gp, gc, ctx->exc);
-    g729_reconstruct_speech(ctx, lp, ctx->exc, speech_buf);
+    g729_reconstruct_speech(ctx, lp, ctx->exc, out_frame);
     ctx->subframe_idx++;
 
     /* second subframe */
@@ -1517,16 +1516,12 @@ static int  g729a_decode_frame_internal(void* context, short* out_frame, int out
         g729_get_gain(ctx, parm[13], parm[14], fc, &gp, &gc);
     }
     g729_mem_update(ctx, fc, gp, gc, ctx->exc+ctx->subframe_size);
-    g729_reconstruct_speech(ctx, lp+10, ctx->exc+ctx->subframe_size, speech_buf+ctx->subframe_size);
+    g729_reconstruct_speech(ctx, lp+10, ctx->exc+ctx->subframe_size, out_frame+ctx->subframe_size);
     ctx->subframe_idx++;
 
     //Save signal for using in next frame
     memmove(ctx->exc_base, ctx->exc_base+2*ctx->subframe_size, (PITCH_MAX+INTERPOL_LEN)*sizeof(float));
 
-    /* Return reconstructed speech to caller */
-    memcpy(out_frame, speech_buf, 2*ctx->subframe_size*sizeof(short));
-
-//    av_free(speech_buf);
     return ctx->subframe_size;
 }
 
