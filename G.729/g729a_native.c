@@ -1539,6 +1539,9 @@ static int ff_g729a_decode_frame(AVCodecContext *avctx,
     G729A_Context *ctx=avctx->priv_data;
     int l_frame=formats[ctx->format].bits_per_frame;
 
+    if (data_size<l_frame)
+        return 0;
+
     g729_bytes2parm(ctx, buf, buf_size, parm);
 
     *data_size=0;
