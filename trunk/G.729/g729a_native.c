@@ -1401,7 +1401,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
     ctx->hpf_z0=0;
     ctx->hpf_z1=0;
 
-    avctx->frame_size=frame_size;
+    avctx->frame_size=2*ctx->subframe_size;
     return 0;
 }
 
@@ -1490,7 +1490,7 @@ static int  g729a_decode_frame_internal(void* context, short* out_frame, int out
     //Save signal for using in next frame
     memmove(ctx->exc_base, ctx->exc_base+2*ctx->subframe_size, (PITCH_MAX+INTERPOL_LEN)*sizeof(float));
 
-    return ctx->subframe_size;
+    return 2*ctx->subframe_size;
 }
 
 /**
