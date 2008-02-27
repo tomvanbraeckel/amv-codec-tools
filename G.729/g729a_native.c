@@ -1269,10 +1269,10 @@ static void get_lsp_coefficients(float* q, float* f)
 /**
  * \brief LSP to LP conversion (3.2.6)
  * \param ctx private data structure
- * \param q LSP coefficients
- * \param a decoded LP coefficients
+ * \param lsp LSP coefficients
+ * \param lp decoded LP coefficients
  */
-static void g729_lsp2lp(G729A_Context* ctx, float* q, float* a)
+static void g729_lsp2lp(G729A_Context* ctx, float* lsp, float* lp)
 {
     int i;
     float f1[6];
@@ -1281,8 +1281,8 @@ static void g729_lsp2lp(G729A_Context* ctx, float* q, float* a)
     float ff1[5];
     float ff2[5];
 
-    get_lsp_coefficients(q, f1);
-    get_lsp_coefficients(q+1, f2);
+    get_lsp_coefficients(lsp, f1);
+    get_lsp_coefficients(lsp+1, f2);
 
     /* 3.2.6, Equation 25*/
     for(i=0;i<5;i++)
@@ -1294,8 +1294,8 @@ static void g729_lsp2lp(G729A_Context* ctx, float* q, float* a)
     /* 3.2.6, Equation 26*/
     for(i=0;i<5;i++)
     {
-        a[i]=(ff1[i]+ff2[i])/2;
-        a[i+5]=(ff1[4-i]-ff2[4-i])/2;
+        lp[i]=(ff1[i]+ff2[i])/2;
+        lp[i+5]=(ff1[4-i]-ff2[4-i])/2;
     }
 }
 
