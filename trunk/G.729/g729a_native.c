@@ -70,6 +70,11 @@ test    : PASS
  */
 #define MAX_SUBFRAME_SIZE 44
 
+#define PITCH_MIN 20
+#define PITCH_MAX 143
+#define INTERPOL_LEN 11
+
+
 
 
 ///Switched MA predictor of LSP quantizer (size in bits)
@@ -119,7 +124,8 @@ typedef struct
     int subframe_size;      ///< number of samples produced from one subframe
     int data_error;         ///< data error detected during decoding
     int bad_pitch;          ///< parity check failed
-    float* exc_base;        ///< past excitation signal buffer
+    /// past excitation signal buffer
+    float exc_base[2*MAX_SUBFRAME_SIZE+PITCH_MAX+INTERPOL_LEN];
     float* exc;             ///< start of past excitation data in buffer
     int intT2_prev;         ///< int(T2) value of previous frame (4.1.3)
     int intT1;              ///< int(T1) value of first subframe
@@ -160,10 +166,6 @@ typedef struct
 
 /* 4.2.1 */
 #define GAMMA_P 0.50
-
-#define PITCH_MIN 20
-#define PITCH_MAX 143
-#define INTERPOL_LEN 11
 
 #define Q13_BASE 8192.0
 #define Q15_BASE 32768.0
@@ -1380,12 +1382,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
         for(i=0;i<frame_size; i++)
             ctx->lq_prev[k][i]=ctx->lq_prev[0][i];
 
-    // Two subframes + PITCH_MAX inetries for last excitation signal data + ???
-    ctx->exc_base=av_mallocz((2*ctx->subframe_size+PITCH_MAX+INTERPOL_LEN)*sizeof(float));
-    if(!ctx->exc_base)
-        return AVERROR(ENOMEM);
-
-    ctx->exc=ctx->exc_base+PITCH_MAX+INTERPOL_LEN;
+    ctx->exc=&ctx->exc_base[PITCH_MAX+INTERPOL_LEN];
 
     ctx->residual=av_mallocz((PITCH_MAX+ctx->subframe_size)*sizeof(float));
     /* random seed initialization (4.4.4) */
@@ -1420,8 +1417,6 @@ static int ff_g729a_decoder_close(AVCodecContext *avctx)
     av_free(ctx->residual);
     ctx->residual=NULL;
 
-    av_free(ctx->exc_base);
-    ctx->exc_base=NULL;
     ctx->exc=NULL;
 
     return 0;
