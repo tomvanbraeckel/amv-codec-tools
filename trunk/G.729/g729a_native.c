@@ -1101,7 +1101,7 @@ static void g729_high_pass_filter(G729A_Context* ctx, float* speech)
  */
 static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, short* speech)
 {
-    float tmp_speech_buf[MAX_SUBFRAME_SIZE+10];;
+    float tmp_speech_buf[MAX_SUBFRAME_SIZE+10];
     float* tmp_speech=tmp_speech_buf+10;
     int i;
 
@@ -1520,13 +1520,13 @@ static int g729_bytes2parm(G729A_Context *ctx, const uint8_t *buf, int buf_size,
     parm[5]=get_bits(&gb, P0_BITS); //Parity
     parm[6]=get_bits(&gb, formats[ctx->format].fc_index_bits*FC_PULSE_COUNT+1); //C1
     parm[7]=get_bits(&gb, FC_PULSE_COUNT); //S1
-    parm[5]=get_bits(&gb, GA_BITS); //GA1
-    parm[5]=get_bits(&gb, GB_BITS); //GB1
-    parm[4]=get_bits(&gb, P2_BITS); //P2
-    parm[6]=get_bits(&gb, formats[ctx->format].fc_index_bits*FC_PULSE_COUNT+1); //C2
-    parm[7]=get_bits(&gb, FC_PULSE_COUNT); //S2
-    parm[5]=get_bits(&gb, GA_BITS); //GA2
-    parm[5]=get_bits(&gb, GB_BITS); //GB2
+    parm[8]=get_bits(&gb, GA_BITS); //GA1
+    parm[9]=get_bits(&gb, GB_BITS); //GB1
+    parm[10]=get_bits(&gb, P2_BITS); //P2
+    parm[11]=get_bits(&gb, formats[ctx->format].fc_index_bits*FC_PULSE_COUNT+1); //C2
+    parm[12]=get_bits(&gb, FC_PULSE_COUNT); //S2
+    parm[13]=get_bits(&gb, GA_BITS); //GA2
+    parm[14]=get_bits(&gb, GB_BITS); //GB2
     return 0;
 }
 
