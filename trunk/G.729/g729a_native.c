@@ -570,21 +570,21 @@ static void g729_decode_ac_delay_subframe2(G729A_Context* ctx, int ac_index, int
 /**
  * \brief Decoding of the adaptive-codebook vector (4.1.3)
  * \param ctx private data structure
- * \param k pitch delay, integer part
- * \param t pitch delay, fraction part [-1, 0, 1]
+ * \param pitch_delay_int pitch delay, integer part
+ * \param pitch_delay_frac pitch delay, fraction part [-1, 0, 1]
  * \param ac_v buffer to store decoded vector into
  */
-static void g729_decode_ac_vector(G729A_Context* ctx, int k, int t, float* ac_v)
+static void g729_decode_ac_vector(G729A_Context* ctx, int pitch_delay_int, int pitch_delay_frac, float* ac_v)
 {
     int n, i;
     float v;
 
     //Make sure that t will be always positive
-    t=-t;
-    if(t<0)
+    pitch_delay_frac=-pitch_delay_frac;
+    if(pitch_delay_frac<0)
     {
-        t+=3;
-        k++;
+        pitch_delay_frac+=3;
+        pitch_delay_int++;
     }
 
     //t [0, 1, 2]
@@ -596,8 +596,8 @@ static void g729_decode_ac_vector(G729A_Context* ctx, int k, int t, float* ac_v)
         for(i=0; i<10; i++)
         {
             /*  R(x):=ac_v[-k+x] */
-            v+=ac_v[n-k-i]*interp_filter[t+3*i];     //R(n-i)*b30(t+3i)
-            v+=ac_v[n-k+i+1]*interp_filter[3-t+3*i]; //R(n+i+1)*b30(3-t+3i)
+            v+=ac_v[n-pitch_delay_int-i]*interp_filter[pitch_delay_frac+3*i];     //R(n-i)*b30(t+3i)
+            v+=ac_v[n-pitch_delay_int+i+1]*interp_filter[3-pitch_delay_frac+3*i]; //R(n+i+1)*b30(3-t+3i)
         }
         ac_v[n]=v;
     }
@@ -1449,8 +1449,8 @@ static int  g729a_decode_frame_internal(void* context, short* out_frame, int out
     G729A_Context* ctx=context;
     float lp[20];
     float lsp[10];
-    int t;     ///< pitch delay, fraction part
-    int k;     ///< pitch delay, integer part
+    int pitch_delay_frac;    ///< pitch delay, fraction part
+    int pitch_delay_int;     ///< pitch delay, integer part
     float* fc; ///< fixed codebooc vector
     float gp, gc;
 
@@ -1473,8 +1473,8 @@ static int  g729a_decode_frame_internal(void* context, short* out_frame, int out
     g729_lp_decode(ctx, lsp, lp);
 
     /* first subframe */
-    g729_decode_ac_delay_subframe1(ctx, parm[4], &k, &t);
-    g729_decode_ac_vector(ctx, k, t, ctx->exc);
+    g729_decode_ac_delay_subframe1(ctx, parm[4], &pitch_delay_int, &pitch_delay_frac);
+    g729_decode_ac_vector(ctx, pitch_delay_int, pitch_delay_frac, ctx->exc);
 
     if(ctx->data_error)
     {
@@ -1483,7 +1483,7 @@ static int  g729a_decode_frame_internal(void* context, short* out_frame, int out
     }
 
     g729_decode_fc_vector(ctx, parm[6], parm[7], fc);
-    g729_fix_fc_vector(ctx, k, fc);
+    g729_fix_fc_vector(ctx, pitch_delay_int, fc);
 
     if(ctx->data_error)
     {
@@ -1499,8 +1499,8 @@ static int  g729a_decode_frame_internal(void* context, short* out_frame, int out
     ctx->subframe_idx++;
 
     /* second subframe */
-    g729_decode_ac_delay_subframe2(ctx, parm[10], k, &k, &t);
-    g729_decode_ac_vector(ctx, k, t, ctx->exc+ctx->subframe_size);
+    g729_decode_ac_delay_subframe2(ctx, parm[10], pitch_delay_int, &pitch_delay_int, &pitch_delay_frac);
+    g729_decode_ac_vector(ctx, pitch_delay_int, pitch_delay_frac, ctx->exc+ctx->subframe_size);
 
     if(ctx->data_error)
     {
@@ -1509,7 +1509,7 @@ static int  g729a_decode_frame_internal(void* context, short* out_frame, int out
     }
 
     g729_decode_fc_vector(ctx, parm[11], parm[12], fc);
-    g729_fix_fc_vector(ctx, k, fc);
+    g729_fix_fc_vector(ctx, pitch_delay_int, fc);
 
     if(ctx->data_error)
     {
