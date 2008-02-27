@@ -1353,7 +1353,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
         av_log(avctx, AV_LOG_ERROR, "Sample rate %d is not supported\n", avctx->sample_rate);
         return AVERROR_NOFMT;
     }
-    frame_size=formats[ctx->format].bits_per_frame>>3; //frame_size is in bits
+    frame_size=formats[ctx->format].bits_per_frame>>3; //frame_size is in bytes
 
     ctx->subframe_size=formats[ctx->format].bits_per_frame>>1;
 
@@ -1386,7 +1386,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
             ctx->lq_prev[k][i]=ctx->lq_prev[0][i];
 
     // Two subframes + PITCH_MAX inetries for last excitation signal data + ???
-    ctx->exc_base=av_mallocz((frame_size*8+PITCH_MAX+INTERPOL_LEN)*sizeof(float));
+    ctx->exc_base=av_mallocz((2*ctx->subframe_size+PITCH_MAX+INTERPOL_LEN)*sizeof(float));
     if(!ctx->exc_base)
         return AVERROR(ENOMEM);
 
@@ -1449,15 +1449,11 @@ static int  g729a_decode_frame_internal(void* context, short* out_frame, int out
     G729A_Context* ctx=context;
     float lp[20];
     float lsp[10];
-    int pitch_delay_frac;    ///< pitch delay, fraction part
-    int pitch_delay_int;     ///< pitch delay, integer part
-    float* fc; ///< fixed codebooc vector
+    int pitch_delay_frac;                 ///< pitch delay, fraction part
+    int pitch_delay_int;                  ///< pitch delay, integer part
+    float fc[MAX_SUBFRAME_SIZE];          ///< fixed codebooc vector
     float gp, gc;
-
-    short* speech_buf; ///< reconstructed speech
-
-    fc=av_mallocz(ctx->subframe_size * sizeof(float));
-    speech_buf=av_mallocz(2*ctx->subframe_size * sizeof(short));
+    short speech_buf[2*MAX_SUBFRAME_SIZE];///< reconstructed speech
 
     ctx->data_error=0;
     ctx->bad_pitch=0;
@@ -1530,8 +1526,7 @@ static int  g729a_decode_frame_internal(void* context, short* out_frame, int out
     /* Return reconstructed speech to caller */
     memcpy(out_frame, speech_buf, 2*ctx->subframe_size*sizeof(short));
 
-    av_free(speech_buf);
-    av_free(fc);
+//    av_free(speech_buf);
     return ctx->subframe_size;
 }
 
