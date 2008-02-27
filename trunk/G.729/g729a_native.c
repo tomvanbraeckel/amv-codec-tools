@@ -123,7 +123,7 @@ typedef struct
     float* exc;             ///< start of past excitation data in buffer
     int intT2_prev;         ///< int(T2) value of previous frame (4.1.3)
     int intT1;              ///< int(T1) value of first subframe
-    float *lq_prev[MA_NP];  ///< l[i], LSP quantizer output (3.2.4)
+    float lq_prev[MA_NP][10];  ///< l[i], LSP quantizer output (3.2.4)
     float lsp_prev[10];     ///< q[i], LSP coefficients from previous frame (3.2.5)
     float lsf_prev[10];     ///< lq[i], LSF coefficients from previous frame
     float pred_vect_q[4];   ///< quantized prediction error
@@ -1147,7 +1147,6 @@ static void g729_lsp_restore_from_previous(G729A_Context *ctx, float* lsfq)
 {
     float lq[10];
     int i,k;
-    float* tmp;
 
     //Restore LSF from previous frame
     for(i=0;i<10; i++)
@@ -1163,12 +1162,12 @@ static void g729_lsp_restore_from_previous(G729A_Context *ctx, float* lsfq)
     }
 
     /* Rotate lq_prev */
-    tmp=ctx->lq_prev[MA_NP-1];
-    for(k=MA_NP-1; k>0; k--)
-        ctx->lq_prev[k]=ctx->lq_prev[k-1];
-    ctx->lq_prev[0]=tmp;
     for(i=0; i<10; i++)
+    {
+        for(k=MA_NP-1; k>0; k--)
+            ctx->lq_prev[k][i]=ctx->lq_prev[k-1][i];
         ctx->lq_prev[0][i]=lq[i];
+    }
 
     g729_lsf2lsp(ctx, lsfq, lsfq);
 }
@@ -1188,7 +1187,6 @@ static void g729_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
     int16_t J[2]={10, 5}; //Q13
     int16_t lq[10];       //Q13
     int16_t diff;         //Q13
-    float* tmp;
 
     /* 3.2.4 Equation 19 */
     for(i=0;i<10; i++)
@@ -1220,12 +1218,12 @@ static void g729_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
     }
 
     /* Rotate lq_prev */
-    tmp=ctx->lq_prev[MA_NP-1];
-    for(k=MA_NP-1; k>0; k--)
-        ctx->lq_prev[k]=ctx->lq_prev[k-1];
-    ctx->lq_prev[0]=tmp;
     for(i=0; i<10; i++)
+    {
+        for(k=MA_NP-1; k>0; k--)
+            ctx->lq_prev[k][i]=ctx->lq_prev[k-1][i];
         ctx->lq_prev[0][i]=lq[i] / Q13_BASE;
+    }
     ctx->prev_mode=L0;
 
     /* sorting lsfq in ascending order. float bubble agorithm*/
@@ -1372,9 +1370,6 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
     ctx->g=1.0;
 
     /* LSP coefficients */
-    for(k=0; k<MA_NP; k++)
-        ctx->lq_prev[k]=av_malloc(sizeof(float)*frame_size);
-
     for(i=0; i<10; i++)
         ctx->lq_prev[0][i]=lq_init[i];
 
@@ -1429,11 +1424,6 @@ static int ff_g729a_decoder_close(AVCodecContext *avctx)
     ctx->exc_base=NULL;
     ctx->exc=NULL;
 
-    for(k=0; k<MA_NP; k++)
-    {
-        av_free(ctx->lq_prev[k]);
-        ctx->lq_prev[k]=NULL;
-    }
     return 0;
 }
 
