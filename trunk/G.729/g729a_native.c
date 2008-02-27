@@ -900,7 +900,7 @@ static void g729a_long_term_filter(G729A_Context *ctx, float *residual_filt)
         correlation+=ctx->residual[n+PITCH_MAX]*ctx->residual[n+PITCH_MAX-k];
 
     corr_max=correlation;
-    intT0=k;
+    intT0=k++;
 
     for(; k<=maxT0; k++)
     {
