@@ -1099,7 +1099,7 @@ static void g729_high_pass_filter(G729A_Context* ctx, float* speech)
  * \param exc excitation
  * \param speech reconstructed speech buffer (ctx->subframe_size items)
  */
-static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, short* speech)
+static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, int16_t* speech)
 {
     float tmp_speech_buf[MAX_SUBFRAME_SIZE+10];
     float* tmp_speech=tmp_speech_buf+10;
@@ -1412,7 +1412,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
  * \param out_frame array for output PCM samples
  * \param out_frame_size maximum number of elements in output array
  */
-static int  g729a_decode_frame_internal(void* context, short* out_frame, int out_frame_size, int *parm)
+static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int out_frame_size, int *parm)
 {
     G729A_Context* ctx=context;
     float lp[20];
@@ -1545,8 +1545,8 @@ static int ff_g729a_decode_frame(AVCodecContext *avctx,
     g729_bytes2parm(ctx, buf, buf_size, parm);
 
     *data_size=0;
-    g729a_decode_frame_internal(ctx,(short*)data, l_frame*sizeof(short), parm);
-    *data_size+=l_frame*sizeof(short);
+    g729a_decode_frame_internal(ctx,(int16_t*)data, l_frame*sizeof(int16_t), parm);
+    *data_size+=l_frame*sizeof(int16_t);
 
     return buf_size;
 }
@@ -1573,7 +1573,7 @@ AVCodec g729a_decoder =
  *
  * \return 0 if success, nonzero - otherwise
  */
-static int g729_bitstream2parm(G729A_Context *ctx, short* serial, int serial_size, int *parm)
+static int g729_bitstream2parm(G729A_Context *ctx, int16_t* serial, int serial_size, int *parm)
 {
     int j;
     int idx=2;
@@ -1703,7 +1703,7 @@ int g729a_decoder_uninit(void* ctx)
 {
   return 0;
 }
-int  g729a_decode_frame(AVCodecContext* avctx, short* serial, int serial_size, short* out_frame, int out_frame_size)
+int  g729a_decode_frame(AVCodecContext* avctx, int16_t* serial, int serial_size, int16_t* out_frame, int out_frame_size)
 {
     int parm[VECTOR_SIZE];
     g729_bitstream2parm(avctx->priv_data, serial, 82, parm);
