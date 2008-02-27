@@ -135,7 +135,8 @@ typedef struct
     float pred_vect_q[4];   ///< quantized prediction error
     float gain_pitch;       ///< Pitch gain of previous subframe (3.8) [GAIN_PITCH_MIN ... GAIN_PITCH_MAX]
     float gain_code;        ///< Gain code of previous subframe
-    float *residual;        ///< Residual signal buffer (used in long-term postfilter)
+    /// Residual signal buffer (used in long-term postfilter)
+    float residual[MAX_SUBFRAME_SIZE+PITCH_MAX];
     float syn_filter_data[10];
     float res_filter_data[10];
     float ht_prev_data;     ///< previous data for 4.2.3, equation 86
@@ -1384,7 +1385,6 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
 
     ctx->exc=&ctx->exc_base[PITCH_MAX+INTERPOL_LEN];
 
-    ctx->residual=av_mallocz((PITCH_MAX+ctx->subframe_size)*sizeof(float));
     /* random seed initialization (4.4.4) */
     ctx->rand_value=21845;
 
@@ -1402,23 +1402,6 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
     ctx->hpf_z1=0;
 
     avctx->frame_size=frame_size;
-    return 0;
-}
-
-/**
- * G.729A decoder uninitialization
- * \param ctx private data structure
- */
-static int ff_g729a_decoder_close(AVCodecContext *avctx)
-{
-    G729A_Context *ctx=avctx->priv_data;
-    int k;
-
-    av_free(ctx->residual);
-    ctx->residual=NULL;
-
-    ctx->exc=NULL;
-
     return 0;
 }
 
@@ -1573,7 +1556,7 @@ AVCodec g729a_decoder =
     sizeof(G729A_Context),
     ff_g729a_decoder_init,
     NULL,
-    ff_g729a_decoder_close,
+    NULL,
     ff_g729a_decode_frame,
 };
 
@@ -1715,7 +1698,6 @@ void* g729a_decoder_init()
 }
 int g729a_decoder_uninit(void* ctx)
 {
-  ff_g729a_decoder_close(ctx);
   return 0;
 }
 int  g729a_decode_frame(AVCodecContext* avctx, short* serial, int serial_size, short* out_frame, int out_frame_size)
