@@ -511,23 +511,23 @@ int g729_parity_check(uint8_t P1, int P0)
 /**
  * \brief Decoding of the adaptive-codebook vector delay for first subframe (4.1.3)
  * \param ctx private data structure
- * \param P1 Adaptive codebook index for first subframe
+ * \param ac_index Adaptive codebook index for first subframe
  * \param intT [out] integer part of delay
  * \param frac [out] fractional part of delay [-1, 0, 1]
  */
-static void g729_decode_ac_delay_subframe1(G729A_Context* ctx, int P1, int* intT, int* frac)
+static void g729_decode_ac_delay_subframe1(G729A_Context* ctx, int ac_index, int* intT, int* frac)
 {
     /* if no parity error */
     if(!ctx->bad_pitch)
     {
-        if(P1<197)
+        if(ac_index<197)
         {
-            *intT=1.0*(P1+2)/3+19;
-            *frac=P1-3*(*intT)+58;
+            *intT=1.0*(ac_index+2)/3+19;
+            *frac=ac_index-3*(*intT)+58;
         }
         else
         {
-            *intT=P1-112;
+            *intT=ac_index-112;
             *frac=0;
         }
     }
@@ -541,12 +541,12 @@ static void g729_decode_ac_delay_subframe1(G729A_Context* ctx, int P1, int* intT
 /**
  * \brief Decoding of the adaptive-codebook vector delay for second subframe (4.1.3)
  * \param ctx private data structure
- * \param P1 Adaptive codebook index for second subframe
+ * \param ac_index Adaptive codebook index for second subframe
  * \param T1 first subframe's vector delay integer part
  * \param intT [out] integer part of delay
  * \param frac [out] fractional part of delay [-1, 0, 1]
  */
-static void g729_decode_ac_delay_subframe2(G729A_Context* ctx, int P2, int intT1, int* intT, int* frac)
+static void g729_decode_ac_delay_subframe2(G729A_Context* ctx, int ac_index, int intT1, int* intT, int* frac)
 {
 
     int tmin=FFMIN(FFMAX(intT1-5, PITCH_MIN), PITCH_MAX-9);
@@ -559,8 +559,8 @@ static void g729_decode_ac_delay_subframe2(G729A_Context* ctx, int P2, int intT1
         return;
     }
 
-    *intT=(P2+2)/3-1;
-    *frac=P2-2-3*(*intT);
+    *intT=(ac_index+2)/3-1;
+    *frac=ac_index-2-3*(*intT);
 
     *intT+=tmin;
 
