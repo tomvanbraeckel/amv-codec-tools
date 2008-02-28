@@ -910,7 +910,7 @@ static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residua
         gl=FFMIN(corr_max/corr_t0, 1);
 
     inv_glgp=1.0/(1+gl*GAMMA_P);
-    glgp_inv_glgp=gl*GAMMA_P/(1+gl*GAMMA_P);
+    glgp_inv_glgp=gl*GAMMA_P*inv_glgp;
 
     /* 4.2.1, Equation 78, reconstructing delayed signal */
     for(n=0; n<ctx->subframe_size; n++)
