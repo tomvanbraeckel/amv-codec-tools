@@ -547,23 +547,10 @@ static int g729_decode_ac_delay_subframe1(G729A_Context* ctx, int ac_index)
  */
 static int g729_decode_ac_delay_subframe2(G729A_Context* ctx, int ac_index, int intT1)
 {
-    int intT;
-    int frac;
-    int tmin=FFMIN(FFMAX(intT1-5, PITCH_MIN), PITCH_MAX-9);
-
     if(ctx->data_error)
-    {
-        ctx->intT2_prev=FFMIN(intT1+1, PITCH_MAX);
-        return 3*intT1+frac+1;
-    }
+        return 3*intT1+1;
 
-    intT=(ac_index+2)/3-1;
-    frac=ac_index-2-3*(intT);
-
-    intT+=tmin;
-
-    ctx->intT2_prev=intT;
-    return 3*intT+frac+1;
+    return ac_index+3*FFMIN(FFMAX(intT1-5, PITCH_MIN), PITCH_MAX-9)-1;
 }
 
 /**
@@ -1462,6 +1449,11 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
 
     /* second subframe */
     pitch_delay=g729_decode_ac_delay_subframe2(ctx, parm[10], pitch_delay/3);
+
+    ctx->intT2_prev=pitch_delay/3;
+    if(ctx->data_error)
+        ctx->intT2_prev=FFMIN(ctx->intT2_prev+1, PITCH_MAX);
+
     g729_decode_ac_vector(ctx, pitch_delay/3, (pitch_delay%3)-1, ctx->exc+ctx->subframe_size);
 
     if(ctx->data_error)
