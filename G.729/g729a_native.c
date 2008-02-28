@@ -528,9 +528,14 @@ static int g729_decode_ac_delay_subframe1(G729A_Context* ctx, int ac_index)
 {
     int intT;
     int frac;
-    /* if no parity error */
-    if(!ctx->bad_pitch)
+
+    /* if parity error */
+    if(ctx->bad_pitch)
     {
+        ctx->intT1=ctx->intT2_prev;
+        return 3*ctx->intT2_prev+1;
+    }
+
         if(ac_index<197)
         {
             intT=1.0*(ac_index+2)/3+19;
@@ -555,18 +560,7 @@ int intT=T3/3;
 ============
 */
         }
-    }
-    else{
-        intT=ctx->intT2_prev;
-        frac=0;
-/*
-============
-int T3=intT2_prev*3+1
-int frac= T3%3-1
-int intT=T3/3;
-============
-*/
-    }
+
     ctx->intT1=intT;
     return 3*intT+frac+1;
 }
@@ -589,10 +583,8 @@ static int g729_decode_ac_delay_subframe2(G729A_Context* ctx, int ac_index, int 
 
     if(ctx->data_error)
     {
-        intT=intT1;
-        frac=0;
         ctx->intT2_prev=FFMIN(intT1+1, PITCH_MAX);
-        return 3*intT+frac+1;
+        return 3*intT1+frac+1;
     }
 
     intT=(ac_index+2)/3-1;
