@@ -20,6 +20,7 @@
  */
 #include <stdlib.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
@@ -881,16 +882,8 @@ static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residua
        First pass: searching the best T0 (pitch delay)
        Second pass is not used in G.729A: fractional part is always zero
     */
-    k=minT0;
-    correlation=0;
-    /* 4.2.1, Equation 80 */
-    for(n=0; n<ctx->subframe_size; n++)
-        correlation+=ctx->residual[n+PITCH_MAX]*ctx->residual[n+PITCH_MAX-k];
-
-    corr_max=correlation;
-    intT0=k++;
-
-    for(; k<=maxT0; k++)
+    corr_max=INT_MIN;
+    for(k=minT0; k<=maxT0; k++)
     {
         correlation=0;
         /* 4.2.1, Equation 80 */
