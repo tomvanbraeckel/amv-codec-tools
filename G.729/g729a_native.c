@@ -1173,8 +1173,11 @@ static void g729_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
     int16_t diff;         //Q13
 
     /* 3.2.4 Equation 19 */
-    for(i=0;i<10; i++)
-        lq[i]   = cb_L1[L1][i] + cb_L2_L3[L2][i]; //Q13
+    for(i=0;i<5; i++)
+    {
+        lq[i]   = cb_L1[L1][i] + cb_L2_L3[L2][i];     //Q13
+        lq[i+5] = cb_L1[L1][i+5] + cb_L2_L3[L3][i+5]; //Q13
+    }
 
     /* 3.2.4 rearrangement routine */
     for(j=0; j<2; j++)
