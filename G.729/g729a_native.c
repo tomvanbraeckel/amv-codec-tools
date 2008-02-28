@@ -1108,7 +1108,7 @@ static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, int intT1, fl
     {
         tmp_speech[i] = FFMIN(tmp_speech[i],32767.0);
         tmp_speech[i] = FFMAX(tmp_speech[i],-32768.0);
-        speech[i]=tmp_speech[i];
+        speech[i]=lrintf(tmp_speech[i]);
     }
 }
 
