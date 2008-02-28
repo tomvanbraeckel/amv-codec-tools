@@ -525,41 +525,14 @@ int g729_parity_check(uint8_t P1, int P0)
  */
 static int g729_decode_ac_delay_subframe1(G729A_Context* ctx, int ac_index)
 {
-    int intT;
-    int frac;
-
     /* if parity error */
     if(ctx->bad_pitch)
-    {
         return 3*ctx->intT2_prev+1;
-    }
 
-        if(ac_index<197)
-        {
-            intT=1.0*(ac_index+2)/3+19;
-            frac=ac_index-3*(intT)+58;
-/*
-============
-int T3=P1+59
-int frac= T3%3-1
-int intT=T3/3;
-============
-*/
-        }
-        else
-        {
-            intT=ac_index-112;
-            frac=0;
-/*
-============
-int T3=P1*3-335
-int frac= T3%3-1
-int intT=T3/3;
-============
-*/
-        }
-
-    return 3*intT+frac+1;
+    if(ac_index>=197)
+        return 3*ac_index-335;
+	
+    return ac_index+59;
 }
 
 /**
