@@ -725,13 +725,12 @@ static void g729_update_gain(G729A_Context *ctx)
  */
 static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, float* gp, float* gc)
 {
-    float energy=0;
+    float energy;
     int i;
     float cb1_sum;
 
     /* 3.9.1, Equation 66 */
-    for(i=0; i<ctx->subframe_size; i++)
-        energy+=fc_v[i]*fc_v[i];
+    energy=sum_of_squares(fc_v, ctx->subframe_size);
 
     /*
       energy=mean_energy-E
