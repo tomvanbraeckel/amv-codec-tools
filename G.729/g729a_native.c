@@ -518,16 +518,17 @@ int g729_parity_check(uint8_t P1, int P0)
  * \brief Decoding of the adaptive-codebook vector delay for first subframe (4.1.3)
  * \param ctx private data structure
  * \param ac_index Adaptive codebook index for first subframe
+ * \param intT2 integer part of the pitch delay of the last seoond subframe
  *
  * \return 3*intT+frac+1, where
  *   intT integer part of delay
  *   frac fractional part of delay [-1, 0, 1]
  */
-static int g729_decode_ac_delay_subframe1(G729A_Context* ctx, int ac_index)
+static int g729_decode_ac_delay_subframe1(G729A_Context* ctx, int ac_index, int intT2)
 {
     /* if parity error */
     if(ctx->bad_pitch)
-        return 3*ctx->intT2_prev+1;
+        return 3*intT2+1;
 
     if(ac_index>=197)
         return 3*ac_index-335;
@@ -539,7 +540,7 @@ static int g729_decode_ac_delay_subframe1(G729A_Context* ctx, int ac_index)
  * \brief Decoding of the adaptive-codebook vector delay for second subframe (4.1.3)
  * \param ctx private data structure
  * \param ac_index Adaptive codebook index for second subframe
- * \param T1 first subframe's pitch delay integer part
+ * \param intT1 first subframe's pitch delay integer part
  *
  * \return 3*intT+frac+1, where
  *   intT integer part of delay
@@ -1420,7 +1421,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
     g729_lp_decode(ctx, lsp, lp);
 
     /* first subframe */
-    pitch_delay=g729_decode_ac_delay_subframe1(ctx, parm[4]);
+    pitch_delay=g729_decode_ac_delay_subframe1(ctx, parm[4], ctx->intT2_prev);
 
     intT1=pitch_delay/3;    //Used in long-term postfilter    
     g729_decode_ac_vector(ctx, pitch_delay/3, (pitch_delay%3)-1, ctx->exc);
