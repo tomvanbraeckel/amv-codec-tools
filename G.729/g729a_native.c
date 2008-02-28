@@ -104,14 +104,18 @@ test    : PASS
 static const struct
 {
     int sample_rate;
-    char bits_per_frame;
-    char fc_index_bits;
+    ///Size (in bytes) of input frame
+    uint8_t input_frame_size;
+    ///Size (in bytes) of output frame
+    uint8_t output_frame_size;
+    ///Size (in bits) of fixed codebook index
+    uint8_t fc_index_bits;
 } formats[] =
 {
-  {8000, 80, 3},
+  {8000, 10, 160, 3},
 #ifdef G729_SUPPORT_4400
 // Note: may not work
-  {4400, 88, 4},
+  {4400, 11, 176, 4},
 #endif //G729_SUPPORT_4400
 };
 
@@ -1367,7 +1371,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
         av_log(avctx, AV_LOG_ERROR, "Sample rate %d is not supported\n", avctx->sample_rate);
         return AVERROR_NOFMT;
     }
-    ctx->subframe_size=formats[ctx->format].bits_per_frame>>1;
+    ctx->subframe_size=formats[ctx->format].output_frame_size>>2; // cnumber of 2-byte long samples in one subframe
 
     assert(ctx->subframe_size>0 && ctx->subframe_size<=MAX_SUBFRAME_SIZE);
 
@@ -1516,7 +1520,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
 static int g729_bytes2parm(G729A_Context *ctx, const uint8_t *buf, int buf_size, int *parm)
 {
     GetBitContext gb;
-    int l_frame=formats[ctx->format].bits_per_frame>>3;
+    int l_frame=formats[ctx->format].input_frame_size;
 
     if(buf_size<l_frame)
         return AVERROR(EIO);
@@ -1548,7 +1552,7 @@ static int ff_g729a_decode_frame(AVCodecContext *avctx,
 {
     int parm[VECTOR_SIZE];
     G729A_Context *ctx=avctx->priv_data;
-    int l_frame=formats[ctx->format].bits_per_frame;
+    int l_frame=formats[ctx->format].output_frame_size;
 
     if (data_size<l_frame)
         return 0;
@@ -1556,8 +1560,8 @@ static int ff_g729a_decode_frame(AVCodecContext *avctx,
     g729_bytes2parm(ctx, buf, buf_size, parm);
 
     *data_size=0;
-    g729a_decode_frame_internal(ctx,(int16_t*)data, l_frame*sizeof(int16_t), parm);
-    *data_size+=l_frame*sizeof(int16_t);
+    g729a_decode_frame_internal(ctx,(int16_t*)data, l_frame, parm);
+    *data_size+=l_frame;
 
     return buf_size;
 }
