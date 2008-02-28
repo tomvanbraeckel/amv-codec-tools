@@ -884,6 +884,7 @@ static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residua
        First pass: searching the best T0 (pitch delay)
        Second pass is not used in G.729A: fractional part is always zero
     */
+    intT0=minT0;
     corr_max=INT_MIN;
     for(k=minT0; k<=maxT0; k++)
     {
