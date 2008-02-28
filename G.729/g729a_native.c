@@ -1354,7 +1354,6 @@ static void g729_lp_decode(G729A_Context* ctx, float* lsp_curr, float* lp)
 static int ff_g729a_decoder_init(AVCodecContext * avctx)
 {
     G729A_Context* ctx=avctx->priv_data;
-    int frame_size=10;
     int i,k;
 
     if(avctx->sample_rate==8000)
@@ -1368,8 +1367,6 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
         av_log(avctx, AV_LOG_ERROR, "Sample rate %d is not supported\n", avctx->sample_rate);
         return AVERROR_NOFMT;
     }
-    frame_size=formats[ctx->format].bits_per_frame>>3; //frame_size is in bytes
-
     ctx->subframe_size=formats[ctx->format].bits_per_frame>>1;
 
     assert(ctx->subframe_size>0 && ctx->subframe_size<=MAX_SUBFRAME_SIZE);
@@ -1394,7 +1391,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
         ctx->lsp_prev[i]=lsp_init[i];
 
     for(k=1; k<MA_NP; k++)
-        for(i=0;i<frame_size; i++)
+        for(i=0; i<10; i++)
             ctx->lq_prev[k][i]=ctx->lq_prev[0][i];
 
     ctx->exc=&ctx->exc_base[PITCH_MAX+INTERPOL_LEN];
