@@ -494,6 +494,28 @@ static const float lsp_init[10] =
 */
 
 /**
+ * \brief Calculates gain value of speech signal
+ * \param speech signal buffer
+ * \param length signal buffer length
+ *
+ * \return squared gain value
+ */
+static float sum_of_squares(float *speech, int length)
+{
+    int n;
+    float sum;
+
+    if(!length)
+        return 0;
+
+    sum=speech[0]*speech[0];
+    for(n=1; n<length; n++)
+       sum+=speech[n]*speech[n];
+
+    return sum;
+}
+
+/**
  * \brief pseudo random number generator
  */
 static inline uint16_t g729_random(G729A_Context* ctx)
@@ -793,25 +815,6 @@ static void g729_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, f
 }
 
 /**
- * \brief Calculates gain value of speech signal
- * \param speech signal buffer
- * \param length signal buffer length
- *
- * \return squared gain value
- */
-static float g729_get_signal_gain(float *speech, int length)
-{
-    int n;
-    float gain;
-
-    gain=speech[0]*speech[0];
-    for(n=1; n<length; n++)
-       gain+=speech[n]*speech[n];
-
-    return gain;
-}
-
-/**
  * \brief Adaptive gain control (4.2.4)
  * \param ctx private data structure
  * \param gain_before gain of speech before applying postfilters
@@ -896,8 +899,8 @@ static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residua
         }
     }
 
-    corr_t0=g729_get_signal_gain(ctx->residual+PITCH_MAX-intT0, ctx->subframe_size);
-    corr_0=g729_get_signal_gain(ctx->residual+PITCH_MAX, ctx->subframe_size);
+    corr_t0=sum_of_squares(ctx->residual+PITCH_MAX-intT0, ctx->subframe_size);
+    corr_0=sum_of_squares(ctx->residual+PITCH_MAX, ctx->subframe_size);
 
     /* 4.2.1, Equation 82. checking if filter should be disabled */
     if(corr_max*corr_max < 0.5*corr_0*corr_t0)
@@ -1026,7 +1029,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, int intT1, float *sp
     }
 
     /* Calculating gain of unfiltered signal for using in AGC */
-    gain_before=g729_get_signal_gain(speech, ctx->subframe_size);
+    gain_before=sum_of_squares(speech, ctx->subframe_size);
 
     /* long-term filter (A.4.2.1) */
     g729a_long_term_filter(ctx, intT1, residual_filt);
@@ -1038,7 +1041,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, int intT1, float *sp
     g729_lp_synthesis_filter(ctx, lp_gd, residual_filt, speech, ctx->res_filter_data);
 
     /* Calculating gain of filtered signal for using in AGC */
-    gain_after=g729_get_signal_gain(speech, ctx->subframe_size);
+    gain_after=sum_of_squares(speech, ctx->subframe_size);
 
     /* adaptive gain control (A.4.2.4) */
     g729a_adaptive_gain_control(ctx, gain_before, gain_after, speech);
