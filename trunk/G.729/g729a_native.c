@@ -574,7 +574,7 @@ static int g729_decode_ac_delay_subframe2(G729A_Context* ctx, int ac_index, int 
     if(ctx->data_error)
         return 3*intT1+1;
 
-    return ac_index+3*FFMIN(FFMAX(intT1-5, PITCH_MIN), PITCH_MAX-9)-1;
+    return ac_index + 3*FFMIN(FFMAX(intT1-5, PITCH_MIN), PITCH_MAX-9) - 1;
 }
 
 /**
@@ -674,7 +674,7 @@ static void g729_fix_fc_vector(G729A_Context *ctx, int pitch_delay, float* fc_v)
         return;
 
     for(i=pitch_delay; i<ctx->subframe_size;i++)
-        fc_v[i]+=fc_v[i-pitch_delay]*ctx->gain_pitch;
+        fc_v[i] += fc_v[i-pitch_delay]*ctx->gain_pitch;
 }
 
 /**
@@ -686,11 +686,11 @@ static void g729_fix_fc_vector(G729A_Context *ctx, int pitch_delay, float* fc_v)
 static void g729_get_gain_from_previous(G729A_Context *ctx, float* gp, float* gc)
 {
     /* 4.4.2, Equation 93 */
-    *gc=0.98*ctx->gain_code;
-    ctx->gain_code=*gc;
+    *gc = 0.98*ctx->gain_code;
+    ctx->gain_code = *gc;
 
     /* 4.4.2, Equation 94 */
-    *gp=FFMIN(0.9*ctx->gain_pitch, 0.9);
+    *gp = FFMIN(0.9*ctx->gain_pitch, 0.9);
     ctx->gain_pitch = *gp;
 }
 
@@ -737,7 +737,7 @@ static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, flo
       mean_energy=30dB
       E is calculated in 3.9.1 Equation 66
     */
-    energy=30-10.*log(energy/ctx->subframe_size)/M_LN10;
+    energy = 30 - 10.0*log(energy/ctx->subframe_size)/M_LN10;
 
     /* 3.9.1, Equation 69 */
     for(i=0; i<4; i++)
@@ -750,9 +750,9 @@ static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, flo
     for(i=3; i>0; i--)
         ctx->pred_vect_q[i]=ctx->pred_vect_q[i-1];
 
-    cb1_sum=cb_GA[nGA][1]+cb_GB[nGB][1];
+    cb1_sum = cb_GA[nGA][1]+cb_GB[nGB][1];
     /* 3.9.1, Equation 72 */
-    ctx->pred_vect_q[0]=20*log(cb1_sum)/M_LN10; //FIXME: should there be subframe_size/2 ?
+    ctx->pred_vect_q[0] = 20 * log(cb1_sum) / M_LN10; //FIXME: should there be subframe_size/2 ?
 
     /* 3.9.1, Equation 73 */
     *gp = cb_GA[nGA][0]+cb_GB[nGB][0];           // quantized adaptive-codebook gain (gain code)
@@ -807,7 +807,7 @@ static void g729_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, f
     {
         tmp[n]=in[n];
         for(i=0; i<10; i++)
-            tmp[n]-= lp[i]*tmp[n-i-1];
+            tmp[n] -= lp[i]*tmp[n-i-1];
     }
     memcpy(filter_data, tmp+ctx->subframe_size-10, 10*sizeof(float));
     memcpy(out, tmp, ctx->subframe_size*sizeof(float));
@@ -832,7 +832,7 @@ static void g729a_adaptive_gain_control(G729A_Context *ctx, float gain_before, f
 
     for(n=0; n<ctx->subframe_size; n++)
     {
-        ctx->g=0.9*ctx->g+0.1*gain;
+        ctx->g = 0.9*ctx->g + 0.1*gain;
         speech[n] *= ctx->g;
     }
 }
@@ -909,8 +909,8 @@ static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residua
     else
         gl=FFMIN(corr_max/corr_t0, 1);
 
-    inv_glgp=1.0/(1+gl*GAMMA_P);
-    glgp_inv_glgp=gl*GAMMA_P*inv_glgp;
+    inv_glgp = 1.0 / (1 + gl*GAMMA_P);
+    glgp_inv_glgp = gl * GAMMA_P * inv_glgp;
 
     /* 4.2.1, Equation 78, reconstructing delayed signal */
     for(n=0; n<ctx->subframe_size; n++)
@@ -951,7 +951,7 @@ static void g729a_tilt_compensation(G729A_Context *ctx,float *lp_gn, float *lp_g
     {
         sum=hf[n];
         for(i=0; i<10; i++)
-            sum-= lp_gd[i]*tmp_buf[n-i-1+10];
+            sum -= lp_gd[i]*tmp_buf[n-i-1+10];
         tmp_buf[n+10]=sum;
         hf[n]=sum;
     }
@@ -980,8 +980,8 @@ static void g729a_tilt_compensation(G729A_Context *ctx,float *lp_gn, float *lp_g
     tmp=res_pst[ctx->subframe_size-1];
 
     for(i=ctx->subframe_size-1; i>=1; i--)
-        res_pst[i]+=gt*res_pst[i-1];
-    res_pst[0]+=gt*ctx->ht_prev_data;
+        res_pst[i] += gt*res_pst[i-1];
+    res_pst[0] += gt*ctx->ht_prev_data;
 
     ctx->ht_prev_data=tmp;
 }
@@ -1066,8 +1066,8 @@ static void g729_high_pass_filter(G729A_Context* ctx, float* speech)
         ctx->hpf_z0=speech[i];
 
         f_0 = 1.9330735 * ctx->hpf_f1 - 0.93589199 * ctx->hpf_f2 + 
-	        0.93980581 * ctx->hpf_z0 - 1.8795834 * ctx->hpf_z1 + 0.93980581 * z_2;
-        speech[i]=f_0*2.0;
+              0.93980581 * ctx->hpf_z0 - 1.8795834 * ctx->hpf_z1 + 0.93980581 * z_2;
+        speech[i] = f_0*2.0;
 
         ctx->hpf_f2=ctx->hpf_f1;
         ctx->hpf_f1=f_0;
@@ -1101,8 +1101,8 @@ static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, int intT1, fl
 
     for(i=0; i<ctx->subframe_size; i++)
     {
-        tmp_speech[i] = FFMIN(tmp_speech[i],32767.0);
-        tmp_speech[i] = FFMAX(tmp_speech[i],-32768.0);
+        tmp_speech[i] = FFMIN(tmp_speech[i],  32767.0);
+        tmp_speech[i] = FFMAX(tmp_speech[i], -32768.0);
         speech[i]=lrintf(tmp_speech[i]);
     }
 }
@@ -1143,8 +1143,8 @@ static void g729_lsp_restore_from_previous(G729A_Context *ctx, float* lsfq)
     {
         lq[i]=Q15_BASE * lsfq[i]; 
         for(k=0;k<MA_NP; k++)
-            lq[i]-=ma_predictor[ctx->prev_mode][k][i]; //Q15
-        lq[i]/=ma_predictor_sum[ctx->prev_mode][i]; //Q15
+            lq[i] -= ma_predictor[ctx->prev_mode][k][i]; //Q15
+        lq[i] /= ma_predictor_sum[ctx->prev_mode][i]; //Q15
     }
 
     /* Rotate lq_prev */
@@ -1177,7 +1177,7 @@ static void g729_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
     /* 3.2.4 Equation 19 */
     for(i=0;i<5; i++)
     {
-        lq[i]   = cb_L1[L1][i] + cb_L2_L3[L2][i];     //Q13
+        lq[i]   = cb_L1[L1][i  ] + cb_L2_L3[L2][i  ]; //Q13
         lq[i+5] = cb_L1[L1][i+5] + cb_L2_L3[L3][i+5]; //Q13
     }
 
@@ -1186,7 +1186,7 @@ static void g729_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
     {
         for(i=1; i<10; i++)
         {
-            diff=(lq[i-1]-lq[i]+J[j])>>1;
+            diff = (lq[i-1] - lq[i] + J[j])>>1;
             if(diff>0)
             {
                 lq[i-1]-= diff;
@@ -1210,8 +1210,8 @@ static void g729_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
     for(i=0; i<10; i++)
     {
         for(k=MA_NP-1; k>0; k--)
-            ctx->lq_prev[k][i]=ctx->lq_prev[k-1][i];
-        ctx->lq_prev[0][i]=lq[i] / Q13_BASE;
+            ctx->lq_prev[k][i] = ctx->lq_prev[k-1][i];
+        ctx->lq_prev[0][i] = lq[i] / Q13_BASE;
     }
     ctx->prev_mode=L0;
 
@@ -1225,8 +1225,8 @@ static void g729_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
     lsfq[0] = FFMAX(lsfq[0],LSFQ_MIN); //Is warning required ?
 
     for(i=0;i<9; i++)
-        lsfq[i+1]=FFMAX(lsfq[i+1], lsfq[i]+LSFQ_DIFF_MIN);
-    lsfq[9] = FFMIN(lsfq[9],LSFQ_MAX);//Is warning required ?
+        lsfq[i+1]=FFMAX(lsfq[i+1], lsfq[i] + LSFQ_DIFF_MIN);
+    lsfq[9] = FFMIN(lsfq[9], LSFQ_MAX);//Is warning required ?
 
     g729_lsf2lsp(ctx, lsfq, lsfq);
 }
@@ -1243,11 +1243,11 @@ static void get_lsp_coefficients(float* q, float* f)
     for(i=2; i<=5; i++)
     {
         b=-2*q[qidx];
-        f[i]=b*f[i-1]+2*f[i-2];
+        f[i] = b*f[i-1] + 2*f[i-2];
 
         for(j=i-1; j>1; j--)
         {
-            f[j]+=b  * f[j-1] + f[j-2];
+            f[j] += b*f[j-1] + f[j-2];
         }
         f[1]+=b;
         qidx+=2;
@@ -1265,16 +1265,16 @@ static void g729_lsp2lp(G729A_Context* ctx, float* lsp, float* lp)
     float f1[6];
     float f2[6];
 
-    get_lsp_coefficients(lsp, f1);
+    get_lsp_coefficients(lsp,   f1);
     get_lsp_coefficients(lsp+1, f2);
 
     /* 3.2.6, Equations 25 and  26*/
     for(i=0;i<5;i++)
     {
-        float ff1=f1[i+1]+f1[i];
-        float ff2=f2[i+1]-f2[i];
-        lp[i]=(ff1 + ff2)/2;
-        lp[9-i]=(ff1 - ff2)/2;
+        float ff1 = f1[i+1] + f1[i];
+        float ff2 = f2[i+1] - f2[i];
+        lp[i]   = (ff1 + ff2)/2;
+        lp[9-i] = (ff1 - ff2)/2;
     }
 }
 
