@@ -1267,24 +1267,16 @@ static void g729_lsp2lp(G729A_Context* ctx, float* lsp, float* lp)
     float f1[6];
     float f2[6];
 
-    float ff1[5];
-    float ff2[5];
-
     get_lsp_coefficients(lsp, f1);
     get_lsp_coefficients(lsp+1, f2);
 
-    /* 3.2.6, Equation 25*/
+    /* 3.2.6, Equations 25 and  26*/
     for(i=0;i<5;i++)
     {
-        ff1[i]=f1[i+1]+f1[i];
-        ff2[i]=f2[i+1]-f2[i];
-    }
-
-    /* 3.2.6, Equation 26*/
-    for(i=0;i<5;i++)
-    {
-        lp[i]=(ff1[i]+ff2[i])/2;
-        lp[i+5]=(ff1[4-i]-ff2[4-i])/2;
+        float ff1=f1[i+1]+f1[i];
+        float ff2=f2[i+1]-f2[i];
+        lp[i]=(ff1 + ff2)/2;
+        lp[9-i]=(ff1 - ff2)/2;
     }
 }
 
@@ -1422,8 +1414,8 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
 
     /* first subframe */
     pitch_delay=g729_decode_ac_delay_subframe1(ctx, parm[4], ctx->intT2_prev);
-
     intT1=pitch_delay/3;    //Used in long-term postfilter    
+
     g729_decode_ac_vector(ctx, pitch_delay/3, (pitch_delay%3)-1, ctx->exc);
 
     if(ctx->data_error)
