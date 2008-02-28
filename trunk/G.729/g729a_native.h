@@ -12,6 +12,7 @@
 
 #define ENOMEM -1
 #define EIO -2
+#define AVERROR_NOFMT -3
 
 #define av_log(ctx,lvl,fmt,param1) printf(fmt,param1)
 
