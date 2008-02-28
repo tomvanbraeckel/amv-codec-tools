@@ -1552,18 +1552,27 @@ static int ff_g729a_decode_frame(AVCodecContext *avctx,
 {
     int parm[VECTOR_SIZE];
     G729A_Context *ctx=avctx->priv_data;
-    int l_frame=formats[ctx->format].output_frame_size;
+    int in_frame_size=formats[ctx->format].input_frame_size;
+    int out_frame_size=formats[ctx->format].output_frame_size;
+    int i, ret;
+    uint8_t *dst=data;
+    const uint8_t *src=buf;
 
-    if (buf_size<formats[ctx->format].input_frame_size)
-        return 0;
-
-    g729_bytes2parm(ctx, buf, buf_size, parm);
+    if (buf_size<in_frame_size)
+        return AVERROR(EIO);
 
     *data_size=0;
-    g729a_decode_frame_internal(ctx,(int16_t*)data, l_frame, parm);
-    *data_size+=l_frame;
-
-    return buf_size;
+    for(i=0; i<buf_size; i+=in_frame_size)
+    {
+        ret=g729_bytes2parm(ctx, src, in_frame_size, parm);
+        if(ret)
+            return ret;
+        g729a_decode_frame_internal(ctx, (int16_t*)dst, out_frame_size, parm);
+        dst+=out_frame_size;
+        src+=in_frame_size;
+    }
+    *data_size=(dst-(uint8_t*)data);
+    return (src-buf);
 }
 
 AVCodec g729a_decoder =
