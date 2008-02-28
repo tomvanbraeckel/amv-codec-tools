@@ -132,7 +132,6 @@ typedef struct
     float exc_base[2*MAX_SUBFRAME_SIZE+PITCH_MAX+INTERPOL_LEN];
     float* exc;             ///< start of past excitation data in buffer
     int intT2_prev;         ///< int(T2) value of previous frame (4.1.3)
-    int intT1;              ///< int(T1) value of first subframe
     float lq_prev[MA_NP][10];  ///< l[i], LSP quantizer output (3.2.4)
     float lsp_prev[10];     ///< q[i], LSP coefficients from previous frame (3.2.5)
     float lsf_prev[10];     ///< lq[i], LSF coefficients from previous frame
@@ -567,7 +566,7 @@ int intT=T3/3;
  * \brief Decoding of the adaptive-codebook vector delay for second subframe (4.1.3)
  * \param ctx private data structure
  * \param ac_index Adaptive codebook index for second subframe
- * \param T1 first subframe's vector delay integer part
+ * \param T1 first subframe's pitch delay integer part
  *
  * \return 3*intT+frac+1, where
  *   intT integer part of delay
@@ -899,9 +898,10 @@ static void g729a_weighted_filter(float* Az, float gamma, float *Azg)
 /**
  * \brief long-term postfilter (4.2.1)
  * \param ctx private data structure
+ * \param intT1 integer part of the pitch delay T1 in the first subframe
  * \param residual_filt speech signal with applied A(z/GAMMA_N) filter
  */
-static void g729a_long_term_filter(G729A_Context *ctx, float *residual_filt)
+static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residual_filt)
 {
     int k, n, intT0;
     float gl;      ///< gain coefficient for long-term postfilter
@@ -912,8 +912,8 @@ static void g729a_long_term_filter(G729A_Context *ctx, float *residual_filt)
     float glgp_inv_glgp; ///< gl*GAMMA_P/(1+gl*GAMMA_P);
 
     /* A.4.2.1 */
-    int minT0=FFMIN(ctx->intT1, PITCH_MAX-3)-3;
-    int maxT0=FFMIN(ctx->intT1, PITCH_MAX-3)+3;
+    int minT0=FFMIN(intT1, PITCH_MAX-3)-3;
+    int maxT0=FFMIN(intT1, PITCH_MAX-3)+3;
     /* Long-term postfilter start */
 
     /*
@@ -1033,6 +1033,8 @@ static void g729a_tilt_compensation(G729A_Context *ctx,float *lp_gn, float *lp_g
 /**
  * \brief Signal postfiltering (4.2, with A.4.2 simplification)
  * \param ctx private data structure
+ * \param lp LP filter coefficients
+ * \param intT1 integer part of the pitch delay T1 of the first subframe
  * \param speech_buf signal buffer, containing at the top 10 samples from previous subframe
  *
  * Filtering has following  stages:
@@ -1043,7 +1045,7 @@ static void g729a_tilt_compensation(G729A_Context *ctx,float *lp_gn, float *lp_g
  *
  * \note This routine is G.729 Annex A specific.
  */
-static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
+static void g729a_postfilter(G729A_Context *ctx, float *lp, int intT1, float *speech_buf)
 {
     int i, n;
     float *speech=speech_buf+10;
@@ -1073,7 +1075,7 @@ static void g729a_postfilter(G729A_Context *ctx, float *lp, float *speech_buf)
     gain_before=g729_get_signal_gain(speech, ctx->subframe_size);
 
     /* long-term filter (A.4.2.1) */
-    g729a_long_term_filter(ctx, residual_filt);
+    g729a_long_term_filter(ctx, intT1, residual_filt);
 
     /* short-term filter tilt compensation (A.4.2.3) */
     g729a_tilt_compensation(ctx, lp_gn, lp_gd, residual_filt);
@@ -1120,10 +1122,11 @@ static void g729_high_pass_filter(G729A_Context* ctx, float* speech)
  * \brief Computing the reconstructed speech (4.1.6)
  * \param ctx private data structure
  * \param lp LP filter coefficients
+ * \param intT1 integer part of the pitch delay T1 of the first subframe
  * \param exc excitation
  * \param speech reconstructed speech buffer (ctx->subframe_size items)
  */
-static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, int16_t* speech)
+static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, int intT1, float* exc, int16_t* speech)
 {
     float tmp_speech_buf[MAX_SUBFRAME_SIZE+10];
     float* tmp_speech=tmp_speech_buf+10;
@@ -1135,7 +1138,7 @@ static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, float* exc, i
     g729_lp_synthesis_filter(ctx, lp, exc, tmp_speech, ctx->syn_filter_data);
 
     /* 4.2 */
-    g729a_postfilter(ctx, lp, tmp_speech_buf);
+    g729a_postfilter(ctx, lp, intT1, tmp_speech_buf);
 
     //Postprocessing
     g729_high_pass_filter(ctx,tmp_speech);
@@ -1441,6 +1444,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
     int pitch_delay;                      ///< pitch delay
     float fc[MAX_SUBFRAME_SIZE];          ///< fixed codebooc vector
     float gp, gc;
+    int intT1;
 
     ctx->data_error=0;
     ctx->bad_pitch=0;
@@ -1457,7 +1461,8 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
 
     /* first subframe */
     pitch_delay=g729_decode_ac_delay_subframe1(ctx, parm[4]);
-    ctx->intT1=pitch_delay/3;
+
+    intT1=pitch_delay/3;    //Used in long-term postfilter    
     g729_decode_ac_vector(ctx, pitch_delay/3, (pitch_delay%3)-1, ctx->exc);
 
     if(ctx->data_error)
@@ -1479,7 +1484,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
         g729_get_gain(ctx, parm[8], parm[9], fc, &gp, &gc);
     }
     g729_mem_update(ctx, fc, gp, gc, ctx->exc);
-    g729_reconstruct_speech(ctx, lp, ctx->exc, out_frame);
+    g729_reconstruct_speech(ctx, lp, intT1, ctx->exc, out_frame);
     ctx->subframe_idx++;
 
     /* second subframe */
@@ -1505,7 +1510,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
         g729_get_gain(ctx, parm[13], parm[14], fc, &gp, &gc);
     }
     g729_mem_update(ctx, fc, gp, gc, ctx->exc+ctx->subframe_size);
-    g729_reconstruct_speech(ctx, lp+10, ctx->exc+ctx->subframe_size, out_frame+ctx->subframe_size);
+    g729_reconstruct_speech(ctx, lp+10, intT1, ctx->exc+ctx->subframe_size, out_frame+ctx->subframe_size);
     ctx->subframe_idx++;
 
     //Save signal for using in next frame
