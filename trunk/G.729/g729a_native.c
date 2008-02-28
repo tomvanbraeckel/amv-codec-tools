@@ -532,7 +532,6 @@ static int g729_decode_ac_delay_subframe1(G729A_Context* ctx, int ac_index)
     /* if parity error */
     if(ctx->bad_pitch)
     {
-        ctx->intT1=ctx->intT2_prev;
         return 3*ctx->intT2_prev+1;
     }
 
@@ -561,7 +560,6 @@ int intT=T3/3;
 */
         }
 
-    ctx->intT1=intT;
     return 3*intT+frac+1;
 }
 
@@ -1459,6 +1457,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
 
     /* first subframe */
     pitch_delay=g729_decode_ac_delay_subframe1(ctx, parm[4]);
+    ctx->intT1=pitch_delay/3;
     g729_decode_ac_vector(ctx, pitch_delay/3, (pitch_delay%3)-1, ctx->exc);
 
     if(ctx->data_error)
