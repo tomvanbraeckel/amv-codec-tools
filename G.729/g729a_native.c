@@ -519,18 +519,22 @@ int g729_parity_check(uint8_t P1, int P0)
  * \brief Decoding of the adaptive-codebook vector delay for first subframe (4.1.3)
  * \param ctx private data structure
  * \param ac_index Adaptive codebook index for first subframe
- * \param intT [out] integer part of delay
- * \param frac [out] fractional part of delay [-1, 0, 1]
+ *
+ * \return 3*intT+frac+1, where
+ *   intT integer part of delay
+ *   frac fractional part of delay [-1, 0, 1]
  */
-static void g729_decode_ac_delay_subframe1(G729A_Context* ctx, int ac_index, int* intT, int* frac)
+static int g729_decode_ac_delay_subframe1(G729A_Context* ctx, int ac_index)
 {
+    int intT;
+    int frac;
     /* if no parity error */
     if(!ctx->bad_pitch)
     {
         if(ac_index<197)
         {
-            *intT=1.0*(ac_index+2)/3+19;
-            *frac=ac_index-3*(*intT)+58;
+            intT=1.0*(ac_index+2)/3+19;
+            frac=ac_index-3*(intT)+58;
 /*
 ============
 int T3=P1+59
@@ -541,8 +545,8 @@ int intT=T3/3;
         }
         else
         {
-            *intT=ac_index-112;
-            *frac=0;
+            intT=ac_index-112;
+            frac=0;
 /*
 ============
 int T3=P1*3-335
@@ -553,10 +557,11 @@ int intT=T3/3;
         }
     }
     else{
-        *intT=ctx->intT2_prev;
-        *frac=0;
+        intT=ctx->intT2_prev;
+        frac=0;
     }
-    ctx->intT1=*intT;
+    ctx->intT1=intT;
+    return 3*intT+frac+1;
 }
 
 /**
@@ -564,28 +569,32 @@ int intT=T3/3;
  * \param ctx private data structure
  * \param ac_index Adaptive codebook index for second subframe
  * \param T1 first subframe's vector delay integer part
- * \param intT [out] integer part of delay
- * \param frac [out] fractional part of delay [-1, 0, 1]
+ *
+ * \return 3*intT+frac+1, where
+ *   intT integer part of delay
+ *   frac fractional part of delay [-1, 0, 1]
  */
-static void g729_decode_ac_delay_subframe2(G729A_Context* ctx, int ac_index, int intT1, int* intT, int* frac)
+static int g729_decode_ac_delay_subframe2(G729A_Context* ctx, int ac_index, int intT1)
 {
-
+    int intT;
+    int frac;
     int tmin=FFMIN(FFMAX(intT1-5, PITCH_MIN), PITCH_MAX-9);
 
     if(ctx->data_error)
     {
-        *intT=intT1;
-        *frac=0;
+        intT=intT1;
+        frac=0;
         ctx->intT2_prev=FFMIN(intT1+1, PITCH_MAX);
         return;
     }
 
-    *intT=(ac_index+2)/3-1;
-    *frac=ac_index-2-3*(*intT);
+    intT=(ac_index+2)/3-1;
+    frac=ac_index-2-3*(intT);
 
-    *intT+=tmin;
+    intT+=tmin;
 
-    ctx->intT2_prev=*intT;
+    ctx->intT2_prev=intT;
+    return 3*intT+frac+1;
 }
 
 /**
@@ -1432,8 +1441,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
     G729A_Context* ctx=context;
     float lp[20];
     float lsp[10];
-    int pitch_delay_frac;                 ///< pitch delay, fraction part
-    int pitch_delay_int;                  ///< pitch delay, integer part
+    int pitch_delay;                      ///< pitch delay
     float fc[MAX_SUBFRAME_SIZE];          ///< fixed codebooc vector
     float gp, gc;
 
@@ -1451,8 +1459,8 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
     g729_lp_decode(ctx, lsp, lp);
 
     /* first subframe */
-    g729_decode_ac_delay_subframe1(ctx, parm[4], &pitch_delay_int, &pitch_delay_frac);
-    g729_decode_ac_vector(ctx, pitch_delay_int, pitch_delay_frac, ctx->exc);
+    pitch_delay=g729_decode_ac_delay_subframe1(ctx, parm[4]);
+    g729_decode_ac_vector(ctx, pitch_delay/3, (pitch_delay%3)-1, ctx->exc);
 
     if(ctx->data_error)
     {
@@ -1461,7 +1469,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
     }
 
     g729_decode_fc_vector(ctx, parm[6], parm[7], fc);
-    g729_fix_fc_vector(ctx, pitch_delay_int, fc);
+    g729_fix_fc_vector(ctx, pitch_delay/3, fc);
 
     if(ctx->data_error)
     {
@@ -1477,8 +1485,8 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
     ctx->subframe_idx++;
 
     /* second subframe */
-    g729_decode_ac_delay_subframe2(ctx, parm[10], pitch_delay_int, &pitch_delay_int, &pitch_delay_frac);
-    g729_decode_ac_vector(ctx, pitch_delay_int, pitch_delay_frac, ctx->exc+ctx->subframe_size);
+    pitch_delay=g729_decode_ac_delay_subframe2(ctx, parm[10], pitch_delay/3);
+    g729_decode_ac_vector(ctx, pitch_delay/3, (pitch_delay%3)-1, ctx->exc+ctx->subframe_size);
 
     if(ctx->data_error)
     {
@@ -1487,7 +1495,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
     }
 
     g729_decode_fc_vector(ctx, parm[11], parm[12], fc);
-    g729_fix_fc_vector(ctx, pitch_delay_int, fc);
+    g729_fix_fc_vector(ctx, pitch_delay/3, fc);
 
     if(ctx->data_error)
     {
