@@ -527,11 +527,25 @@ static void g729_decode_ac_delay_subframe1(G729A_Context* ctx, int ac_index, int
         {
             *intT=1.0*(ac_index+2)/3+19;
             *frac=ac_index-3*(*intT)+58;
+/*
+============
+int T3=P1+59
+int frac= T3%3-1
+int intT=T3/3;
+============
+*/
         }
         else
         {
             *intT=ac_index-112;
             *frac=0;
+/*
+============
+int T3=P1*3-335
+int frac= T3%3-1
+int intT=T3/3;
+============
+*/
         }
     }
     else{
