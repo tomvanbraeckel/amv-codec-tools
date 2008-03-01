@@ -147,7 +147,7 @@ typedef struct
     float exc_base[2*MAX_SUBFRAME_SIZE+PITCH_MAX+INTERPOL_LEN];
     float* exc;             ///< start of past excitation data in buffer
     int intT2_prev;         ///< int(T2) value of previous frame (4.1.3)
-    float lq_prev[MA_NP][10];  ///< l[i], LSP quantizer output (3.2.4)
+    int lq_prev[MA_NP][10];  ///< l[i], LSP quantizer output (3.2.4)
     float lsp_prev[10];     ///< q[i], LSP coefficients from previous frame (3.2.5)
     float lsf_prev[10];     ///< lq[i], LSF coefficients from previous frame
     float pred_energ_q[4];  ///< past quantized energies
@@ -473,7 +473,7 @@ static const int16_t ma_predictor[2][MA_NP][10] =
  * ma_predicot_sum[i] := 1-sum{1}{4}{ma_predictor[k][i]}
  */
 static const int16_t ma_predictor_sum[2][10] =
-{      /* Q12 */
+{      /* Q15 */
   { 7798,  8447,  8205,  8293,  8126,  8477,  8447,  8703,  9043,  8604},
   {14585, 18333, 19772, 17344, 16426, 16459, 15155, 15220, 16043, 15708}
 };
@@ -508,7 +508,11 @@ static const float lsp_init[10] =
           Internal routines
 ------------------------------------------------------------------------------
 */
-
+static int l_mul(int var1, int var2)
+{
+    int mul=var1*var2;
+    return mul==0x40000000?INT_MAX:mul<<1;
+}
 /**
  * \brief Calculates gain value of speech signal
  * \param speech signal buffer
@@ -1120,7 +1124,7 @@ static void g729_lsf_restore_from_previous(G729A_Context *ctx, float* lsfq)
 
     //Restore LSF from previous frame
     for(i=0;i<10; i++)
-        lsfq[i]=ctx->lsf_prev[i];
+        lsfq[i]=ctx->lsf_prev[i] / Q13_BASE;
 
     /* 4.4.1, Equation 92 */
     for(i=0; i<10; i++)
@@ -1136,7 +1140,7 @@ static void g729_lsf_restore_from_previous(G729A_Context *ctx, float* lsfq)
     {
         for(k=MA_NP-1; k>0; k--)
             ctx->lq_prev[k][i]=ctx->lq_prev[k-1][i];
-        ctx->lq_prev[0][i]=lq[i];
+        ctx->lq_prev[0][i]=lq[i] * Q13_BASE;
     }
 }
 
@@ -1155,6 +1159,7 @@ static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
     int16_t J[2]={10, 5}; //Q13
     int16_t lq[10];       //Q13
     int16_t diff;         //Q13
+    int sum;              //Q29
 
     /* 3.2.4 Equation 19 */
     for(i=0;i<5; i++)
@@ -1180,12 +1185,13 @@ static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
     /* 3.2.4, Equation 20 */
     for(i=0; i<10; i++)
     {
-        lsfq[i]=lq[i] * ma_predictor_sum[L0][i] / Q13_BASE;
+        sum = l_mul(lq[i], ma_predictor_sum[L0][i]); //Q29
         for(k=0; k<MA_NP; k++)
-            lsfq[i] += (ctx->lq_prev[k][i] * ma_predictor[L0][k][i]); //Q15
-	lsfq[i] /= Q15_BASE;
+            sum += l_mul(ctx->lq_prev[k][i], ma_predictor[L0][k][i]);
         //Saving LSF for using when error occured in next frames
-        ctx->lsf_prev[i]=lsfq[i];
+	sum >>= 16; //Q29 -> Q13
+        ctx->lsf_prev[i] = sum;
+	lsfq[i] = sum / (Q13_BASE); //Q28 -> Q0
     }
 
     /* Rotate lq_prev */
@@ -1193,7 +1199,7 @@ static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
     {
         for(k=MA_NP-1; k>0; k--)
             ctx->lq_prev[k][i] = ctx->lq_prev[k-1][i];
-        ctx->lq_prev[0][i] = lq[i] / Q13_BASE;
+        ctx->lq_prev[0][i] = lq[i];
     }
     ctx->prev_mode=L0;
 
@@ -1329,7 +1335,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
 
     /* LSP coefficients */
     for(i=0; i<10; i++)
-        ctx->lq_prev[0][i]=lq_init[i];
+        ctx->lq_prev[0][i]=lq_init[i] * Q13_BASE;
 
     for(i=0; i<10; i++)
         ctx->lsp_prev[i]=lsp_init[i];
