@@ -99,6 +99,20 @@ test    : PASS
 /// Number of pulses in fixed-codebook vector
 #define FC_PULSE_COUNT 4
 
+typedef struct
+{
+    uint8_t ma_predictor;     ///< Switched MA predictor of LSP quantizer
+    uint8_t quantizer_1st;    ///< First stage vector of quantizer
+    uint8_t quantizer_2nd_lo; ///< First stage lowervector of quantizer (size in bits)
+    uint8_t quantizer_2nd_hi; ///< First stage hihjer vector of quantizer (size in bits)
+    uint8_t parity;           ///< Parity bit for pitch delay (size in bits)
+    uint8_t ac_index[2];      ///< Adaptive codebook index
+    uint8_t pulses_signs[2];  ///< Fixed-codebook vectors pulses' signs
+    int fc_indexes[2];        ///< Fixed-codebook indexes
+    uint8_t ga_cb_index[2];   ///< GA codebook index
+    uint8_t gb_cb_index[2];   ///< GB codebook index
+} G729_parameters;
+
 ///Size of parameters vector
 #define VECTOR_SIZE 15
 
@@ -1388,7 +1402,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
  * \param out_frame array for output PCM samples
  * \param out_frame_size maximum number of elements in output array
  */
-static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int out_frame_size, int *parm)
+static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int out_frame_size, G729_parameters *parm)
 {
     G729A_Context* ctx=context;
     float lp[20];
@@ -1401,12 +1415,17 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
     ctx->data_error=0;
     ctx->bad_pitch=0;
 
-    ctx->bad_pitch = !g729_parity_check(parm[4], parm[5]);
+    ctx->bad_pitch = !g729_parity_check(parm->ac_index[0], parm->parity);
 
     if(ctx->data_error)
         g729_lsp_restore_from_previous(ctx, lsp);
     else
-        g729_lsp_decode(ctx, parm[0], parm[1], parm[2], parm[3], lsp);
+        g729_lsp_decode(ctx, 
+	         parm->ma_predictor,
+                 parm->quantizer_1st,
+                 parm->quantizer_2nd_lo,
+                 parm->quantizer_2nd_hi,
+                 lsp);
 
     g729_lp_decode(ctx, lsp, lp);
 
@@ -1415,12 +1434,12 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
 
         if(!i)
         {
-            pitch_delay=g729_decode_ac_delay_subframe1(ctx, parm[4], ctx->intT2_prev);
+            pitch_delay=g729_decode_ac_delay_subframe1(ctx, parm->ac_index[i], ctx->intT2_prev);
             intT1=pitch_delay/3;    //Used in long-term postfilter    
         }
         else
         {
-            pitch_delay=g729_decode_ac_delay_subframe2(ctx, parm[10], pitch_delay/3);
+            pitch_delay=g729_decode_ac_delay_subframe2(ctx, parm->ac_index[i], pitch_delay/3);
             ctx->intT2_prev=pitch_delay/3;
             if(ctx->data_error)
                 ctx->intT2_prev=FFMIN(ctx->intT2_prev+1, PITCH_MAX);
@@ -1430,11 +1449,11 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
 
         if(ctx->data_error)
         {
-            parm[6+i*5] = g729_random(ctx) & 0x1fff;
-            parm[7+i*5] = g729_random(ctx) & 0x000f;
+            parm->fc_indexes[i]   = g729_random(ctx) & 0x1fff;
+            parm->pulses_signs[i] = g729_random(ctx) & 0x000f;
         }
 
-        g729_decode_fc_vector(ctx, parm[6+i*5], parm[7+i*5], fc);
+        g729_decode_fc_vector(ctx, parm->fc_indexes[i], parm->pulses_signs[i], fc);
         g729_fix_fc_vector(ctx, pitch_delay/3, fc);
 
         if(ctx->data_error)
@@ -1444,7 +1463,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
         }
         else
         {
-            g729_get_gain(ctx, parm[8+i*5], parm[9+i*5], fc, &gp, &gc);
+            g729_get_gain(ctx, parm->ga_cb_index[i], parm->gb_cb_index[i], fc, &gp, &gc);
         }
 
         g729_mem_update(ctx, fc, gp, gc, ctx->exc+i*ctx->subframe_size);
@@ -1467,31 +1486,28 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
  *
  * \return 0 if success, nonzero - otherwise
  */
-static int g729_bytes2parm(G729A_Context *ctx, const uint8_t *buf, int buf_size, int *parm)
+static int g729_bytes2parm(G729A_Context *ctx, const uint8_t *buf, int buf_size, G729_parameters *parm)
 {
     GetBitContext gb;
-    int l_frame=formats[ctx->format].input_frame_size;
-
-    if(buf_size<l_frame)
-        return AVERROR(EIO);
 
     init_get_bits(&gb, buf, buf_size);
 
-    parm[0]=get_bits(&gb, L0_BITS); //L0
-    parm[1]=get_bits(&gb, L1_BITS); //L1
-    parm[2]=get_bits(&gb, L2_BITS); //L2
-    parm[3]=get_bits(&gb, L3_BITS); //L3
-    parm[4]=get_bits(&gb, P1_BITS); //P1
-    parm[5]=get_bits(&gb, P0_BITS); //Parity
-    parm[6]=get_bits(&gb, formats[ctx->format].fc_index_bits*FC_PULSE_COUNT+1); //C1
-    parm[7]=get_bits(&gb, FC_PULSE_COUNT); //S1
-    parm[8]=get_bits(&gb, GA_BITS); //GA1
-    parm[9]=get_bits(&gb, GB_BITS); //GB1
-    parm[10]=get_bits(&gb, P2_BITS); //P2
-    parm[11]=get_bits(&gb, formats[ctx->format].fc_index_bits*FC_PULSE_COUNT+1); //C2
-    parm[12]=get_bits(&gb, FC_PULSE_COUNT); //S2
-    parm[13]=get_bits(&gb, GA_BITS); //GA2
-    parm[14]=get_bits(&gb, GB_BITS); //GB2
+    parm->ma_predictor     = get_bits(&gb, L0_BITS); //L0
+    parm->quantizer_1st    = get_bits(&gb, L1_BITS); //L1
+    parm->quantizer_2nd_lo = get_bits(&gb, L2_BITS); //L2
+    parm->quantizer_2nd_hi = get_bits(&gb, L3_BITS); //L3
+    parm->ac_index[0]      = get_bits(&gb, P1_BITS); //P1
+    parm->parity           = get_bits(&gb, P0_BITS); //Parity
+    parm->fc_indexes[0]    = get_bits(&gb, formats[ctx->format].fc_index_bits*FC_PULSE_COUNT+1); //C1
+    parm->pulses_signs[0]  = get_bits(&gb, FC_PULSE_COUNT); //S1
+    parm->ga_cb_index[0]   = get_bits(&gb, GA_BITS); //GA1
+    parm->gb_cb_index[0]   = get_bits(&gb, GB_BITS); //GB1
+    parm->ac_index[1]      = get_bits(&gb, P2_BITS); //P2
+    parm->fc_indexes[1]    = get_bits(&gb, formats[ctx->format].fc_index_bits*FC_PULSE_COUNT+1); //C2
+    parm->pulses_signs[1]  = get_bits(&gb, FC_PULSE_COUNT); //S2
+    parm->ga_cb_index[1]   = get_bits(&gb, GA_BITS); //GA2
+    parm->gb_cb_index[1]   = get_bits(&gb, GB_BITS); //GB2
+
     return 0;
 }
 
@@ -1500,7 +1516,7 @@ static int ff_g729a_decode_frame(AVCodecContext *avctx,
                              void *data, int *data_size,
                              const uint8_t *buf, int buf_size)
 {
-    int parm[VECTOR_SIZE];
+    G729_parameters parm;
     G729A_Context *ctx=avctx->priv_data;
     int in_frame_size=formats[ctx->format].input_frame_size;
     int out_frame_size=formats[ctx->format].output_frame_size;
@@ -1514,10 +1530,10 @@ static int ff_g729a_decode_frame(AVCodecContext *avctx,
     *data_size=0;
     for(i=0; i<buf_size; i+=in_frame_size)
     {
-        ret=g729_bytes2parm(ctx, src, in_frame_size, parm);
+        ret=g729_bytes2parm(ctx, src, in_frame_size, &parm);
         if(ret)
             return ret;
-        g729a_decode_frame_internal(ctx, (int16_t*)dst, out_frame_size, parm);
+        g729a_decode_frame_internal(ctx, (int16_t*)dst, out_frame_size, &parm);
         dst+=out_frame_size;
         src+=in_frame_size;
     }
@@ -1554,11 +1570,11 @@ int g729a_decoder_uninit(void* ctx)
 }
 int  g729a_decode_frame(AVCodecContext* avctx, int16_t* serial, int serial_size, int16_t* out_frame, int out_frame_size)
 {
-    int parm[VECTOR_SIZE];
+    G729_parameters parm;
 
-    g729_bytes2parm(avctx->priv_data, serial, 82, parm);
+    g729_bytes2parm(avctx->priv_data, serial, 82, &parm);
 
-    return g729a_decode_frame_internal(avctx->priv_data, out_frame, out_frame_size, parm);
+    return g729a_decode_frame_internal(avctx->priv_data, out_frame, out_frame_size, &parm);
 }
 /*
 ---------------------------------------------------------------------------
