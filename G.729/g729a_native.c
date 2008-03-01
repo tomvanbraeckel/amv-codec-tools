@@ -1227,21 +1227,22 @@ static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
 
 
 /**
- * \param q (Q15) LSP coefficients
+ * \brief decodes polinomial coefficients from LSP
+ * \param lsp (Q15) LSP coefficients
+ * \param f [out] (Q24) decoded polinomial coefficients
  */
-static void get_lsp_coefficients(int* q, int* f_out)
+static void get_lsp_coefficients(int* lsp, int* f)
 {
     int i, j;
     int qidx=2;
     int b;
-    int f[6];
 
     f[0] = 0x1000000;   // 1.0 in Q24
-    f[1] = -q[0] << 10; // *2 and Q15 -> Q24
+    f[1] = -lsp[0] << 10; // *2 and Q15 -> Q24
 
     for(i=2; i<=5; i++)
     {
-        b=-q[qidx]<<1;   // Q15        
+        b=-lsp[qidx]<<1;   // Q15        
         f[i] = mul_24_15(f[i-1], b) + 2*f[i-2];
 
         for(j=i-1; j>1; j--)
@@ -1250,8 +1251,6 @@ static void get_lsp_coefficients(int* q, int* f_out)
         f[1]+=b << 9;
         qidx+=2;
     }
-    for(i=0;i<6;i++)
-       f_out[i]=f[i] / ( 1<<11) ;
 }
 /**
  * \brief LSP to LP conversion (3.2.6)
@@ -1265,8 +1264,6 @@ static void g729_lsp2lp(G729A_Context* ctx, int* lsp, int* lp)
     int f1[6];
     int f2[6];
 
-    float lsp_f[10];
-    for(i=0;i<10;i++) lsp_f[i]=lsp[i];
     get_lsp_coefficients(lsp,   f1);
     get_lsp_coefficients(lsp+1, f2);
 
@@ -1275,8 +1272,8 @@ static void g729_lsp2lp(G729A_Context* ctx, int* lsp, int* lp)
     {
         int ff1 = f1[i+1] + f1[i];
         int ff2 = f2[i+1] - f2[i];
-        lp[i]   = (ff1 + ff2)/2;
-        lp[9-i] = (ff1 - ff2)/2;
+        lp[i]   = (ff1 + ff2)>>12; // *0.5 and Q24 -> Q13
+        lp[9-i] = (ff1 - ff2)>>12; // *0.5 and Q24 -> Q13
     }
 }
 
