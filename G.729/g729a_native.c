@@ -170,9 +170,10 @@ typedef struct
 }  G729A_Context;
 
 //Stability constants (3.2.4)
-#define LSFQ_MIN 0.005
-#define LSFQ_MAX 3.135
-#define LSFQ_DIFF_MIN 0.0391
+#define LSFQ_MIN    40 //0.005 in Q13
+#define LSFQ_MAX 25681 //3.135 in Q13
+
+#define LSFQ_DIFF_MIN 321 //0.0391 in Q13
 
 /* Gain pitch maximum and minimum (3.8) */
 #define GAIN_PITCH_MIN 0.2
@@ -1218,11 +1219,11 @@ static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
                 FFSWAP(float, lsfq[i], lsfq[i+1]);
 
     /* checking for stability */
-    lsfq[0] = FFMAX(lsfq[0],LSFQ_MIN * Q13_BASE); //Is warning required ?
+    lsfq[0] = FFMAX(lsfq[0],LSFQ_MIN); //Is warning required ?
 
     for(i=0;i<9; i++)
-        lsfq[i+1]=FFMAX(lsfq[i+1], lsfq[i] + LSFQ_DIFF_MIN * Q13_BASE);
-    lsfq[9] = FFMIN(lsfq[9], LSFQ_MAX * Q13_BASE);//Is warning required ?
+        lsfq[i+1]=FFMAX(lsfq[i+1], lsfq[i] + LSFQ_DIFF_MIN);
+    lsfq[9] = FFMIN(lsfq[9], LSFQ_MAX);//Is warning required ?
 }
 
 
