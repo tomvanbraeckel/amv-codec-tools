@@ -392,20 +392,22 @@ static const int16_t cb_L2_L3[1<<L2_BITS][10] =
  *
  * FIXME: what means 0.3 and 3 here?
  *
+ * Comment from reference code:
+ *   1/3 resolution interpolation filter  (-3 dB at 3600 Hz)
+ *
  */
-static const float interp_filter[31] =
-{
-   0.898517,
-   0.769271,   0.448635,   0.095915,
-  -0.134333,  -0.178528,  -0.084919,
-   0.036952,   0.095533,   0.068936,
-  -0.000000,  -0.050404,  -0.050835,
-  -0.014169,   0.023083,   0.033543,
-   0.016774,  -0.007466,  -0.019340,
-  -0.013755,   0.000000,   0.009400,
-   0.009029,   0.002381,  -0.003658,
-  -0.005027,  -0.002405,   0.001050,
-   0.002780,   0.002145,   0.000000
+static const int16_t interp_filter[10][3] =
+{       /* Q15 */
+  { 29443,   25207,   14701},
+  {  3143,   -4402,   -5850},
+  { -2783,    1211,    3130},
+  {  2259,       0,   -1652},
+  { -1666,    -464,     756},
+  {  1099,     550,    -245},
+  {  -634,    -451,       0},
+  {   308,     296,      78},
+  {  -120,    -165,     -79},
+  {    34,      91,      70},
 };
 
 /**
@@ -620,8 +622,8 @@ static void g729_decode_ac_vector(G729A_Context* ctx, int pitch_delay_int, int p
         for(i=0; i<10; i++)
         {
             /*  R(x):=ac_v[-k+x] */
-            v+=ac_v[n-pitch_delay_int-i]*interp_filter[pitch_delay_frac+3*i];     //R(n-i)*b30(t+3i)
-            v+=ac_v[n-pitch_delay_int+i+1]*interp_filter[3-pitch_delay_frac+3*i]; //R(n+i+1)*b30(3-t+3i)
+            v+=ac_v[n-pitch_delay_int-i  ] * (interp_filter[i][  pitch_delay_frac] / Q15_BASE); //R(n-i)*b30(t+3i)
+            v+=ac_v[n-pitch_delay_int+i+1] * (interp_filter[i][3-pitch_delay_frac] / Q15_BASE); //R(n+i+1)*b30(3-t+3i)
         }
         ac_v[n]=v;
     }
