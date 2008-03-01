@@ -559,6 +559,19 @@ static inline int mul_24_15(int var_q24, int var_q15)
 }
 
 /**
+ * \brief shift to right with rounding
+ * \param var1 32-bit integer to shift
+ * \param var2 16-bit shift
+ */
+static int l_shr_r(int var1, int16_t var2)
+{
+    if(var1 && (var1 & (1<<(var2-1))))
+        return (var1>>var2)+1;
+    else
+        return (var1>>var2);
+}
+
+/**
  * \brief Calculates gain value of speech signal
  * \param speech signal buffer
  * \param length signal buffer length
@@ -1123,7 +1136,7 @@ static void g729_reconstruct_speech(G729A_Context *ctx, const int16_t *lp16, int
     float lp[10];
 
     for(i=0;i<20;i++)
-        lp[i]=lp16[i] / Q13_BASE;
+        lp[i]=(2*lp16[i]) / Q13_BASE;
 
     memcpy(tmp_speech_buf, ctx->syn_filter_data, 10 * sizeof(float));
 
@@ -1293,13 +1306,13 @@ static void get_lsp_coefficients(const int16_t* lsp, int* f)
         f[1] -= lsp[qidx]  << 10;
         qidx+=2;
     }
-printf("lsf: "); for(i=0; i<6; i++) printf("%d ",f[i]); printf("\n==\n");
 }
 /**
  * \brief LSP to LP conversion (3.2.6)
  * \param lsp (Q15) LSP coefficients
- * \param lp (Q13) decoded LP coefficients
+ * \param lp (Q12) decoded LP coefficients
  */
+
 static void g729_lsp2lp(const int16_t* lsp, int16_t* lp)
 {
     int i;
@@ -1312,11 +1325,11 @@ static void g729_lsp2lp(const int16_t* lsp, int16_t* lp)
     /* 3.2.6, Equations 25 and  26*/
     for(i=0;i<5;i++)
     {
-        int ff1 = (f1[i+1] + f1[i]) >> 11; // Q24 -> Q13
-        int ff2 = (f2[i+1] - f2[i]) >> 11; // Q24 -> Q13
-        // Replacing "/2" with ">>1" decreases PSNR ??!!
-        lp[i]   = (ff1 + ff2)/2;
-        lp[9-i] = (ff1 - ff2)/2;
+        int ff1 = f1[i+1] + f1[i]; // Q24
+        int ff2 = f2[i+1] - f2[i]; // Q24
+
+        lp[i]   = l_shr_r(ff1 + ff2, 13);
+        lp[9-i] = l_shr_r(ff1 - ff2, 13);
     }
 }
 
@@ -1324,7 +1337,7 @@ static void g729_lsp2lp(const int16_t* lsp, int16_t* lp)
  * \brief interpolate LSP end decode LP for both first and second subframes (3.2.5 and 3.2.6)
  * \param (Q15) lsp_curr current LSP coefficients
  * \param (Q15) lsp_prev past LSP coefficients
- * \param lp [out] decoded LP coefficients
+ * \param lp [out] (Q12) decoded LP coefficients
  */
 static void g729_lp_decode(const int16_t* lsp_curr, int16_t* lsp_prev, int16_t* lp)
 {
@@ -1343,7 +1356,6 @@ static void g729_lp_decode(const int16_t* lsp_curr, int16_t* lsp_prev, int16_t* 
     /* saving LSP coefficients for using in next frame */
     for(i=0;i<10;i++)
         lsp_prev[i]=lsp_curr[i];
-
 }
 
 
@@ -1433,7 +1445,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
 static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int out_frame_size, G729_parameters *parm)
 {
     G729A_Context* ctx=context;
-    int16_t lp[20];              // Q13
+    int16_t lp[20];              // Q12
     int16_t lsp[10];             // Q15
     int16_t lsf[10];             // Q13
     int pitch_delay;             // pitch delay
