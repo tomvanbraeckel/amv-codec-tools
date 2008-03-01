@@ -504,6 +504,39 @@ static const int16_t lsp_init[10]=
    30000, 26000, 21000, 15000, 8000, 0, -8000,-15000,-21000,-26000
 };
 
+/**
+ * Cosine table: base_cos[i]=cos((i+1)*PI/64)
+ */
+static const int16_t base_cos[64] =
+{ /* Q15 */
+  32767,  32729,  32610,  32413,  32138,  31786,  31357,  30853,
+  30274,  29622,  28899,  28106,  27246,  26320,  25330,  24279,
+  23170,  22006,  20788,  19520,  18205,  16846,  15447,  14010,
+  12540,  11039,   9512,   7962,   6393,   4808,   3212,   1608,
+      0,  -1608,  -3212,  -4808,  -6393,  -7962,  -9512, -11039,
+ -12540, -14010, -15447, -16846, -18205, -19520, -20788, -22006,
+ -23170, -24279, -25330, -26320, -27246, -28106, -28899, -29622,
+ -30274, -30853, -31357, -31786, -32138, -32413, -32610, -32729 
+};
+
+/**
+ * Sslope used to compute y = cos(x)
+ *
+ * cos(ind*64+offset) = base_cos[ind]+offset*slope_cos[ind]
+ */
+static const int16_t slope_cos[64] =
+{ /* Q19 */
+   -632,  -1893,  -3150,  -4399,  -5638,  -6863,  -8072,  -9261,
+ -10428, -11570, -12684, -13767, -14817, -15832, -16808, -17744,
+ -18637, -19486, -20287, -21039, -21741, -22390, -22986, -23526,
+ -24009, -24435, -24801, -25108, -25354, -25540, -25664, -25726,
+ -25726, -25664, -25540, -25354, -25108, -24801, -24435, -24009,
+ -23526, -22986, -22390, -21741, -21039, -20287, -19486, -18637,
+ -17744, -16808, -15832, -14817, -13767, -12684, -11570, -10428,
+  -9261,  -8072,  -6863,  -5638,  -4399,  -3150,  -1893,   -632 
+};
+
+
 /*
 -------------------------------------------------------------------------------
           Internal routines
@@ -1109,8 +1142,8 @@ static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, int intT1, fl
 /**
  * \brief Convert LSF to LSP
  * \param ctx private data structure
- * \param lsf (Q13) LSF coefficients
- * \param lsp LSP coefficients
+ * \param lsf (Q13) LSF coefficients (0 <= lsf < PI)
+ * \param lsp [out] LSP coefficients (-1 <= lsp < 1)
  *
  * \remark It is safe to pass the same array in lsf and lsp parameters
  */
@@ -1120,7 +1153,13 @@ static void g729_lsf2lsp(G729A_Context *ctx, int *lsf, int *lsp)
 
     /* Convert LSF to LSP */
     for(i=0;i<10; i++)
-        lsp[i]=cos(lsf[i] / Q13_BASE) * Q15_BASE;
+    {
+        int16_t freq= (lsf[i] * 20861)>>15; //1.0/(2.0*PI) in Q17, result in Q16
+        int16_t offset= freq & 0xff;
+        int16_t ind = FFMIN(freq >> 8, 63);
+
+        lsp[i] = base_cos[ind]+((slope_cos[ind]*offset)>>12);
+    }
 }
 
 /**
