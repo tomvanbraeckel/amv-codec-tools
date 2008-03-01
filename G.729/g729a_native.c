@@ -490,10 +490,10 @@ static const uint8_t ma_prediction_coeff[4] =
 /**
  * Initial lq values
  */
-static const float lq_init[10] =
-{
-  0.285599,  0.571199,  0.856798,  1.142397,  1.427997, 1.713596,  1.999195,  2.284795,  2.570394,  2.855993,
-};
+static const int16_t lq_init[10] =
+{ /* Q13 */
+  2339, 4679, 7018, 9358, 11698, 14037, 16377, 18717, 21056, 23396
+};     /* PI*(float)(j+1)/11.0 */
 
 /**
  * Initial LSP values
@@ -1335,7 +1335,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
 
     /* LSP coefficients */
     for(i=0; i<10; i++)
-        ctx->lq_prev[0][i]=lq_init[i] * Q13_BASE;
+        ctx->lq_prev[0][i]=lq_init[i];
 
     for(i=0; i<10; i++)
         ctx->lsp_prev[i]=lsp_init[i];
