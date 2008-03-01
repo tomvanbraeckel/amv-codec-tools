@@ -1415,7 +1415,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
 
         if(!i)
         {
-            pitch_delay=g729_decode_ac_delay_subframe1(ctx, parm[4], pitch_delay/3);
+            pitch_delay=g729_decode_ac_delay_subframe1(ctx, parm[4], ctx->intT2_prev);
             intT1=pitch_delay/3;    //Used in long-term postfilter    
         }
         else
