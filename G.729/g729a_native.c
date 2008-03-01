@@ -687,23 +687,6 @@ static void g729_fix_fc_vector(int pitch_delay, float gain_pitch, float* fc_v, i
 }
 
 /**
- * \brief Decoding of the adaptive and fixed codebook gains from previous subframe (4.4.2)
- * \param ctx private data structure
- * \param gp pointer to variable receiving quantized fixed-codebook gain (gain pitch)
- * \param gc pointer to variable receiving quantized adaptive-codebook gain (gain code)
- */
-static void g729_get_gain_from_previous(G729A_Context *ctx, float* gp, float* gc)
-{
-    /* 4.4.2, Equation 93 */
-    *gc = 0.98*ctx->gain_code;
-    ctx->gain_code = *gc;
-
-    /* 4.4.2, Equation 94 */
-    *gp = FFMIN(0.9*ctx->gain_pitch, 0.9);
-    ctx->gain_pitch = *gp;
-}
-
-/**
  * \brief Attenuation of the memory of the gain predictor (4.4.3)
  * \param ctx private data structure
  */
@@ -768,13 +751,6 @@ static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, flo
 
     /* 3.9.1, Equation 74 */
     *gc = energy*(cb1_sum);  //quantized fixed-codebook gain (gain pitch)
-
-    /* save gain code value for next subframe */
-    ctx->gain_code=*gc;
-    /* save pitch gain value for next subframe */
-    ctx->gain_pitch=*gp;
-    ctx->gain_pitch = FFMAX(ctx->gain_pitch, GAIN_PITCH_MIN);
-    ctx->gain_pitch = FFMIN(ctx->gain_pitch, GAIN_PITCH_MAX);
 }
 
 /**
@@ -1453,12 +1429,26 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
 
         if(ctx->data_error)
         {
-            g729_get_gain_from_previous(ctx, &gp, &gc);
+            /*
+                Decoding of the adaptive and fixed codebook gains
+                from previous subframe (4.4.2)
+            */
+
+            /* 4.4.2, Equation 94 */
+            ctx->gain_pitch = gp = FFMIN(0.9 * ctx->gain_pitch, 0.9);
+            /* 4.4.2, Equation 93 */
+            ctx->gain_code  = 0.98 * ctx->gain_code;
+
             g729_update_gain(ctx);
         }
         else
         {
             g729_get_gain(ctx, parm->ga_cb_index[i], parm->gb_cb_index[i], fc, &gp, &gc);
+
+            /* save gain code value for next subframe */
+            ctx->gain_code=gc;
+            /* save pitch gain value for next subframe */
+            ctx->gain_pitch=FFMIN(FFMAX(gp, GAIN_PITCH_MIN), GAIN_PITCH_MAX);
         }
 
         g729_mem_update(ctx, fc, gp, gc, ctx->exc+i*ctx->subframe_size);
