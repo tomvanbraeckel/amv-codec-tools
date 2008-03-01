@@ -1129,10 +1129,10 @@ static void g729_lsf_restore_from_previous(G729A_Context *ctx, float* lsfq)
     /* 4.4.1, Equation 92 */
     for(i=0; i<10; i++)
     {
-        lq[i]=Q15_BASE * lsfq[i]; 
+        lq[i]=Q15_BASE * lsfq[i] * Q13_BASE;
         for(k=0;k<MA_NP; k++)
-            lq[i] -= ma_predictor[ctx->prev_mode][k][i]; //Q15
-        lq[i] /= ma_predictor_sum[ctx->prev_mode][i]; //Q15
+            lq[i] -= ctx->lq_prev[k][i] * ma_predictor[ctx->prev_mode][k][i]; //Q15
+        lq[i] /= ma_predictor_sum[ctx->prev_mode][i] * Q13_BASE;
     }
 
     /* Rotate lq_prev */
