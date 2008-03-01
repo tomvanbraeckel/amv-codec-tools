@@ -549,12 +549,13 @@ static const int16_t slope_cos[64] =
  * \return (Q24) result of mupliplication
  *
  * FIXME: if var_q15 declared as int16_t routine gives wrong result
+ * \note this code is bit-equal to reference's Mpy_32_16
  */
 static inline int mul_24_15(int var_q24, int var_q15)
 {
-    int hi = var_q24 >> 15;
-    int lo = var_q24 & 0x00007fff;
-    return var_q15 * hi + ((var_q15 * lo) >> 15);
+    int hi = var_q24 >> 16;
+    int lo = (var_q24 - (hi << 16))>>1;
+    return (var_q15 * hi + ((var_q15 * lo) >> 15))<<1;
 }
 
 /**
@@ -1286,9 +1287,9 @@ static void get_lsp_coefficients(const int16_t* lsp, int* f)
     for(i=2; i<=5; i++)
     {
         b=-lsp[qidx]<<1;   // Q15        
-        f[i] = mul_24_15(f[i-1], b) + 2*f[i-2];
+        f[i] = f[i-2];
 
-        for(j=i-1; j>1; j--)
+        for(j=i; j>1; j--)
             f[j] += mul_24_15(f[j-1], b) + f[j-2];
 
         f[1]+=b << 9;
@@ -1333,7 +1334,7 @@ static void g729_lp_decode(const int16_t* lsp_curr, int16_t* lsp_prev, int16_t* 
 
     /* LSP values for first subframe (3.2.5, Equation 24)*/
     for(i=0;i<10;i++)
-        lsp[i]=(lsp_curr[i]+lsp_prev[i])/2;
+        lsp[i]=(lsp_curr[i]>>1)+(lsp_prev[i]>>1);
 
     g729_lsp2lp(lsp, lp);
 
