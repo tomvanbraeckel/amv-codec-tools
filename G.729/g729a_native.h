@@ -39,11 +39,18 @@ typedef struct{
 }AVCodec;
 
 typedef struct {
-  int dummy;
+  int16_t *buf;
+  int idx;
+  int buf_size;
 } GetBitContext;
 
-static void init_get_bits(GetBitContext* pgb, const unsigned char* buf, int buf_size)
+static int init_get_bits(GetBitContext* pgb, const unsigned char* buf, int buf_size)
 {
+    pgb->buf=(uint16_t *)buf;
+    pgb->buf+=2;//skip syncwork and size
+    pgb->idx=0;
+    pgb->buf_size=buf_size;
+    return 0;
 }
 
 static int get_bits1(GetBitContext* pgb)
@@ -53,7 +60,16 @@ static int get_bits1(GetBitContext* pgb)
 
 static int get_bits(GetBitContext* pgb, int n)
 {
-    return 0;
+    int j, tmp=0;
+
+    if(n>32 || pgb->idx+n >= pgb->buf_size) return 0;
+
+    for(j=0; j<n; j++)
+    {
+        tmp<<= 1;
+        tmp |= pgb->buf[pgb->idx++]==0x81?1:0;
+    }
+    return tmp;
 }
 
 static void dmp_d(char* name, float* arr, int size)
