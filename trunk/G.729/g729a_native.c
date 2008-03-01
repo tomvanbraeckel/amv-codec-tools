@@ -1103,13 +1103,13 @@ static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, int intT1, fl
  *
  * \remark It is safe to pass the same array in lsf and lsp parameters
  */
-static void g729_lsf2lsp(G729A_Context *ctx, float *lsf, float *lsp)
+static void g729_lsf2lsp(G729A_Context *ctx, int *lsf, float *lsp)
 {
     int i;
 
     /* Convert LSF to LSP */
     for(i=0;i<10; i++)
-        lsp[i]=cos(lsf[i]);
+        lsp[i]=cos(lsf[i] / Q13_BASE);
 }
 
 /**
@@ -1117,22 +1117,22 @@ static void g729_lsf2lsp(G729A_Context *ctx, float *lsf, float *lsp)
  * \param ctx private data structure
  * \param lsfq Decoded LSF coefficients
  */
-static void g729_lsf_restore_from_previous(G729A_Context *ctx, float* lsfq)
+static void g729_lsf_restore_from_previous(G729A_Context *ctx, int* lsfq)
 {
-    float lq[10];
+    int lq[10]; // Q13
     int i,k;
 
     //Restore LSF from previous frame
     for(i=0;i<10; i++)
-        lsfq[i]=ctx->lsf_prev[i] / Q13_BASE;
+        lsfq[i]=ctx->lsf_prev[i];
 
     /* 4.4.1, Equation 92 */
     for(i=0; i<10; i++)
     {
-        lq[i]=Q15_BASE * lsfq[i] * Q13_BASE;
+        lq[i]= lsfq[i] << 15; //Q13 -> Q28
         for(k=0;k<MA_NP; k++)
-            lq[i] -= ctx->lq_prev[k][i] * ma_predictor[ctx->prev_mode][k][i]; //Q15
-        lq[i] /= ma_predictor_sum[ctx->prev_mode][i] * Q13_BASE;
+            lq[i] -= ctx->lq_prev[k][i] * ma_predictor[ctx->prev_mode][k][i]; // Q28
+        lq[i] /= ma_predictor_sum[ctx->prev_mode][i];                         // Q13
     }
 
     /* Rotate lq_prev */
@@ -1140,7 +1140,7 @@ static void g729_lsf_restore_from_previous(G729A_Context *ctx, float* lsfq)
     {
         for(k=MA_NP-1; k>0; k--)
             ctx->lq_prev[k][i]=ctx->lq_prev[k-1][i];
-        ctx->lq_prev[0][i]=lq[i] * Q13_BASE;
+        ctx->lq_prev[0][i]=lq[i];
     }
 }
 
@@ -1153,7 +1153,7 @@ static void g729_lsf_restore_from_previous(G729A_Context *ctx, float* lsfq)
  * \param L3 Second stage higher vector of LSP quantizer
  * \param lsfq Decoded LSP coefficients
  */
-static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t L2, int16_t L3, float* lsfq)
+static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t L2, int16_t L3, int* lsfq)
 {
     int i,j,k;
     int16_t J[2]={10, 5}; //Q13
@@ -1185,13 +1185,11 @@ static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
     /* 3.2.4, Equation 20 */
     for(i=0; i<10; i++)
     {
-        sum = l_mul(lq[i], ma_predictor_sum[L0][i]); //Q29
+        sum = lq[i] * ma_predictor_sum[L0][i]; //Q28
         for(k=0; k<MA_NP; k++)
-            sum += l_mul(ctx->lq_prev[k][i], ma_predictor[L0][k][i]);
+            sum += ctx->lq_prev[k][i] * ma_predictor[L0][k][i];
         //Saving LSF for using when error occured in next frames
-	sum >>= 16; //Q29 -> Q13
-        ctx->lsf_prev[i] = sum;
-	lsfq[i] = sum / (Q13_BASE); //Q28 -> Q0
+        ctx->lsf_prev[i] = lsfq[i] = sum >> 15; //Q28 -> Q13
     }
 
     /* Rotate lq_prev */
@@ -1210,11 +1208,11 @@ static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
                 FFSWAP(float, lsfq[i], lsfq[i+1]);
 
     /* checking for stability */
-    lsfq[0] = FFMAX(lsfq[0],LSFQ_MIN); //Is warning required ?
+    lsfq[0] = FFMAX(lsfq[0],LSFQ_MIN * Q13_BASE); //Is warning required ?
 
     for(i=0;i<9; i++)
-        lsfq[i+1]=FFMAX(lsfq[i+1], lsfq[i] + LSFQ_DIFF_MIN);
-    lsfq[9] = FFMIN(lsfq[9], LSFQ_MAX);//Is warning required ?
+        lsfq[i+1]=FFMAX(lsfq[i+1], lsfq[i] + LSFQ_DIFF_MIN * Q13_BASE);
+    lsfq[9] = FFMIN(lsfq[9], LSFQ_MAX * Q13_BASE);//Is warning required ?
 }
 
 static void get_lsp_coefficients(float* q, float* f)
@@ -1378,6 +1376,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
     G729A_Context* ctx=context;
     float lp[20];
     float lsp[10];
+    int lsf[10];
     int pitch_delay;                      ///< pitch delay
     float fc[MAX_SUBFRAME_SIZE];          ///< fixed codebooc vector
     float gp, gc;
@@ -1389,17 +1388,17 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
     ctx->bad_pitch = !g729_parity_check(parm->ac_index[0], parm->parity);
 
     if(ctx->data_error)
-        g729_lsf_restore_from_previous(ctx, lsp);
+        g729_lsf_restore_from_previous(ctx, lsf);
     else
         g729_lsf_decode(ctx, 
 	         parm->ma_predictor,
                  parm->quantizer_1st,
                  parm->quantizer_2nd_lo,
                  parm->quantizer_2nd_hi,
-                 lsp);
+                 lsf);
 
     //Convert LSF to LSP
-    g729_lsf2lsp(ctx, lsp, lsp);
+    g729_lsf2lsp(ctx, lsf, lsp);
 
     g729_lp_decode(ctx, lsp, lp);
 
