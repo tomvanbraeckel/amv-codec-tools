@@ -1555,7 +1555,9 @@ int g729a_decoder_uninit(void* ctx)
 int  g729a_decode_frame(AVCodecContext* avctx, int16_t* serial, int serial_size, int16_t* out_frame, int out_frame_size)
 {
     int parm[VECTOR_SIZE];
+
     g729_bytes2parm(avctx->priv_data, serial, 82, parm);
+
     return g729a_decode_frame_internal(avctx->priv_data, out_frame, out_frame_size, parm);
 }
 /*
