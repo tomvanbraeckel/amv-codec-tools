@@ -589,6 +589,17 @@ static float sum_of_squares(const float *speech, int length)
     return sum;
 }
 
+static float sum_of_squares16(const int16_t *speech, int length)
+{
+    int n;
+    int sum=0;
+
+    for(n=0; n<length; n++)
+       sum+=speech[n]*speech[n];
+
+    return sum;
+}
+
 /**
  * \brief pseudo random number generator
  */
@@ -771,18 +782,18 @@ static void g729_update_gain_erasure(float *pred_energ_q)
  * \param ctx private data structure
  * \param GA Gain codebook (stage 2)
  * \param GB Gain codebook (stage 2)
- * \param fc_v fixed-codebook vector
+ * \param fc_v (Q13) fixed-codebook vector
  * \param gp pointer to variable receiving quantized fixed-codebook gain (gain pitch)
  * \param gc pointer to variable receiving quantized adaptive-codebook gain (gain code)
  */
-static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, const float* fc_v, float* gp, float* gc)
+static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, const int16_t* fc_v, float* gp, float* gc)
 {
     float energy;
     int i;
     float cb1_sum;
 
     /* 3.9.1, Equation 66 */
-    energy=sum_of_squares(fc_v, ctx->subframe_size);
+    energy=sum_of_squares16(fc_v, ctx->subframe_size) / (Q13_BASE * Q13_BASE);
 
     /*
       energy=mean_energy-E
@@ -816,17 +827,17 @@ static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, const float* fc_
 /**
  * \brief Memory update (3.10)
  * \param ctx private data structure
- * \param fc_v fixed-codebook vector
+ * \param fc_v (Q13) fixed-codebook vector
  * \param gp quantized fixed-codebook gain (gain pitch)
  * \param gc quantized adaptive-codebook gain (gain code)
  * \param exc last excitation signal buffer for current subframe
  */
-static void g729_mem_update(G729A_Context *ctx, const float *fc_v, float gp, float gc, float* exc)
+static void g729_mem_update(G729A_Context *ctx, const int16_t *fc_v, float gp, float gc, float* exc)
 {
     int i;
 
     for(i=0; i<ctx->subframe_size; i++)
-        exc[i]=exc[i]*gp+fc_v[i]*gc;
+        exc[i]=exc[i]*gp+fc_v[i]*gc / Q13_BASE;
 }
 
 /**
@@ -1449,8 +1460,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
     int16_t lsp[10];             // Q15
     int16_t lsf[10];             // Q13
     int pitch_delay;             // pitch delay
-    float fc[MAX_SUBFRAME_SIZE]; // fixed codebooc vector
-    int16_t fc16[MAX_SUBFRAME_SIZE]; // fixed codebooc vector
+    int16_t fc[MAX_SUBFRAME_SIZE]; // fixed codebooc vector
     float gp, gc;
     int intT1, i;
 int j;
@@ -1497,9 +1507,8 @@ int j;
             parm->pulses_signs[i] = g729_random(ctx) & 0x000f;
         }
 
-        g729_decode_fc_vector(ctx, parm->fc_indexes[i], parm->pulses_signs[i], fc16);
+        g729_decode_fc_vector(ctx, parm->fc_indexes[i], parm->pulses_signs[i], fc);
         g729_fix_fc_vector(pitch_delay/3, ctx->gain_pitch * Q15_BASE, fc16, ctx->subframe_size);
-for(j=0;j<MAX_SUBFRAME_SIZE;j++) fc[j]=fc16[j] / Q13_BASE;
         if(ctx->data_error)
         {
             /*
