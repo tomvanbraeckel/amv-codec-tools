@@ -692,7 +692,7 @@ static void g729_decode_ac_vector(G729A_Context* ctx, int pitch_delay_int, int p
  * \param ctx private data structure
  * \param fc_index Fixed codebook index
  * \param pulses_signs Signs of the excitation pulses (0 bit value means negative sign)
- * \param fc_v [out] decoded fixed codebook vector
+ * \param fc_v [out] (Q13) decoded fixed codebook vector
  *
  * bit allocations:
  *   8k mode: 3+3+3+1+3
@@ -700,14 +700,14 @@ static void g729_decode_ac_vector(G729A_Context* ctx, int pitch_delay_int, int p
  *
  * FIXME: error handling required
  */
-static void g729_decode_fc_vector(G729A_Context* ctx, int fc_index, int pulses_signs, float* fc_v)
+static void g729_decode_fc_vector(G729A_Context* ctx, int fc_index, int pulses_signs, int16_t* fc_v)
 {
     int i;
     int index;
     int bits=formats[ctx->format].fc_index_bits;
     int mask=(1 << bits) - 1;
 
-    memset(fc_v, 0, sizeof(float)*ctx->subframe_size);
+    memset(fc_v, 0, sizeof(int16_t)*ctx->subframe_size);
 
     /* reverted Equation 62 and Equation 45 */
     for(i=0; i<FC_PULSE_COUNT-1; i++)
@@ -719,7 +719,7 @@ static void g729_decode_fc_vector(G729A_Context* ctx, int fc_index, int pulses_s
             ctx->data_error=1;
             return;
         }
-        fc_v[ index ] = (pulses_signs & 1) ? 1 : -1;
+        fc_v[ index ] = (pulses_signs & 1) ? 8192 : -8192; // +/-1 in Q13
         fc_index>>=bits;
         pulses_signs>>=1;
     }
@@ -730,22 +730,22 @@ static void g729_decode_fc_vector(G729A_Context* ctx, int fc_index, int pulses_s
         ctx->data_error=1;
         return;
     }
-    fc_v[ index ] = (pulses_signs & 1) ? 1 : -1;
+    fc_v[ index ] = (pulses_signs & 1) ? 8192 : -8192;
 }
 
 /**
  * \brief fixed codebook vector modification if delay is less than 40 (4.1.4 and 3.8)
  * \param pitch_delay integer part of pitch delay
- * \param gain_pitch gain pitch
- * \param fc_v [in/out] fixed codebook vector to change
+ * \param gain_pitch (Q15) gain pitch
+ * \param fc_v [in/out] (Q13) fixed codebook vector to change
  * \param length length of fc_v array
  */
-static void g729_fix_fc_vector(int pitch_delay, float gain_pitch, float* fc_v, int length)
+static void g729_fix_fc_vector(int pitch_delay, int16_t gain_pitch, int16_t* fc_v, int length)
 {
     int i;
 
     for(i=pitch_delay; i<length;i++)
-        fc_v[i] += fc_v[i-pitch_delay]*gain_pitch;
+        fc_v[i] += fc_v[i-pitch_delay]*gain_pitch >> 15;
 }
 
 /**
@@ -1450,9 +1450,10 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
     int16_t lsf[10];             // Q13
     int pitch_delay;             // pitch delay
     float fc[MAX_SUBFRAME_SIZE]; // fixed codebooc vector
+    int16_t fc16[MAX_SUBFRAME_SIZE]; // fixed codebooc vector
     float gp, gc;
     int intT1, i;
-
+int j;
     ctx->data_error=0;
     ctx->bad_pitch=0;
 
@@ -1488,7 +1489,6 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
             if(ctx->data_error)
                 ctx->intT2_prev=FFMIN(ctx->intT2_prev+1, PITCH_MAX);
         }
-
         g729_decode_ac_vector(ctx, pitch_delay/3, (pitch_delay%3)-1, ctx->exc+i*ctx->subframe_size);
 
         if(ctx->data_error)
@@ -1497,9 +1497,9 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
             parm->pulses_signs[i] = g729_random(ctx) & 0x000f;
         }
 
-        g729_decode_fc_vector(ctx, parm->fc_indexes[i], parm->pulses_signs[i], fc);
-        g729_fix_fc_vector(pitch_delay/3, ctx->gain_pitch, fc, ctx->subframe_size);
-
+        g729_decode_fc_vector(ctx, parm->fc_indexes[i], parm->pulses_signs[i], fc16);
+        g729_fix_fc_vector(pitch_delay/3, ctx->gain_pitch * Q15_BASE, fc16, ctx->subframe_size);
+for(j=0;j<MAX_SUBFRAME_SIZE;j++) fc[j]=fc16[j] / Q13_BASE;
         if(ctx->data_error)
         {
             /*
