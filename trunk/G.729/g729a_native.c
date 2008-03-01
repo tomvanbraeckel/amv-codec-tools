@@ -1396,7 +1396,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
     int pitch_delay;                      ///< pitch delay
     float fc[MAX_SUBFRAME_SIZE];          ///< fixed codebooc vector
     float gp, gc;
-    int intT1;
+    int intT1, i;
 
     ctx->data_error=0;
     ctx->bad_pitch=0;
@@ -1411,19 +1411,31 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
 
     g729_lp_decode(ctx, lsp, lp);
 
-    /* first subframe */
-    pitch_delay=g729_decode_ac_delay_subframe1(ctx, parm[4], ctx->intT2_prev);
-    intT1=pitch_delay/3;    //Used in long-term postfilter    
+for(i=0; i<2; i++)
+{
 
-    g729_decode_ac_vector(ctx, pitch_delay/3, (pitch_delay%3)-1, ctx->exc);
+    if(!i)
+    {
+        pitch_delay=g729_decode_ac_delay_subframe1(ctx, parm[4], pitch_delay/3);
+        intT1=pitch_delay/3;    //Used in long-term postfilter    
+    }
+    else
+    {
+        pitch_delay=g729_decode_ac_delay_subframe2(ctx, parm[10], pitch_delay/3);
+        ctx->intT2_prev=pitch_delay/3;
+        if(ctx->data_error)
+            ctx->intT2_prev=FFMIN(ctx->intT2_prev+1, PITCH_MAX);
+    }
+
+    g729_decode_ac_vector(ctx, pitch_delay/3, (pitch_delay%3)-1, ctx->exc+i*ctx->subframe_size);
 
     if(ctx->data_error)
     {
-        parm[6] = g729_random(ctx) & 0x1fff;
-        parm[7] = g729_random(ctx) & 0x000f;
+        parm[6+i*5] = g729_random(ctx) & 0x1fff;
+        parm[7+i*5] = g729_random(ctx) & 0x000f;
     }
 
-    g729_decode_fc_vector(ctx, parm[6], parm[7], fc);
+    g729_decode_fc_vector(ctx, parm[6+i*5], parm[7+i*5], fc);
     g729_fix_fc_vector(ctx, pitch_delay/3, fc);
 
     if(ctx->data_error)
@@ -1433,42 +1445,13 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
     }
     else
     {
-        g729_get_gain(ctx, parm[8], parm[9], fc, &gp, &gc);
+        g729_get_gain(ctx, parm[8+i*5], parm[9+i*5], fc, &gp, &gc);
     }
-    g729_mem_update(ctx, fc, gp, gc, ctx->exc);
-    g729_reconstruct_speech(ctx, lp, intT1, ctx->exc, out_frame);
+
+    g729_mem_update(ctx, fc, gp, gc, ctx->exc+i*ctx->subframe_size);
+    g729_reconstruct_speech(ctx, lp+i*10, intT1, ctx->exc+i*ctx->subframe_size, out_frame+i*ctx->subframe_size);
     ctx->subframe_idx++;
-
-    /* second subframe */
-    pitch_delay=g729_decode_ac_delay_subframe2(ctx, parm[10], pitch_delay/3);
-
-    ctx->intT2_prev=pitch_delay/3;
-    if(ctx->data_error)
-        ctx->intT2_prev=FFMIN(ctx->intT2_prev+1, PITCH_MAX);
-
-    g729_decode_ac_vector(ctx, pitch_delay/3, (pitch_delay%3)-1, ctx->exc+ctx->subframe_size);
-
-    if(ctx->data_error)
-    {
-        parm[11] = g729_random(ctx) & 0x1fff;
-        parm[12] = g729_random(ctx) & 0x000f;
-    }
-
-    g729_decode_fc_vector(ctx, parm[11], parm[12], fc);
-    g729_fix_fc_vector(ctx, pitch_delay/3, fc);
-
-    if(ctx->data_error)
-    {
-        g729_get_gain_from_previous(ctx, &gp, &gc);
-        g729_update_gain(ctx);
-    }
-    else
-    {
-        g729_get_gain(ctx, parm[13], parm[14], fc, &gp, &gc);
-    }
-    g729_mem_update(ctx, fc, gp, gc, ctx->exc+ctx->subframe_size);
-    g729_reconstruct_speech(ctx, lp+10, intT1, ctx->exc+ctx->subframe_size, out_frame+ctx->subframe_size);
-    ctx->subframe_idx++;
+}
 
     //Save signal for using in next frame
     memmove(ctx->exc_base, ctx->exc_base+2*ctx->subframe_size, (PITCH_MAX+INTERPOL_LEN)*sizeof(float));
