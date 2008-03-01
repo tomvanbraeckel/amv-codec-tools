@@ -148,7 +148,7 @@ typedef struct
     float* exc;             ///< start of past excitation data in buffer
     int intT2_prev;         ///< int(T2) value of previous frame (4.1.3)
     int lq_prev[MA_NP][10]; ///< Q(13) LSP quantizer output (3.2.4)
-    float lsp_prev[10];     ///< LSP coefficients from previous frame (3.2.5)
+    int lsp_prev[10];       ///< Q(15) LSP coefficients from previous frame (3.2.5)
     int16_t lsf_prev[10];   ///< Q(13) LSF coefficients from previous frame
     float pred_energ_q[4];  ///< Q(13) past quantized energies
     float gain_pitch;       ///< Pitch gain of previous subframe (3.8) [GAIN_PITCH_MIN ... GAIN_PITCH_MAX]
@@ -498,9 +498,9 @@ static const int16_t lq_init[10] =
 /**
  * Initial LSP values
  */
-static const float lsp_init[10] =
-{
-  0.9595, 0.8413, 0.6549, 0.4154, 0.1423, -0.1423, -0.4154, -0.6549, -0.8413, -0.9595,
+static const int16_t lsp_init[10]=
+{ /* Q15 */
+   30000, 26000, 21000, 15000, 8000, 0, -8000,-15000,-21000,-26000
 };
 
 /*
@@ -1103,13 +1103,13 @@ static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, int intT1, fl
  *
  * \remark It is safe to pass the same array in lsf and lsp parameters
  */
-static void g729_lsf2lsp(G729A_Context *ctx, int *lsf, float *lsp)
+static void g729_lsf2lsp(G729A_Context *ctx, int *lsf, int *lsp)
 {
     int i;
 
     /* Convert LSF to LSP */
     for(i=0;i<10; i++)
-        lsp[i]=cos(lsf[i] / Q13_BASE);
+        lsp[i]=cos(lsf[i] / Q13_BASE) * Q15_BASE;
 }
 
 /**
@@ -1240,7 +1240,7 @@ static void get_lsp_coefficients(float* q, float* f)
 /**
  * \brief LSP to LP conversion (3.2.6)
  * \param ctx private data structure
- * \param lsp (Q13) LSP coefficients
+ * \param lsp (Q15) LSP coefficients
  * \param lp decoded LP coefficients
  */
 static void g729_lsp2lp(G729A_Context* ctx, int* lsp, float* lp)
@@ -1248,9 +1248,13 @@ static void g729_lsp2lp(G729A_Context* ctx, int* lsp, float* lp)
     int i;
     float f1[6];
     float f2[6];
+    float lsp_f[10];
 
-    get_lsp_coefficients(lsp,   f1);
-    get_lsp_coefficients(lsp+1, f2);
+    for(i=0;i<10;i++)
+        lsp_f[i]=lsp[i]/Q15_BASE;
+
+    get_lsp_coefficients(lsp_f,   f1);
+    get_lsp_coefficients(lsp_f+1, f2);
 
     /* 3.2.6, Equations 25 and  26*/
     for(i=0;i<5;i++)
@@ -1265,12 +1269,12 @@ static void g729_lsp2lp(G729A_Context* ctx, int* lsp, float* lp)
 /**
  * \brief interpolate LSP end decode LP for both first and second subframes (3.2.5 and 3.2.6)
  * \param ctx private data structure
- * \param lsp_curr current LSP coefficients
+ * \param (Q15) lsp_curr current LSP coefficients
  * \param lp [out] decoded LP coefficients
  */
-static void g729_lp_decode(G729A_Context* ctx, float* lsp_curr, float* lp)
+static void g729_lp_decode(G729A_Context* ctx, int* lsp_curr, float* lp)
 {
-    float lsp[10];
+    int lsp[10];
     int i;
 
     /* LSP values for first subframe (3.2.5, Equation 24)*/
@@ -1375,7 +1379,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
 {
     G729A_Context* ctx=context;
     float lp[20];
-    float lsp[10];
+    int lsp[10];                 // Q15
     int lsf[10];                 // Q13
     int pitch_delay;             // pitch delay
     float fc[MAX_SUBFRAME_SIZE]; // fixed codebooc vector
