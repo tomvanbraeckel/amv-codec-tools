@@ -1114,11 +1114,15 @@ static void g729_high_pass_filter(G729A_Context* ctx, float* speech)
  * \param exc excitation
  * \param speech reconstructed speech buffer (ctx->subframe_size items)
  */
-static void g729_reconstruct_speech(G729A_Context *ctx, const float *lp, int intT1, const float* exc, int16_t* speech)
+static void g729_reconstruct_speech(G729A_Context *ctx, const int16_t *lp16, int intT1, const float* exc, int16_t* speech)
 {
     float tmp_speech_buf[MAX_SUBFRAME_SIZE+10];
     float* tmp_speech=tmp_speech_buf+10;
     int i;
+    float lp[10];
+
+    for(i=0;i<20;i++)
+        lp[i]=lp16[i] / Q13_BASE;
 
     memcpy(tmp_speech_buf, ctx->syn_filter_data, 10 * sizeof(float));
 
@@ -1296,7 +1300,7 @@ static void get_lsp_coefficients(const int16_t* lsp, int* f)
  * \param lsp (Q15) LSP coefficients
  * \param lp (Q13) decoded LP coefficients
  */
-static void g729_lsp2lp(const int16_t* lsp, int* lp)
+static void g729_lsp2lp(const int16_t* lsp, int16_t* lp)
 {
     int i;
     int f1[6];
@@ -1308,10 +1312,11 @@ static void g729_lsp2lp(const int16_t* lsp, int* lp)
     /* 3.2.6, Equations 25 and  26*/
     for(i=0;i<5;i++)
     {
-        int ff1 = f1[i+1] + f1[i];
-        int ff2 = f2[i+1] - f2[i];
-        lp[i]   = (ff1 + ff2)>>12; // *0.5 and Q24 -> Q13
-        lp[9-i] = (ff1 - ff2)>>12; // *0.5 and Q24 -> Q13
+        int ff1 = (f1[i+1] + f1[i]) >> 11; // Q24 -> Q13
+        int ff2 = (f2[i+1] - f2[i]) >> 11; // Q24 -> Q13
+        // Replacing "/2" with ">>1" decreases PSNR ??!!
+        lp[i]   = (ff1 + ff2)/2;
+        lp[9-i] = (ff1 - ff2)/2;
     }
 }
 
@@ -1321,27 +1326,24 @@ static void g729_lsp2lp(const int16_t* lsp, int* lp)
  * \param (Q15) lsp_prev past LSP coefficients
  * \param lp [out] decoded LP coefficients
  */
-static void g729_lp_decode(const int16_t* lsp_curr, int16_t* lsp_prev, float* lp)
+static void g729_lp_decode(const int16_t* lsp_curr, int16_t* lsp_prev, int16_t* lp)
 {
     int16_t lsp[10];
-    int lp_tmp[20];
     int i;
 
     /* LSP values for first subframe (3.2.5, Equation 24)*/
     for(i=0;i<10;i++)
         lsp[i]=(lsp_curr[i]+lsp_prev[i])/2;
 
-    g729_lsp2lp(lsp, lp_tmp);
+    g729_lsp2lp(lsp, lp);
 
     /* LSP values for second subframe (3.2.5)*/
-    g729_lsp2lp(lsp_curr, lp_tmp+10);
+    g729_lsp2lp(lsp_curr, lp+10);
 
     /* saving LSP coefficients for using in next frame */
     for(i=0;i<10;i++)
         lsp_prev[i]=lsp_curr[i];
 
-    for(i=0;i<20;i++)
-        lp[i]=lp_tmp[i] / Q13_BASE;
 }
 
 
@@ -1431,7 +1433,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
 static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int out_frame_size, G729_parameters *parm)
 {
     G729A_Context* ctx=context;
-    float lp[20];
+    int16_t lp[20];              // Q13
     int16_t lsp[10];             // Q15
     int16_t lsf[10];             // Q13
     int pitch_delay;             // pitch delay
