@@ -150,7 +150,7 @@ typedef struct
     int16_t lq_prev[MA_NP][10]; ///< (Q13) LSP quantizer output (3.2.4)
     int16_t lsp_prev[10];   ///< (Q15) LSP coefficients from previous frame (3.2.5)
     int16_t lsf_prev[10];   ///< (Q13) LSF coefficients from previous frame
-    float pred_energ_q[4];  ///< (Q13) past quantized energies
+    int16_t pred_energ_q[4];///< (Q10) past quantized energies
     float gain_pitch;       ///< Pitch gain of previous subframe (3.8) [GAIN_PITCH_MIN ... GAIN_PITCH_MAX]
     float gain_code;        ///< Gain code of previous subframe
     /// Residual signal buffer (used in long-term postfilter)
@@ -761,11 +761,11 @@ static void g729_fix_fc_vector(int pitch_delay, int16_t gain_pitch, int16_t* fc_
 
 /**
  * \brief Attenuation of the memory of the gain predictor (4.4.3)
- * \param pred_energ_q past quantized energies
+ * \param pred_energ_q (Q10) past quantized energies
  */
-static void g729_update_gain_erasure(float *pred_energ_q)
+static void g729_update_gain_erasure(int16_t *pred_energ_q)
 {
-    float avg_gain=pred_energ_q[3];
+    int avg_gain=pred_energ_q[3];
     int i;
 
     /* 4.4.3. Equation 95 */
@@ -774,7 +774,7 @@ static void g729_update_gain_erasure(float *pred_energ_q)
         avg_gain      +=pred_energ_q[i-1];
         pred_energ_q[i]=pred_energ_q[i-1];
     }
-    pred_energ_q[0] = FFMAX(avg_gain * 0.25 - 4.0, -14);
+    pred_energ_q[0] = FFMAX((avg_gain >> 2) - 4096, -14336); // -14 in Q10
 }
 
 /**
@@ -804,7 +804,7 @@ static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, const int16_t* f
 
     /* 3.9.1, Equation 69 */
     for(i=0; i<4; i++)
-        energy+= 0.01 * ctx->pred_energ_q[i] * ma_prediction_coeff[i];
+        energy+= 0.01 * ctx->pred_energ_q[i] * ma_prediction_coeff[i] / (1<<10);
 
     /* 3.9.1, Equation 71 */
     energy = exp(M_LN10*energy/20); //FIXME: should there be subframe_size/2 ?
@@ -815,7 +815,7 @@ static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, const int16_t* f
 
     cb1_sum = cb_GA[nGA][1]+cb_GB[nGB][1];
     /* 3.9.1, Equation 72 */
-    ctx->pred_energ_q[0] = 20 * log(cb1_sum) / M_LN10; //FIXME: should there be subframe_size/2 ?
+    ctx->pred_energ_q[0] = 20 * 1024 * log(cb1_sum) / M_LN10; //FIXME: should there be subframe_size/2 ?
 
     /* 3.9.1, Equation 73 */
     *gp = cb_GA[nGA][0]+cb_GB[nGB][0];           // quantized adaptive-codebook gain (gain code)
@@ -1431,7 +1431,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
 
     //quantized prediction error
     for(i=0; i<4; i++)
-        ctx->pred_energ_q[i] = -14;
+        ctx->pred_energ_q[i] = -14336;
 
     memset(ctx->syn_filter_data, 0, 10*sizeof(float));
     memset(ctx->res_filter_data, 0, 10*sizeof(float));
@@ -1508,7 +1508,7 @@ int j;
         }
 
         g729_decode_fc_vector(ctx, parm->fc_indexes[i], parm->pulses_signs[i], fc);
-        g729_fix_fc_vector(pitch_delay/3, ctx->gain_pitch * Q15_BASE, fc16, ctx->subframe_size);
+        g729_fix_fc_vector(pitch_delay/3, ctx->gain_pitch * Q15_BASE, fc, ctx->subframe_size);
         if(ctx->data_error)
         {
             /*
