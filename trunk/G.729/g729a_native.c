@@ -532,7 +532,7 @@ static float sum_of_squares(float *speech, int length)
  */
 static inline uint16_t g729_random(G729A_Context* ctx)
 {
-    return ctx->rand_value = 31821 * (uint32_t)ctx->rand_value + 13849;
+    return ctx->rand_value = 31821 * ctx->rand_value + 13849;
 }
 
 
