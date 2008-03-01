@@ -508,11 +508,21 @@ static const int16_t lsp_init[10]=
           Internal routines
 ------------------------------------------------------------------------------
 */
-static int l_mul(int var1, int var2)
+/**
+ * \brief multiplies 32-bit integer by abother 16-bit and divides result by 2^15
+ * \param var_q24 (Q24) 32-bit integer
+ * \param var_15 (Q15) 16-bit integer
+ * \return (Q24) result of mupliplication
+ *
+ * FIXME: if var_q15 declared as int16_t routine gives wrong result
+ */
+static inline int mul_24_15(int var_q24, int var_q15)
 {
-    int mul=var1*var2;
-    return mul==0x40000000?INT_MAX:mul<<1;
+    int hi = var_q24 >> 15;
+    int lo = var_q24 & 0x00007fff;
+    return var_q15 * hi + ((var_q15 * lo) >> 15);
 }
+
 /**
  * \brief Calculates gain value of speech signal
  * \param speech signal buffer
@@ -1215,52 +1225,56 @@ static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
     lsfq[9] = FFMIN(lsfq[9], LSFQ_MAX * Q13_BASE);//Is warning required ?
 }
 
-static void get_lsp_coefficients(float* q, float* f)
+
+/**
+ * \param q (Q15) LSP coefficients
+ */
+static void get_lsp_coefficients(int* q, int* f_out)
 {
     int i, j;
     int qidx=2;
-    float b;
+    int b;
+    int f[6];
 
-    f[0]=1.0;
-    f[1]=-2*q[0];
+    f[0] = 0x1000000;   // 1.0 in Q24
+    f[1] = -q[0] << 10; // *2 and Q15 -> Q24
 
     for(i=2; i<=5; i++)
     {
-        b=-2*q[qidx];
-        f[i] = b*f[i-1] + 2*f[i-2];
+        b=-q[qidx]<<1;   // Q15        
+        f[i] = mul_24_15(f[i-1], b) + 2*f[i-2];
 
         for(j=i-1; j>1; j--)
-        {
-            f[j] += b*f[j-1] + f[j-2];
-        }
-        f[1]+=b;
+            f[j] += mul_24_15(f[j-1], b) + f[j-2];
+
+        f[1]+=b << 9;
         qidx+=2;
     }
+    for(i=0;i<6;i++)
+       f_out[i]=f[i] / ( 1<<11) ;
 }
 /**
  * \brief LSP to LP conversion (3.2.6)
  * \param ctx private data structure
  * \param lsp (Q15) LSP coefficients
- * \param lp decoded LP coefficients
+ * \param lp (Q13) decoded LP coefficients
  */
-static void g729_lsp2lp(G729A_Context* ctx, int* lsp, float* lp)
+static void g729_lsp2lp(G729A_Context* ctx, int* lsp, int* lp)
 {
     int i;
-    float f1[6];
-    float f2[6];
+    int f1[6];
+    int f2[6];
+
     float lsp_f[10];
-
-    for(i=0;i<10;i++)
-        lsp_f[i]=lsp[i]/Q15_BASE;
-
-    get_lsp_coefficients(lsp_f,   f1);
-    get_lsp_coefficients(lsp_f+1, f2);
+    for(i=0;i<10;i++) lsp_f[i]=lsp[i];
+    get_lsp_coefficients(lsp,   f1);
+    get_lsp_coefficients(lsp+1, f2);
 
     /* 3.2.6, Equations 25 and  26*/
     for(i=0;i<5;i++)
     {
-        float ff1 = f1[i+1] + f1[i];
-        float ff2 = f2[i+1] - f2[i];
+        int ff1 = f1[i+1] + f1[i];
+        int ff2 = f2[i+1] - f2[i];
         lp[i]   = (ff1 + ff2)/2;
         lp[9-i] = (ff1 - ff2)/2;
     }
@@ -1275,20 +1289,24 @@ static void g729_lsp2lp(G729A_Context* ctx, int* lsp, float* lp)
 static void g729_lp_decode(G729A_Context* ctx, int* lsp_curr, float* lp)
 {
     int lsp[10];
+    int lp_tmp[20];
     int i;
 
     /* LSP values for first subframe (3.2.5, Equation 24)*/
     for(i=0;i<10;i++)
         lsp[i]=(lsp_curr[i]+ctx->lsp_prev[i])/2;
 
-    g729_lsp2lp(ctx, lsp, lp);
+    g729_lsp2lp(ctx, lsp, lp_tmp);
 
     /* LSP values for second subframe (3.2.5)*/
-    g729_lsp2lp(ctx, lsp_curr, lp+10);
+    g729_lsp2lp(ctx, lsp_curr, lp_tmp+10);
 
     /* saving LSP coefficients for using in next frame */
     for(i=0;i<10;i++)
         ctx->lsp_prev[i]=lsp_curr[i];
+
+    for(i=0;i<20;i++)
+        lp[i]=lp_tmp[i] / Q13_BASE;
 }
 
 
