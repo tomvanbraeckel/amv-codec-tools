@@ -1114,7 +1114,7 @@ static void g729_high_pass_filter(G729A_Context* ctx, float* speech)
  * \param exc excitation
  * \param speech reconstructed speech buffer (ctx->subframe_size items)
  */
-static void g729_reconstruct_speech(G729A_Context *ctx, const float *lp, int intT1, float* exc, int16_t* speech)
+static void g729_reconstruct_speech(G729A_Context *ctx, const float *lp, int intT1, const float* exc, int16_t* speech)
 {
     float tmp_speech_buf[MAX_SUBFRAME_SIZE+10];
     float* tmp_speech=tmp_speech_buf+10;
