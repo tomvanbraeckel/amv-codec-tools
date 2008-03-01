@@ -1538,131 +1538,6 @@ AVCodec g729a_decoder =
 };
 
 #ifdef G729A_NATIVE
-/**
- * \brief decodes ITU's bitstream format frame intovector of  parameters
- * \param ctx private data structure
- * \param serial input bitstream
- * \param serial_size size of input bitstream buffer
- * \param parm output vector of parameters
- *
- * \return 0 if success, nonzero - otherwise
- */
-static int g729_bitstream2parm(G729A_Context *ctx, int16_t* serial, int serial_size, int *parm)
-{
-    int j;
-    int idx=2;
-
-    if(serial_size<2*ctx->subframe_size+2)
-        return AVERROR(EIO);
-
-    //L0
-    parm[0]=0;
-    for(j=0; j<L0_BITS; j++)
-    {
-        parm[0]<<= 1;
-        parm[0] |= serial[idx++]==0x81?1:0;
-    }
-    //L1
-    parm[1]=0;
-    for(j=0; j<L1_BITS; j++)
-    {
-        parm[1]<<= 1;
-        parm[1] |= serial[idx++]==0x81?1:0;
-    }
-    //L2
-    parm[2]=0;
-    for(j=0; j<L2_BITS; j++)
-    {
-        parm[2]<<= 1;
-        parm[2] |= serial[idx++]==0x81?1:0;
-    }
-    //L3
-    parm[3]=0;
-    for(j=0; j<L3_BITS; j++)
-    {
-        parm[3]<<= 1;
-        parm[3] |= serial[idx++]==0x81?1:0;
-    }
-    //P1
-    parm[4]=0;
-    for(j=0; j<P1_BITS; j++)
-    {
-        parm[4]<<= 1;
-        parm[4] |= serial[idx++]==0x81?1:0;
-    }
-    //P0
-    parm[5]=0;
-    for(j=0; j<P0_BITS; j++)
-    {
-        parm[5]<<= 1;
-        parm[5] |= serial[idx++]==0x81?1:0;
-    }
-    //C1
-    parm[6]=0;
-    for(j=0; j<formats[ctx->format].fc_index_bits*FC_PULSE_COUNT+1; j++)
-    {
-        parm[6]<<= 1;
-        parm[6] |= serial[idx++]==0x81?1:0;
-    }
-    //S1
-    parm[7]=0;
-    for(j=0; j<FC_PULSE_COUNT; j++)
-    {
-        parm[7]<<= 1;
-        parm[7] |= serial[idx++]==0x81?1:0;
-    }
-    //GA1
-    parm[8]=0;
-    for(j=0; j<GA_BITS; j++)
-    {
-        parm[8]<<= 1;
-        parm[8] |= serial[idx++]==0x81?1:0;
-    }
-    //GB1
-    parm[9]=0;
-    for(j=0; j<GB_BITS; j++)
-    {
-        parm[9]<<= 1;
-        parm[9] |= serial[idx++]==0x81?1:0;
-    }
-    //P2
-    parm[10]=0;
-    for(j=0; j<P2_BITS; j++)
-    {
-        parm[10]<<= 1;
-        parm[10] |= serial[idx++]==0x81?1:0;
-    }
-    //C2
-    parm[11]=0;
-    for(j=0; j<formats[ctx->format].fc_index_bits*FC_PULSE_COUNT+1; j++)
-    {
-        parm[11]<<= 1;
-        parm[11] |= serial[idx++]==0x81?1:0;
-    }
-    //S2
-    parm[12]=0;
-    for(j=0; j<FC_PULSE_COUNT; j++)
-    {
-        parm[12]<<= 1;
-        parm[12] |= serial[idx++]==0x81?1:0;
-    }
-    //GA2
-    parm[13]=0;
-    for(j=0; j<GA_BITS; j++)
-    {
-        parm[13]<<= 1;
-        parm[13] |= serial[idx++]==0x81?1:0;
-    }
-    //GB2
-    parm[14]=0;
-    for(j=0; j<GB_BITS; j++)
-    {
-        parm[14]<<= 1;
-        parm[14] |= serial[idx++]==0x81?1:0;
-    }
-    return 0;
-}
-
 /* debugging  stubs */
 void* g729a_decoder_init()
 {
@@ -1680,7 +1555,7 @@ int g729a_decoder_uninit(void* ctx)
 int  g729a_decode_frame(AVCodecContext* avctx, int16_t* serial, int serial_size, int16_t* out_frame, int out_frame_size)
 {
     int parm[VECTOR_SIZE];
-    g729_bitstream2parm(avctx->priv_data, serial, 82, parm);
+    g729_bytes2parm(avctx->priv_data, serial, 82, parm);
     return g729a_decode_frame_internal(avctx->priv_data, out_frame, out_frame_size, parm);
 }
 /*
