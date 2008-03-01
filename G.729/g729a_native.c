@@ -519,13 +519,9 @@ static const float lsp_init[10] =
 static float sum_of_squares(float *speech, int length)
 {
     int n;
-    float sum;
+    float sum=0;
 
-    if(!length)
-        return 0;
-
-    sum=speech[0]*speech[0];
-    for(n=1; n<length; n++)
+    for(n=0; n<length; n++)
        sum+=speech[n]*speech[n];
 
     return sum;
