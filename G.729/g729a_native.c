@@ -1281,18 +1281,18 @@ static void get_lsp_coefficients(const int16_t* lsp, int* f)
     int qidx=2;
     int b;
 
-    f[0] = 0x1000000;   // 1.0 in Q24
-    f[1] = -lsp[0] << 10; // *2 and Q15 -> Q24
+    f[0] = 0x1000000;          // 1.0 in Q24
+    f[1] = -lsp[0] << 10;      // *2 and Q15 -> Q24
 
     for(i=2; i<=5; i++)
     {
-        b=-lsp[qidx]<<1;   // Q15        
+        b = -lsp[qidx] << 1;
         f[i] = f[i-2];
 
         for(j=i; j>1; j--)
             f[j] += mul_24_15(f[j-1], b) + f[j-2];
 
-        f[1]+=b << 9;
+        f[1] += b << 9;
         qidx+=2;
     }
 }
