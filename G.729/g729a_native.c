@@ -147,10 +147,10 @@ typedef struct
     float exc_base[2*MAX_SUBFRAME_SIZE+PITCH_MAX+INTERPOL_LEN];
     float* exc;             ///< start of past excitation data in buffer
     int intT2_prev;         ///< int(T2) value of previous frame (4.1.3)
-    int lq_prev[MA_NP][10]; ///< Q(13) LSP quantizer output (3.2.4)
-    int lsp_prev[10];       ///< Q(15) LSP coefficients from previous frame (3.2.5)
-    int16_t lsf_prev[10];   ///< Q(13) LSF coefficients from previous frame
-    float pred_energ_q[4];  ///< Q(13) past quantized energies
+    int16_t lq_prev[MA_NP][10]; ///< (Q13) LSP quantizer output (3.2.4)
+    int16_t lsp_prev[10];   ///< (Q15) LSP coefficients from previous frame (3.2.5)
+    int16_t lsf_prev[10];   ///< (Q13) LSF coefficients from previous frame
+    float pred_energ_q[4];  ///< (Q13) past quantized energies
     float gain_pitch;       ///< Pitch gain of previous subframe (3.8) [GAIN_PITCH_MIN ... GAIN_PITCH_MAX]
     float gain_code;        ///< Gain code of previous subframe
     /// Residual signal buffer (used in long-term postfilter)
