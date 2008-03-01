@@ -1111,9 +1111,9 @@ static void g729_lsf2lsp(G729A_Context *ctx, float *lsf, float *lsp)
 /**
  * \brief Restore LSP parameters using previous frame data
  * \param ctx private data structure
- * \param lsfq Decoded LSP coefficients
+ * \param lsfq Decoded LSF coefficients
  */
-static void g729_lsp_restore_from_previous(G729A_Context *ctx, float* lsfq)
+static void g729_lsf_restore_from_previous(G729A_Context *ctx, float* lsfq)
 {
     float lq[10];
     int i,k;
@@ -1138,8 +1138,6 @@ static void g729_lsp_restore_from_previous(G729A_Context *ctx, float* lsfq)
             ctx->lq_prev[k][i]=ctx->lq_prev[k-1][i];
         ctx->lq_prev[0][i]=lq[i];
     }
-
-    g729_lsf2lsp(ctx, lsfq, lsfq);
 }
 
 /**
@@ -1151,7 +1149,7 @@ static void g729_lsp_restore_from_previous(G729A_Context *ctx, float* lsfq)
  * \param L3 Second stage higher vector of LSP quantizer
  * \param lsfq Decoded LSP coefficients
  */
-static void g729_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t L2, int16_t L3, float* lsfq)
+static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t L2, int16_t L3, float* lsfq)
 {
     int i,j,k;
     int16_t J[2]={10, 5}; //Q13
@@ -1211,8 +1209,6 @@ static void g729_lsp_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
     for(i=0;i<9; i++)
         lsfq[i+1]=FFMAX(lsfq[i+1], lsfq[i] + LSFQ_DIFF_MIN);
     lsfq[9] = FFMIN(lsfq[9], LSFQ_MAX);//Is warning required ?
-
-    g729_lsf2lsp(ctx, lsfq, lsfq);
 }
 
 static void get_lsp_coefficients(float* q, float* f)
@@ -1387,14 +1383,17 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
     ctx->bad_pitch = !g729_parity_check(parm->ac_index[0], parm->parity);
 
     if(ctx->data_error)
-        g729_lsp_restore_from_previous(ctx, lsp);
+        g729_lsf_restore_from_previous(ctx, lsp);
     else
-        g729_lsp_decode(ctx, 
+        g729_lsf_decode(ctx, 
 	         parm->ma_predictor,
                  parm->quantizer_1st,
                  parm->quantizer_2nd_lo,
                  parm->quantizer_2nd_hi,
                  lsp);
+
+    //Convert LSF to LSP
+    g729_lsf2lsp(ctx, lsp, lsp);
 
     g729_lp_decode(ctx, lsp, lp);
 
