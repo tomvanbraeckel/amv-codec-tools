@@ -1146,7 +1146,7 @@ static void g729_reconstruct_speech(G729A_Context *ctx, const float *lp, int int
  *
  * \remark It is safe to pass the same array in lsf and lsp parameters
  */
-static void g729_lsf2lsp(const int *lsf, int *lsp)
+static void g729_lsf2lsp(const int16_t *lsf, int *lsp)
 {
     int i;
 
@@ -1166,7 +1166,7 @@ static void g729_lsf2lsp(const int *lsf, int *lsp)
  * \param ctx private data structure
  * \param lsfq (Q13) Decoded LSF coefficients
  */
-static void g729_lsf_restore_from_previous(G729A_Context *ctx, int* lsfq)
+static void g729_lsf_restore_from_previous(G729A_Context *ctx, int16_t* lsfq)
 {
     int lq[10]; // Q13, Q28
     int i,k;
@@ -1178,7 +1178,7 @@ static void g729_lsf_restore_from_previous(G729A_Context *ctx, int* lsfq)
     /* 4.4.1, Equation 92 */
     for(i=0; i<10; i++)
     {
-        lq[i]= lsfq[i] << 15; //Q13 -> Q28
+        lq[i]= (int)lsfq[i] << 15; //Q13 -> Q28
         for(k=0;k<MA_NP; k++)
             lq[i] -= ctx->lq_prev[k][i] * ma_predictor[ctx->prev_mode][k][i]; // Q28
         lq[i] /= ma_predictor_sum[ctx->prev_mode][i];                         // Q13
@@ -1202,7 +1202,7 @@ static void g729_lsf_restore_from_previous(G729A_Context *ctx, int* lsfq)
  * \param L3 Second stage higher vector of LSP quantizer
  * \param lsfq (Q13) Decoded LSP coefficients
  */
-static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t L2, int16_t L3, int* lsfq)
+static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t L2, int16_t L3, int16_t* lsfq)
 {
     int i,j,k;
     int16_t J[2]={10, 5}; //Q13
@@ -1254,7 +1254,7 @@ static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
     for(j=9; j>0; j--)
         for(i=0; i<j; i++)
             if(lsfq[i] > lsfq[i+1])
-                FFSWAP(float, lsfq[i], lsfq[i+1]);
+                FFSWAP(int16_t, lsfq[i], lsfq[i+1]);
 
     /* checking for stability */
     lsfq[0] = FFMAX(lsfq[0],LSFQ_MIN); //Is warning required ?
@@ -1433,7 +1433,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
     G729A_Context* ctx=context;
     float lp[20];
     int lsp[10];                 // Q15
-    int lsf[10];                 // Q13
+    int16_t lsf[10];             // Q13
     int pitch_delay;             // pitch delay
     float fc[MAX_SUBFRAME_SIZE]; // fixed codebooc vector
     float gp, gc;
