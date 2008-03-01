@@ -1401,8 +1401,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
     ctx->data_error=0;
     ctx->bad_pitch=0;
 
-    if(!g729_parity_check(parm[4], parm[5]))
-        ctx->bad_pitch=1;
+    ctx->bad_pitch = !g729_parity_check(parm[4], parm[5]);
 
     if(ctx->data_error)
         g729_lsp_restore_from_previous(ctx, lsp);
