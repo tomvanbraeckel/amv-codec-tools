@@ -564,7 +564,7 @@ static inline int mul_24_15(int var_q24, int var_q15)
  *
  * \return squared gain value
  */
-static float sum_of_squares(float *speech, int length)
+static float sum_of_squares(const float *speech, int length)
 {
     int n;
     float sum=0;
@@ -761,7 +761,7 @@ static void g729_update_gain_erasure(float *pred_energ_q)
  * \param gp pointer to variable receiving quantized fixed-codebook gain (gain pitch)
  * \param gc pointer to variable receiving quantized adaptive-codebook gain (gain code)
  */
-static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, float* gp, float* gc)
+static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, const float* fc_v, float* gp, float* gc)
 {
     float energy;
     int i;
@@ -807,7 +807,7 @@ static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, float* fc_v, flo
  * \param gc quantized adaptive-codebook gain (gain code)
  * \param exc last excitation signal buffer for current subframe
  */
-static void g729_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc, float* exc)
+static void g729_mem_update(G729A_Context *ctx, const float *fc_v, float gp, float gc, float* exc)
 {
     int i;
 
@@ -826,7 +826,7 @@ static void g729_mem_update(G729A_Context *ctx, float *fc_v, float gp, float gc,
  * Routine applies 1/A(z) filter to given speech data
  *
  */
-static void g729_lp_synthesis_filter(G729A_Context *ctx, float* lp, float *in, float *out, float *filter_data)
+static void g729_lp_synthesis_filter(G729A_Context *ctx, const float* lp, const float *in, float *out, float *filter_data)
 {
     float tmp_buf[MAX_SUBFRAME_SIZE+10];
     float* tmp=tmp_buf+10;
@@ -877,7 +877,7 @@ static void g729a_adaptive_gain_control(G729A_Context *ctx, float gain_before, f
  * Azg[i]=GAMMA^i*Az[i] , i=0..subframe_size
  *
  */
-static void g729a_weighted_filter(float* Az, float gamma, float *Azg)
+static void g729a_weighted_filter(const float* Az, float gamma, float *Azg)
 {
     float gamma_pow;
     int n;
@@ -959,7 +959,7 @@ static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residua
  * \param lp_gd coefficients of A(z/GAMMA_D) filter
  * \param res_pst residual signal (partially filtered)
 */
-static void g729a_tilt_compensation(G729A_Context *ctx,float *lp_gn, float *lp_gd, float* res_pst)
+static void g729a_tilt_compensation(G729A_Context *ctx, const float *lp_gn, const float *lp_gd, float* res_pst)
 {
     float tmp;
     float gt,k,rh1,rh0;
@@ -1033,7 +1033,7 @@ static void g729a_tilt_compensation(G729A_Context *ctx,float *lp_gn, float *lp_g
  *
  * \note This routine is G.729 Annex A specific.
  */
-static void g729a_postfilter(G729A_Context *ctx, float *lp, int intT1, float *speech_buf)
+static void g729a_postfilter(G729A_Context *ctx, const float *lp, int intT1, float *speech_buf)
 {
     int i, n;
     float *speech=speech_buf+10;
@@ -1114,7 +1114,7 @@ static void g729_high_pass_filter(G729A_Context* ctx, float* speech)
  * \param exc excitation
  * \param speech reconstructed speech buffer (ctx->subframe_size items)
  */
-static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, int intT1, float* exc, int16_t* speech)
+static void g729_reconstruct_speech(G729A_Context *ctx, const float *lp, int intT1, float* exc, int16_t* speech)
 {
     float tmp_speech_buf[MAX_SUBFRAME_SIZE+10];
     float* tmp_speech=tmp_speech_buf+10;
@@ -1141,13 +1141,12 @@ static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, int intT1, fl
 
 /**
  * \brief Convert LSF to LSP
- * \param ctx private data structure
  * \param lsf (Q13) LSF coefficients (0 <= lsf < PI)
  * \param lsp [out] LSP coefficients (-1 <= lsp < 1)
  *
  * \remark It is safe to pass the same array in lsf and lsp parameters
  */
-static void g729_lsf2lsp(G729A_Context *ctx, int *lsf, int *lsp)
+static void g729_lsf2lsp(const int *lsf, int *lsp)
 {
     int i;
 
@@ -1271,7 +1270,7 @@ static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
  * \param lsp (Q15) LSP coefficients
  * \param f [out] (Q24) decoded polinomial coefficients
  */
-static void get_lsp_coefficients(int* lsp, int* f)
+static void get_lsp_coefficients(const int* lsp, int* f)
 {
     int i, j;
     int qidx=2;
@@ -1294,11 +1293,10 @@ static void get_lsp_coefficients(int* lsp, int* f)
 }
 /**
  * \brief LSP to LP conversion (3.2.6)
- * \param ctx private data structure
  * \param lsp (Q15) LSP coefficients
  * \param lp (Q13) decoded LP coefficients
  */
-static void g729_lsp2lp(G729A_Context* ctx, int* lsp, int* lp)
+static void g729_lsp2lp(const int* lsp, int* lp)
 {
     int i;
     int f1[6];
@@ -1319,11 +1317,11 @@ static void g729_lsp2lp(G729A_Context* ctx, int* lsp, int* lp)
 
 /**
  * \brief interpolate LSP end decode LP for both first and second subframes (3.2.5 and 3.2.6)
- * \param ctx private data structure
  * \param (Q15) lsp_curr current LSP coefficients
+ * \param (Q15) lsp_prev past LSP coefficients
  * \param lp [out] decoded LP coefficients
  */
-static void g729_lp_decode(G729A_Context* ctx, int* lsp_curr, float* lp)
+static void g729_lp_decode(const int* lsp_curr, int16_t* lsp_prev, float* lp)
 {
     int lsp[10];
     int lp_tmp[20];
@@ -1331,16 +1329,16 @@ static void g729_lp_decode(G729A_Context* ctx, int* lsp_curr, float* lp)
 
     /* LSP values for first subframe (3.2.5, Equation 24)*/
     for(i=0;i<10;i++)
-        lsp[i]=(lsp_curr[i]+ctx->lsp_prev[i])/2;
+        lsp[i]=(lsp_curr[i]+lsp_prev[i])/2;
 
-    g729_lsp2lp(ctx, lsp, lp_tmp);
+    g729_lsp2lp(lsp, lp_tmp);
 
     /* LSP values for second subframe (3.2.5)*/
-    g729_lsp2lp(ctx, lsp_curr, lp_tmp+10);
+    g729_lsp2lp(lsp_curr, lp_tmp+10);
 
     /* saving LSP coefficients for using in next frame */
     for(i=0;i<10;i++)
-        ctx->lsp_prev[i]=lsp_curr[i];
+        lsp_prev[i]=lsp_curr[i];
 
     for(i=0;i<20;i++)
         lp[i]=lp_tmp[i] / Q13_BASE;
@@ -1457,9 +1455,9 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
                  lsf);
 
     //Convert LSF to LSP
-    g729_lsf2lsp(ctx, lsf, lsp);
+    g729_lsf2lsp(lsf, lsp);
 
-    g729_lp_decode(ctx, lsp, lp);
+    g729_lp_decode(lsp, ctx->lsp_prev, lp);
 
     for(i=0; i<2; i++)
     {
