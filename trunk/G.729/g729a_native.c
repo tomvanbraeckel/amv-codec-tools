@@ -674,19 +674,16 @@ static void g729_decode_fc_vector(G729A_Context* ctx, int fc_index, int pulses_s
 /**
  * \brief fixed codebook vector modification if delay is less than 40 (4.1.4 and 3.8)
  * \param pitch_delay integer part of pitch delay
+ * \param gain_pitch gain pitch
  * \param fc_v [in/out] fixed codebook vector to change
- *
- * \remark if pitch_delay>=subframe_size no changes to vector are made
+ * \param length length of fc_v array
  */
-static void g729_fix_fc_vector(G729A_Context *ctx, int pitch_delay, float* fc_v)
+static void g729_fix_fc_vector(int pitch_delay, float gain_pitch, float* fc_v, int length)
 {
     int i;
 
-    if(pitch_delay>=ctx->subframe_size)
-        return;
-
-    for(i=pitch_delay; i<ctx->subframe_size;i++)
-        fc_v[i] += fc_v[i-pitch_delay]*ctx->gain_pitch;
+    for(i=pitch_delay; i<length;i++)
+        fc_v[i] += fc_v[i-pitch_delay]*gain_pitch;
 }
 
 /**
@@ -1452,7 +1449,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
         }
 
         g729_decode_fc_vector(ctx, parm->fc_indexes[i], parm->pulses_signs[i], fc);
-        g729_fix_fc_vector(ctx, pitch_delay/3, fc);
+        g729_fix_fc_vector(pitch_delay/3, ctx->gain_pitch, fc, ctx->subframe_size);
 
         if(ctx->data_error)
         {
