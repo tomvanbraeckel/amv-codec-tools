@@ -1098,7 +1098,7 @@ static void g729_reconstruct_speech(G729A_Context *ctx, float *lp, int intT1, fl
 /**
  * \brief Convert LSF to LSP
  * \param ctx private data structure
- * \param lsf LSF coefficients
+ * \param lsf (Q13) LSF coefficients
  * \param lsp LSP coefficients
  *
  * \remark It is safe to pass the same array in lsf and lsp parameters
@@ -1115,11 +1115,11 @@ static void g729_lsf2lsp(G729A_Context *ctx, int *lsf, float *lsp)
 /**
  * \brief Restore LSP parameters using previous frame data
  * \param ctx private data structure
- * \param lsfq Decoded LSF coefficients
+ * \param lsfq (Q13) Decoded LSF coefficients
  */
 static void g729_lsf_restore_from_previous(G729A_Context *ctx, int* lsfq)
 {
-    int lq[10]; // Q13
+    int lq[10]; // Q13, Q28
     int i,k;
 
     //Restore LSF from previous frame
@@ -1151,7 +1151,7 @@ static void g729_lsf_restore_from_previous(G729A_Context *ctx, int* lsfq)
  * \param L1 First stage vector of quantizer
  * \param L2 Second stage lower vector of LSP quantizer
  * \param L3 Second stage higher vector of LSP quantizer
- * \param lsfq Decoded LSP coefficients
+ * \param lsfq (Q13) Decoded LSP coefficients
  */
 static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t L2, int16_t L3, int* lsfq)
 {
@@ -1159,7 +1159,7 @@ static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
     int16_t J[2]={10, 5}; //Q13
     int16_t lq[10];       //Q13
     int16_t diff;         //Q13
-    int sum;              //Q29
+    int sum;              //Q28
 
     /* 3.2.4 Equation 19 */
     for(i=0;i<5; i++)
@@ -1376,9 +1376,9 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
     G729A_Context* ctx=context;
     float lp[20];
     float lsp[10];
-    int lsf[10];
-    int pitch_delay;                      ///< pitch delay
-    float fc[MAX_SUBFRAME_SIZE];          ///< fixed codebooc vector
+    int lsf[10];                 // Q13
+    int pitch_delay;             // pitch delay
+    float fc[MAX_SUBFRAME_SIZE]; // fixed codebooc vector
     float gp, gc;
     int intT1, i;
 
