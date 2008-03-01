@@ -1146,7 +1146,7 @@ static void g729_reconstruct_speech(G729A_Context *ctx, const float *lp, int int
  *
  * \remark It is safe to pass the same array in lsf and lsp parameters
  */
-static void g729_lsf2lsp(const int16_t *lsf, int *lsp)
+static void g729_lsf2lsp(const int16_t *lsf, int16_t *lsp)
 {
     int i;
 
@@ -1270,7 +1270,7 @@ static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
  * \param lsp (Q15) LSP coefficients
  * \param f [out] (Q24) decoded polinomial coefficients
  */
-static void get_lsp_coefficients(const int* lsp, int* f)
+static void get_lsp_coefficients(const int16_t* lsp, int* f)
 {
     int i, j;
     int qidx=2;
@@ -1296,7 +1296,7 @@ static void get_lsp_coefficients(const int* lsp, int* f)
  * \param lsp (Q15) LSP coefficients
  * \param lp (Q13) decoded LP coefficients
  */
-static void g729_lsp2lp(const int* lsp, int* lp)
+static void g729_lsp2lp(const int16_t* lsp, int* lp)
 {
     int i;
     int f1[6];
@@ -1321,9 +1321,9 @@ static void g729_lsp2lp(const int* lsp, int* lp)
  * \param (Q15) lsp_prev past LSP coefficients
  * \param lp [out] decoded LP coefficients
  */
-static void g729_lp_decode(const int* lsp_curr, int16_t* lsp_prev, float* lp)
+static void g729_lp_decode(const int16_t* lsp_curr, int16_t* lsp_prev, float* lp)
 {
-    int lsp[10];
+    int16_t lsp[10];
     int lp_tmp[20];
     int i;
 
@@ -1432,7 +1432,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
 {
     G729A_Context* ctx=context;
     float lp[20];
-    int lsp[10];                 // Q15
+    int16_t lsp[10];             // Q15
     int16_t lsf[10];             // Q13
     int pitch_delay;             // pitch delay
     float fc[MAX_SUBFRAME_SIZE]; // fixed codebooc vector
