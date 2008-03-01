@@ -149,7 +149,7 @@ typedef struct
     int intT2_prev;         ///< int(T2) value of previous frame (4.1.3)
     int lq_prev[MA_NP][10];  ///< l[i], LSP quantizer output (3.2.4)
     float lsp_prev[10];     ///< q[i], LSP coefficients from previous frame (3.2.5)
-    float lsf_prev[10];     ///< lq[i], LSF coefficients from previous frame
+    int16_t lsf_prev[10];   ///< lq[i], LSF coefficients from previous frame
     float pred_energ_q[4];  ///< past quantized energies
     float gain_pitch;       ///< Pitch gain of previous subframe (3.8) [GAIN_PITCH_MIN ... GAIN_PITCH_MAX]
     float gain_code;        ///< Gain code of previous subframe
