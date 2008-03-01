@@ -698,10 +698,10 @@ static void g729_update_gain_erasure(float *pred_energ_q)
     /* 4.4.3. Equation 95 */
     for(i=3; i>0; i--)
     {
-        avg_gain     +=pred_energ_q[i-1];
+        avg_gain      +=pred_energ_q[i-1];
         pred_energ_q[i]=pred_energ_q[i-1];
     }
-    pred_energ_q[0] = FFMAX(avg_gain * 0.25 - 4.0, -14);;
+    pred_energ_q[0] = FFMAX(avg_gain * 0.25 - 4.0, -14);
 }
 
 /**
