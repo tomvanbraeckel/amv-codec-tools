@@ -152,7 +152,7 @@ typedef struct
     int16_t lsf_prev[10];   ///< (Q13) LSF coefficients from previous frame
     int16_t pred_energ_q[4];///< (Q10) past quantized energies
     int16_t gain_pitch;     ///< (Q14) Pitch gain of previous subframe (3.8) [GAIN_PITCH_MIN ... GAIN_PITCH_MAX]
-    float gain_code;        ///< Gain code of previous subframe
+    int16_t gain_code;      ///< (Q1) Gain code of previous subframe
     /// Residual signal buffer (used in long-term postfilter)
     float residual[MAX_SUBFRAME_SIZE+PITCH_MAX];
     float syn_filter_data[10];
@@ -784,9 +784,9 @@ static void g729_update_gain_erasure(int16_t *pred_energ_q)
  * \param GB Gain codebook (stage 2)
  * \param fc_v (Q13) fixed-codebook vector
  * \param gp (Q14) pointer to variable receiving quantized fixed-codebook gain (gain pitch)
- * \param gc pointer to variable receiving quantized adaptive-codebook gain (gain code)
+ * \param gc (Q1) pointer to variable receiving quantized adaptive-codebook gain (gain code)
  */
-static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, const int16_t* fc_v, int16_t* gp, float* gc)
+static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, const int16_t* fc_v, int16_t* gp, int16_t* gc)
 {
     float energy;
     int i;
@@ -822,7 +822,7 @@ static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, const int16_t* f
     *gp = cb_GA[nGA][0]+cb_GB[nGB][0];           // quantized adaptive-codebook gain (gain code)
 
     /* 3.9.1, Equation 74 */
-    *gc = energy*(cb1_sum);  //quantized fixed-codebook gain (gain pitch)
+    *gc = 2*energy*(cb1_sum);  //quantized fixed-codebook gain (gain pitch) Q0 -> Q1
 }
 
 /**
@@ -830,15 +830,15 @@ static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, const int16_t* f
  * \param ctx private data structure
  * \param fc_v (Q13) fixed-codebook vector
  * \param gp (Q14) quantized fixed-codebook gain (gain pitch)
- * \param gc quantized adaptive-codebook gain (gain code)
+ * \param gc (Q1) quantized adaptive-codebook gain (gain code)
  * \param exc last excitation signal buffer for current subframe
  */
-static void g729_mem_update(G729A_Context *ctx, const int16_t *fc_v, int16_t gp, float gc, float* exc)
+static void g729_mem_update(G729A_Context *ctx, const int16_t *fc_v, int16_t gp, int16_t gc, float* exc)
 {
     int i;
 
     for(i=0; i<ctx->subframe_size; i++)
-        exc[i]=(exc[i]*gp/2 + fc_v[i]*gc) / Q13_BASE;
+        exc[i]=(exc[i]*gp + fc_v[i]*gc) / (2 * Q13_BASE); // Q14 -> Q0, Q1 -> Q0
 }
 
 /**
@@ -1463,7 +1463,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
     int pitch_delay;             // pitch delay
     int16_t fc[MAX_SUBFRAME_SIZE]; // fixed codebooc vector
     int16_t gp;
-    float gc;
+    int16_t gc;
     int intT1, i;
 
     ctx->data_error=0;
@@ -1521,7 +1521,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
             /* 4.4.2, Equation 94 */
             ctx->gain_pitch = gp = (14745 * FFMIN(ctx->gain_pitch, 16384)) << 14; // 0.9 and 1.0 in Q14
             /* 4.4.2, Equation 93 */
-            ctx->gain_code  = 0.98 * ctx->gain_code;
+            ctx->gain_code  = (8028 * ctx->gain_code) >> 13; // 0.98 in Q13
 
             g729_update_gain_erasure(ctx->pred_energ_q);
         }
