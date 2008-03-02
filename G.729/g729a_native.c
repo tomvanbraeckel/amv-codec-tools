@@ -1530,7 +1530,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
             /* 4.4.2, Equation 94 */
             ctx->gain_pitch = gp = (14745 * FFMIN(ctx->gain_pitch, 16384)) << 14; // 0.9 and 1.0 in Q14
             /* 4.4.2, Equation 93 */
-            ctx->gain_code  = (8028 * ctx->gain_code) >> 13; // 0.98 in Q13
+            ctx->gain_code  = gc = (8028 * ctx->gain_code) >> 13; // 0.98 in Q13
 
             g729_update_gain_erasure(ctx->pred_energ_q);
         }
