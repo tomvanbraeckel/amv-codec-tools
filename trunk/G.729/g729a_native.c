@@ -480,6 +480,12 @@ static const int16_t ma_predictor_sum[2][10] =
   {14585, 18333, 19772, 17344, 16426, 16459, 15155, 15220, 16043, 15708}
 };
 
+static const int16_t ma_predictor_sum_inv[2][10] =
+{     /* Q12 */
+  {17210, 15888, 16357, 16183, 16516, 15833, 15888, 15421, 14840, 15597},
+  { 9202,  7320,  6788,  7738,  8170,  8154,  8856,  8818,  8366,  8544}
+};
+
 /**
  * MA prediction coefficients (3.9.1, near Equation 69)
  * values are multiplied by 100
@@ -1162,7 +1168,9 @@ static void g729_lsf_restore_from_previous(G729A_Context *ctx, int16_t* lsfq)
         lq[i]= (int)lsfq[i] << 15; //Q13 -> Q28
         for(k=0;k<MA_NP; k++)
             lq[i] -= ctx->lq_prev[k][i] * ma_predictor[ctx->prev_mode][k][i]; // Q28
-        lq[i] /= ma_predictor_sum[ctx->prev_mode][i];                         // Q13
+        lq[i] >>= 15;
+        lq[i] *= ma_predictor_sum_inv[ctx->prev_mode][i];                     // Q12
+        lq[i] >>= 12;
     }
 
     /* Rotate lq_prev */
@@ -1414,10 +1422,11 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
  * \param out_frame array for output PCM samples
  * \param out_frame_size maximum number of elements in output array
  * \param parm decoded parameters of the codec
+ * \param frame_erasure frame erasure flag
  *
  * \return 2 * subframe_size
  */
-static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, int out_frame_size, G729_parameters *parm)
+static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, int out_frame_size, G729_parameters *parm, int frame_erasure)
 {
     int16_t lp[20];              // Q12
     int16_t lsp[10];             // Q15
@@ -1427,7 +1436,7 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
     int16_t gp;
     int intT1, i;
 
-    ctx->data_error=0;
+    ctx->data_error = frame_erasure;
     ctx->bad_pitch=0;
 
     ctx->bad_pitch = !g729_parity_check(parm->ac_index[0], parm->parity);
@@ -1539,11 +1548,22 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
  * \param buf_size size of input buffer
  * \param parm [out] decoded parameters of the codec
  *
- * \return 0 if success, nonzero - otherwise
+ * \return 1 if frame erasure detected, 0 - otherwise
  */
 static int g729_bytes2parm(G729A_Context *ctx, const uint8_t *buf, int buf_size, G729_parameters *parm)
 {
     GetBitContext gb;
+    int i, frame_erasure;
+
+    init_get_bits(&gb, buf, buf_size);
+
+    frame_erasure = 1;
+    for(i=0; i<buf_size; i++)
+        if(get_bits(&gb,8))
+	    frame_erasure=0;
+
+    if(frame_erasure)
+        return 1;
 
     init_get_bits(&gb, buf, buf_size);
 
@@ -1577,16 +1597,14 @@ static int ff_g729a_decode_frame(AVCodecContext *avctx,
     G729A_Context *ctx=avctx->priv_data;
     int in_frame_size  = formats[ctx->format].input_frame_size;
     int out_frame_size = formats[ctx->format].output_frame_size;
-    int ret;
+    int frame_erasure;
 
     if (buf_size<in_frame_size)
         return AVERROR(EIO);
 
-    ret=g729_bytes2parm(ctx, buf, in_frame_size, &parm);
-    if(ret)
-        return ret;
+    frame_erasure = g729_bytes2parm(ctx, buf, in_frame_size, &parm);
 
-    *data_size = g729a_decode_frame_internal(ctx, (int16_t*)data, out_frame_size, &parm);
+    *data_size = g729a_decode_frame_internal(ctx, (int16_t*)data, out_frame_size, &parm, frame_erasure);
 
     return in_frame_size;
 }
@@ -1621,10 +1639,11 @@ int g729a_decoder_uninit(void* ctx)
 int  g729a_decode_frame(AVCodecContext* avctx, int16_t* serial, int serial_size, int16_t* out_frame, int out_frame_size)
 {
     G729_parameters parm;
+    int frame_erasure;
 
-    g729_bytes2parm(avctx->priv_data, (uint8_t*)serial, 82, &parm);
+    frame_erasure = g729_bytes2parm(avctx->priv_data, (uint8_t*)serial, 82, &parm);
 
-    return g729a_decode_frame_internal(avctx->priv_data, out_frame, out_frame_size, &parm);
+    return g729a_decode_frame_internal(avctx->priv_data, out_frame, out_frame_size, &parm, frame_erasure);
 }
 /*
 ---------------------------------------------------------------------------
