@@ -21,6 +21,7 @@ typedef struct
     void* priv_data;
     int sample_rate;
     int frame_size;
+    int channels;
 } AVCodecContext;
 
 #define     CODEC_TYPE_AUDIO 1
