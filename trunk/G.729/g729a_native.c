@@ -1348,6 +1348,11 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
         return AVERROR_NOFMT;
     }
 
+    if(avctx->channels != 1)
+    {
+        av_log(avctx, AV_LOG_ERROR, "Only mono sound is suported (requested channels:%d)\n", avctx->channels);
+        return AVERROR_NOFMT;
+    }
     /*
        subframe size in 2-byte samples
 
@@ -1388,7 +1393,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
 
     //quantized prediction error
     for(i=0; i<4; i++)
-        ctx->pred_energ_q[i] = -14336;
+        ctx->pred_energ_q[i] = -14336; // -14 in Q10
 
     memset(ctx->syn_filter_data, 0, 10*sizeof(float));
     memset(ctx->res_filter_data, 0, 10*sizeof(float));
@@ -1471,7 +1476,7 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
                 ctx->intT2_prev=pitch_delay/3;
             }
         }
-        g729_decode_ac_vector(pitch_delay/3, (pitch_delay%3)-1, ctx->exc+i*ctx->subframe_size, ctx->subframe_size);
+        g729_decode_ac_vector(pitch_delay/3, (pitch_delay%3)-1, ctx->exc + i*ctx->subframe_size, ctx->subframe_size);
 
         if(ctx->data_error)
         {
@@ -1516,8 +1521,8 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
             ctx->gain_pitch=FFMIN(FFMAX(gp, GAIN_PITCH_MIN), GAIN_PITCH_MAX);
         }
 
-        g729_mem_update(fc, gp, ctx->gain_code, ctx->exc+i*ctx->subframe_size, ctx->subframe_size);
-        g729_reconstruct_speech(ctx, lp+i*10, intT1, ctx->exc+i*ctx->subframe_size, out_frame+i*ctx->subframe_size);
+        g729_mem_update(fc, gp, ctx->gain_code, ctx->exc + i*ctx->subframe_size, ctx->subframe_size);
+        g729_reconstruct_speech(ctx, lp+i*10, intT1, ctx->exc + i*ctx->subframe_size, out_frame + i*ctx->subframe_size);
         ctx->subframe_idx++;
     }
 
@@ -1581,9 +1586,8 @@ static int ff_g729a_decode_frame(AVCodecContext *avctx,
     if(ret)
         return ret;
 
-    g729a_decode_frame_internal(ctx, (int16_t*)data, out_frame_size, &parm);
+    *data_size = g729a_decode_frame_internal(ctx, (int16_t*)data, out_frame_size, &parm);
 
-    *data_size = out_frame_size;
     return in_frame_size;
 }
 
@@ -1606,7 +1610,7 @@ void* g729a_decoder_init()
     AVCodecContext *avctx=av_mallocz(sizeof(AVCodecContext));
     avctx->priv_data=av_mallocz(sizeof(G729A_Context));
     avctx->sample_rate=8000;
-
+    avctx->channels=1;
     ff_g729a_decoder_init(avctx);
     return avctx;
 }
@@ -1618,7 +1622,7 @@ int  g729a_decode_frame(AVCodecContext* avctx, int16_t* serial, int serial_size,
 {
     G729_parameters parm;
 
-    g729_bytes2parm(avctx->priv_data, serial, 82, &parm);
+    g729_bytes2parm(avctx->priv_data, (uint8_t*)serial, 82, &parm);
 
     return g729a_decode_frame_internal(avctx->priv_data, out_frame, out_frame_size, &parm);
 }
