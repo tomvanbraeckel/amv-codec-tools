@@ -183,7 +183,7 @@ typedef struct
 /* 4.2.2 */
 #define GAMMA_N 18022 //0.55 in Q15
 #define GAMMA_D 22938 //0.70 in Q15
-#define GAMMA_T 0.80
+#define GAMMA_T 26214 //0.80 in Q15
 
 /* 4.2.1 */
 #define GAMMA_P 0.50
@@ -824,7 +824,6 @@ static void g729_mem_update(const int16_t *fc_v, int16_t gp, int16_t gc, float* 
  * \param subframe_size length of subframe
  *
  * Routine applies 1/A(z) filter to given speech data
- *
  */
 static void g729_lp_synthesis_filter(const int16_t* lp, const float *in, float *out, float *filter_data, int subframe_size)
 {
@@ -875,7 +874,6 @@ static void g729a_adaptive_gain_control(G729A_Context *ctx, float gain_before, f
  * \param Azg [out] (Q12) resulted weighted A(z/GAMMA) filter
  *
  * Azg[i]=GAMMA^i*Az[i] , i=0..subframe_size
- *
  */
 static void g729a_weighted_filter(const int16_t* Az, int16_t gamma, int16_t *Azg)
 {
@@ -958,26 +956,18 @@ static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residua
  * \param lp_gd (Q12) coefficients of A(z/GAMMA_D) filter
  * \param res_pst [in/out] residual signal (partially filtered)
 */
-static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn16, const int16_t *lp_gd16, float* res_pst)
+static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn, const int16_t *lp_gd, float* res_pst)
 {
     float tmp;
-    float gt,rh1,rh0;
-    float hf_buf[11+22]; // A(Z/GAMMA_N)/A(z/GAMMA_D) filter impulse response
-    float sum;
+    float gt;
+    int rh1,rh0; // Q24
+    int16_t hf_buf[11+22]; // Q12 A(Z/GAMMA_N)/A(z/GAMMA_D) filter impulse response
+    int sum;
     int i, n;
-    float lp_gn[10];
-    float lp_gd[10];
     
-    /* temporary hack */
+    memset(hf_buf, 0, 33 * sizeof(int16_t));
 
-    for(i=0;i<10;i++)
-        lp_gn[i]=lp_gn16[i] / Q12_BASE;
-    for(i=0;i<10;i++)
-        lp_gd[i]=lp_gd16[i] / Q12_BASE;
-
-    memset(hf_buf, 0, 33 * sizeof(float));
-
-    hf_buf[10] = 1;
+    hf_buf[10] = 4096; //1.0 in Q12
     for(i=0; i<10; i++)
         hf_buf[i+11] = lp_gn[i];
 
@@ -986,20 +976,22 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn16, 
     {
         sum=hf_buf[n+10];
         for(i=0; i<10; i++)
-            sum -= lp_gd[i]*hf_buf[n+10-i-1];
+            sum -= (lp_gd[i]*hf_buf[n+10-i-1]) >> 12;
         hf_buf[n+10]=sum;
     }
 
     /* Now hf_buf (starting with 10) contains impulse response of A(z/GAMMA_N)/A(z/GAMMA_D) filter */
 
     /* A.4.2.3, Equation A.14, calcuating rh(0)  */
-    rh0 = sum_of_squares(hf_buf+10, 22, 0);
+    rh0 = sum_of_squares16(hf_buf+10, 22, 0);
 
     /* A.4.2.3, Equation A.14, calcuating rh(1)  */
-    rh1 = sum_of_squares(hf_buf+10, 22-1, 1);
+    rh1 = sum_of_squares16(hf_buf+10, 22-1, 1);
+    rh1 >>= 12; // Q24 -> Q12
+    rh1 = rh1 * GAMMA_T >> 3; // Q12 * Q15 = Q27 -> Q24
 
     /* A.4.2.3, Equation A.14 */
-    gt = -GAMMA_T * FFMAX(rh1 / rh0, 0);
+    gt = -FFMAX(1.0 * rh1 / rh0, 0);
 
     /* A.4.2.3. Equation A.13, applying filter to signal */
     tmp=res_pst[ctx->subframe_size-1];
