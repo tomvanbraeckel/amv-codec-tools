@@ -1113,11 +1113,7 @@ static void g729_reconstruct_speech(G729A_Context *ctx, const int16_t *lp, int i
     g729_high_pass_filter(ctx,tmp_speech);
 
     for(i=0; i<ctx->subframe_size; i++)
-    {
-        tmp_speech[i] = FFMIN(tmp_speech[i],  32767.0);
-        tmp_speech[i] = FFMAX(tmp_speech[i], -32768.0);
-        speech[i]=lrintf(tmp_speech[i]);
-    }
+        speech[i]=FFMAX(FFMIN(lrintf(tmp_speech[i]), 32767), -32768);
 }
 
 /**
