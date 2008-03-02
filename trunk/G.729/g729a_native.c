@@ -913,7 +913,8 @@ static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residua
 
     /* 4.2.1, Equation 78, reconstructing delayed signal */
     for(n=0; n<ctx->subframe_size; n++)
-        residual_filt[n]=ctx->residual[n+PITCH_MAX]*inv_glgp+ctx->residual[n+PITCH_MAX-intT0]*glgp_inv_glgp;
+        residual_filt[n] = ctx->residual[n+PITCH_MAX] * inv_glgp +
+                           ctx->residual[n+PITCH_MAX-intT0] * glgp_inv_glgp;
 
     //Shift residual for using in next subframe
     memmove(ctx->residual, ctx->residual+ctx->subframe_size, PITCH_MAX*sizeof(float));
