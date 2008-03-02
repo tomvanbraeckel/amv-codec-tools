@@ -1073,8 +1073,11 @@ static void g729_high_pass_filter(G729A_Context* ctx, float* speech)
         ctx->hpf_z1=ctx->hpf_z0;
         ctx->hpf_z0=speech[i];
 
-        f_0 = 1.9330735 * ctx->hpf_f1 - 0.93589199 * ctx->hpf_f2 + 
-              0.93980581 * ctx->hpf_z0 - 1.8795834 * ctx->hpf_z1 + 0.93980581 * z_2;
+        f_0 = 1.9330735  * ctx->hpf_f1
+            - 0.93589199 * ctx->hpf_f2
+            - 1.8795834  * ctx->hpf_z1
+            + 0.93980581 * (ctx->hpf_z0 + z_2);
+
         speech[i] = f_0*2.0;
 
         ctx->hpf_f2=ctx->hpf_f1;
