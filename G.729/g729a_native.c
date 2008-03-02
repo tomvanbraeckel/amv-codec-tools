@@ -1462,14 +1462,21 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
         if(!i)
         {
             // Decoding of the adaptive-codebook vector delay for first subframe (4.1.3)
-            if(ctx->bad_pitch)
+            if(ctx->bad_pitch || ctx->data_error)
+            {
                 pitch_delay = 3*ctx->intT2_prev+1;
-            else if(parm->ac_index[i] >= 197)
-               pitch_delay = 3*parm->ac_index[i] - 335;
-            else
-               pitch_delay = parm->ac_index[i] + 59;
 
-            intT1=pitch_delay/3;    //Used in long-term postfilter    
+                intT1=FFMIN(ctx->intT2_prev+1, PITCH_MAX);
+            }
+            else
+            {
+                if(parm->ac_index[i] >= 197)
+                    pitch_delay = 3*parm->ac_index[i] - 335;
+                else
+                    pitch_delay = parm->ac_index[i] + 59;
+
+                intT1=pitch_delay/3;    //Used in long-term postfilter    
+            }
         }
         else
         {
