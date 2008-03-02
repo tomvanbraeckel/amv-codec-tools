@@ -483,9 +483,9 @@ static const int16_t ma_predictor_sum[2][10] =
  * MA prediction coefficients (3.9.1, near Equation 69)
  * values are multiplied by 100
  */
-static const uint8_t ma_prediction_coeff[4] =
-{
-  68, 58, 34, 19
+static const uint16_t ma_prediction_coeff[4] =
+{ /* Q13 */
+  5571, 4751, 2785, 1556
 };
 
 /**
@@ -804,7 +804,7 @@ static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, const int16_t* f
 
     /* 3.9.1, Equation 69 */
     for(i=0; i<4; i++)
-        energy+= 0.01 * ctx->pred_energ_q[i] * ma_prediction_coeff[i] / (1<<10);
+        energy+= 1.0 * ctx->pred_energ_q[i] * ma_prediction_coeff[i] / (1<<23);
 
     /* 3.9.1, Equation 71 */
     energy = exp(M_LN10*energy/20); //FIXME: should there be subframe_size/2 ?
