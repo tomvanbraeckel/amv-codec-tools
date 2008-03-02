@@ -622,53 +622,13 @@ int g729_parity_check(uint8_t P1, int P0)
 }
 
 /**
- * \brief Decoding of the adaptive-codebook vector delay for first subframe (4.1.3)
- * \param ctx private data structure
- * \param ac_index Adaptive codebook index for first subframe
- * \param intT2 integer part of the pitch delay of the last seoond subframe
- *
- * \return 3*intT+frac+1, where
- *   intT integer part of delay
- *   frac fractional part of delay [-1, 0, 1]
- */
-static int g729_decode_ac_delay_subframe1(G729A_Context* ctx, int ac_index, int intT2)
-{
-    /* if parity error */
-    if(ctx->bad_pitch)
-        return 3*intT2+1;
-
-    if(ac_index>=197)
-        return 3*ac_index-335;
-	
-    return ac_index+59;
-}
-
-/**
- * \brief Decoding of the adaptive-codebook vector delay for second subframe (4.1.3)
- * \param ctx private data structure
- * \param ac_index Adaptive codebook index for second subframe
- * \param intT1 first subframe's pitch delay integer part
- *
- * \return 3*intT+frac+1, where
- *   intT integer part of delay
- *   frac fractional part of delay [-1, 0, 1]
- */
-static int g729_decode_ac_delay_subframe2(G729A_Context* ctx, int ac_index, int intT1)
-{
-    if(ctx->data_error)
-        return 3*intT1+1;
-
-    return ac_index + 3*FFMIN(FFMAX(intT1-5, PITCH_MIN), PITCH_MAX-9) - 1;
-}
-
-/**
  * \brief Decoding of the adaptive-codebook vector (4.1.3)
- * \param ctx private data structure
  * \param pitch_delay_int pitch delay, integer part
  * \param pitch_delay_frac pitch delay, fraction part [-1, 0, 1]
  * \param ac_v buffer to store decoded vector into
+ * \param subframe_size length of subframe
  */
-static void g729_decode_ac_vector(G729A_Context* ctx, int pitch_delay_int, int pitch_delay_frac, float* ac_v)
+static void g729_decode_ac_vector(int pitch_delay_int, int pitch_delay_frac, float* ac_v, int subframe_size)
 {
     int n, i;
     float v;
@@ -683,7 +643,7 @@ static void g729_decode_ac_vector(G729A_Context* ctx, int pitch_delay_int, int p
 
     //t [0, 1, 2]
     //k [PITCH_MIN-1; PITCH_MAX]
-    for(n=0; n<ctx->subframe_size; n++)
+    for(n=0; n<subframe_size; n++)
     {
         /* 3.7.1, Equation 40 */
         v=0;
@@ -699,10 +659,13 @@ static void g729_decode_ac_vector(G729A_Context* ctx, int pitch_delay_int, int p
 
 /**
  * \brief Decoding fo the fixed-codebook vector (3.8)
- * \param ctx private data structure
  * \param fc_index Fixed codebook index
+ * \param fc_index_its number of bits per index entry
  * \param pulses_signs Signs of the excitation pulses (0 bit value means negative sign)
  * \param fc_v [out] (Q13) decoded fixed codebook vector
+ * \param subframe_size length of subframe
+ *
+ * \return 1 if data error occured
  *
  * bit allocations:
  *   8k mode: 3+3+3+1+3
@@ -710,37 +673,33 @@ static void g729_decode_ac_vector(G729A_Context* ctx, int pitch_delay_int, int p
  *
  * FIXME: error handling required
  */
-static void g729_decode_fc_vector(G729A_Context* ctx, int fc_index, int pulses_signs, int16_t* fc_v)
+static int g729_decode_fc_vector(int fc_index, int fc_index_bits, int pulses_signs, int16_t* fc_v, int subframe_size)
 {
     int i;
     int index;
-    int bits=formats[ctx->format].fc_index_bits;
-    int mask=(1 << bits) - 1;
+    int mask=(1 << fc_index_bits) - 1;
 
-    memset(fc_v, 0, sizeof(int16_t)*ctx->subframe_size);
+    memset(fc_v, 0, sizeof(int16_t)*subframe_size);
 
     /* reverted Equation 62 and Equation 45 */
     for(i=0; i<FC_PULSE_COUNT-1; i++)
     {
         index=(fc_index & mask) * 5 + i;
         //overflow can occur in 4.4k case
-        if(index>=ctx->subframe_size)
-        {
-            ctx->data_error=1;
-            return;
-        }
+        if(index>=subframe_size)
+            return 1;
+
         fc_v[ index ] = (pulses_signs & 1) ? 8192 : -8192; // +/-1 in Q13
-        fc_index>>=bits;
+        fc_index>>=fc_index_bits;
         pulses_signs>>=1;
     }
     index=((fc_index>>1) & mask) * 5 + i + (fc_index & 1);
     //overflow can occur in 4.4k case
-    if(index>=ctx->subframe_size)
-    {
-        ctx->data_error=1;
-        return;
-    }
+    if(index>=subframe_size)
+        return 1;
+
     fc_v[ index ] = (pulses_signs & 1) ? 8192 : -8192;
+    return 0;
 }
 
 /**
@@ -777,58 +736,47 @@ static void g729_update_gain_erasure(int16_t *pred_energ_q)
 }
 
 /**
- * \brief Decoding of the fixed codebook gain (4.1.5 and 3.9.1)
- * \param GA Gain codebook (stage 2)
- * \param GB Gain codebook (stage 2)
- *
- * \return (Q14) quantized fixed-codebook gain (gain pitch)
- */
-static inline int16_t g729_get_gain_pitch(int nGA, int nGB)
-{
-    /* 3.9.1, Equation 73 */
-    return cb_GA[nGA][0]+cb_GB[nGB][0]; // Q14
-}
-
-/**
  * \brief Decoding of the adaptive codebook gain (4.1.5 and 3.9.1)
  * \param ctx private data structure
  * \param GA Gain codebook (stage 2)
  * \param GB Gain codebook (stage 2)
  * \param fc_v (Q13) fixed-codebook vector
+ * \param pred_energ_q (Q13) past quantized energies
+ * \param subframe_size length of subframe
  *
  * \return (Q1) quantized adaptive-codebook gain (gain code)
  */
-static int16_t g729_get_gain_code(G729A_Context *ctx, int nGA, int nGB, const int16_t* fc_v)
+static int16_t g729_get_gain_code(int nGA, int nGB, const int16_t* fc_v, int16_t* pred_energ_q, int subframe_size)
 {
     float energy;
     int i;
     float cb1_sum;
 
     /* 3.9.1, Equation 66 */
-    energy=sum_of_squares16(fc_v, ctx->subframe_size) / (Q13_BASE * Q13_BASE);
+    energy=sum_of_squares16(fc_v, subframe_size) / (Q13_BASE * Q13_BASE);
 
     /*
       energy=mean_energy-E
       mean_energy=30dB
       E is calculated in 3.9.1 Equation 66
     */
-    energy = 30 - 10.0*log(energy/ctx->subframe_size)/M_LN10;
+    energy = 30 - 10.0*log(energy/subframe_size)/M_LN10;
 
     /* 3.9.1, Equation 69 */
     for(i=0; i<4; i++)
-        energy+= 1.0 * ctx->pred_energ_q[i] * ma_prediction_coeff[i] / (1<<23);
+        energy+= 1.0 * pred_energ_q[i] * ma_prediction_coeff[i] / (1<<23);
 
     /* 3.9.1, Equation 71 */
     energy = exp(M_LN10*energy/20); //FIXME: should there be subframe_size/2 ?
 
     // shift prediction error vector
     for(i=3; i>0; i--)
-        ctx->pred_energ_q[i]=ctx->pred_energ_q[i-1];
+        pred_energ_q[i]=pred_energ_q[i-1];
 
     cb1_sum = cb_GA[nGA][1]+cb_GB[nGB][1];
     cb1_sum /= 1<<13;
     /* 3.9.1, Equation 72 */
-    ctx->pred_energ_q[0] = 20 * 1024 * log(cb1_sum) / M_LN10; //FIXME: should there be subframe_size/2 ?
+    pred_energ_q[0] = 20 * 1024 * log(cb1_sum) / M_LN10; //FIXME: should there be subframe_size/2 ?
 
     /* 3.9.1, Equation 74 */
     return 2*energy*(cb1_sum);  // Q0 -> Q1
@@ -836,32 +784,32 @@ static int16_t g729_get_gain_code(G729A_Context *ctx, int nGA, int nGB, const in
 
 /**
  * \brief Memory update (3.10)
- * \param ctx private data structure
  * \param fc_v (Q13) fixed-codebook vector
  * \param gp (Q14) quantized fixed-codebook gain (gain pitch)
  * \param gc (Q1) quantized adaptive-codebook gain (gain code)
  * \param exc last excitation signal buffer for current subframe
+ * \param subframe_size length of subframe
  */
-static void g729_mem_update(G729A_Context *ctx, const int16_t *fc_v, int16_t gp, int16_t gc, float* exc)
+static void g729_mem_update(const int16_t *fc_v, int16_t gp, int16_t gc, float* exc, int subframe_size)
 {
     int i;
 
-    for(i=0; i<ctx->subframe_size; i++)
+    for(i=0; i<subframe_size; i++)
         exc[i]=(exc[i]*gp + fc_v[i]*gc) / (2 * Q13_BASE); // Q14 -> Q0, Q1 -> Q0
 }
 
 /**
  * \brief LP synthesis filter
- * \param ctx private data structure
  * \param lp filter coefficients
  * \param in input signal
  * \param out output (filtered) signal
  * \param filter_data filter data array (previous synthesis data)
+ * \param subframe_size length of subframe
  *
  * Routine applies 1/A(z) filter to given speech data
  *
  */
-static void g729_lp_synthesis_filter(G729A_Context *ctx, const float* lp, const float *in, float *out, float *filter_data)
+static void g729_lp_synthesis_filter(const float* lp, const float *in, float *out, float *filter_data, int subframe_size)
 {
     float tmp_buf[MAX_SUBFRAME_SIZE+10];
     float* tmp=tmp_buf+10;
@@ -869,14 +817,14 @@ static void g729_lp_synthesis_filter(G729A_Context *ctx, const float* lp, const 
 
     memcpy(tmp_buf, filter_data, 10*sizeof(float));
 
-    for(n=0; n<ctx->subframe_size; n++)
+    for(n=0; n<subframe_size; n++)
     {
         tmp[n]=in[n];
         for(i=0; i<10; i++)
             tmp[n] -= lp[i]*tmp[n-i-1];
     }
-    memcpy(filter_data, tmp+ctx->subframe_size-10, 10*sizeof(float));
-    memcpy(out, tmp, ctx->subframe_size*sizeof(float));
+    memcpy(filter_data, tmp+subframe_size-10, 10*sizeof(float));
+    memcpy(out, tmp, subframe_size*sizeof(float));
 }
 
 /**
@@ -1104,7 +1052,7 @@ static void g729a_postfilter(G729A_Context *ctx, const float *lp, int intT1, flo
     g729a_tilt_compensation(ctx, lp_gn, lp_gd, residual_filt);
 
     /* Applying second half of short-term postfilter: 1/A(z/GAMMA_D)*/
-    g729_lp_synthesis_filter(ctx, lp_gd, residual_filt, speech, ctx->res_filter_data);
+    g729_lp_synthesis_filter(lp_gd, residual_filt, speech, ctx->res_filter_data, ctx->subframe_size);
 
     /* Calculating gain of filtered signal for using in AGC */
     gain_after=sum_of_squares(speech, ctx->subframe_size);
@@ -1162,7 +1110,7 @@ static void g729_reconstruct_speech(G729A_Context *ctx, const int16_t *lp16, int
     memcpy(tmp_speech_buf, ctx->syn_filter_data, 10 * sizeof(float));
 
     /* 4.1.6, Equation 77  */
-    g729_lp_synthesis_filter(ctx, lp, exc, tmp_speech, ctx->syn_filter_data);
+    g729_lp_synthesis_filter(lp, exc, tmp_speech, ctx->syn_filter_data, ctx->subframe_size);
 
     /* 4.2 */
     g729a_postfilter(ctx, lp, intT1, tmp_speech_buf);
@@ -1499,17 +1447,31 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
 
         if(!i)
         {
-            pitch_delay=g729_decode_ac_delay_subframe1(ctx, parm->ac_index[i], ctx->intT2_prev);
+            // Decoding of the adaptive-codebook vector delay for first subframe (4.1.3)
+            if(ctx->bad_pitch)
+                pitch_delay = 3*ctx->intT2_prev+1;
+            else if(parm->ac_index[i] >= 197)
+               pitch_delay = 3*parm->ac_index[i] - 335;
+	    else
+               pitch_delay = parm->ac_index[i] + 59;
+
             intT1=pitch_delay/3;    //Used in long-term postfilter    
         }
         else
         {
-            pitch_delay=g729_decode_ac_delay_subframe2(ctx, parm->ac_index[i], pitch_delay/3);
-            ctx->intT2_prev=pitch_delay/3;
+            // Decoding of the adaptive-codebook vector delay for second subframe (4.1.3)
             if(ctx->data_error)
-                ctx->intT2_prev=FFMIN(ctx->intT2_prev+1, PITCH_MAX);
+            {
+                pitch_delay=3*intT1+1;
+                ctx->intT2_prev=FFMIN(intT1+1, PITCH_MAX);
+            }
+            else
+            {
+                pitch_delay = parm->ac_index[i] + 3*FFMIN(FFMAX(pitch_delay/3-5, PITCH_MIN), PITCH_MAX-9) - 1;
+                ctx->intT2_prev=pitch_delay/3;
+            }
         }
-        g729_decode_ac_vector(ctx, pitch_delay/3, (pitch_delay%3)-1, ctx->exc+i*ctx->subframe_size);
+        g729_decode_ac_vector(pitch_delay/3, (pitch_delay%3)-1, ctx->exc+i*ctx->subframe_size, ctx->subframe_size);
 
         if(ctx->data_error)
         {
@@ -1517,7 +1479,13 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
             parm->pulses_signs[i] = g729_random(ctx) & 0x000f;
         }
 
-        g729_decode_fc_vector(ctx, parm->fc_indexes[i], parm->pulses_signs[i], fc);
+        if(g729_decode_fc_vector(parm->fc_indexes[i],
+                formats[ctx->format].fc_index_bits,
+                parm->pulses_signs[i],
+                fc,
+                ctx->subframe_size))
+	    ctx->data_error = 1;
+
         g729_fix_fc_vector(pitch_delay/3, ctx->gain_pitch, fc, ctx->subframe_size);
         if(ctx->data_error)
         {
@@ -1535,14 +1503,20 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
         }
         else
         {
-            gp = g729_get_gain_pitch(parm->ga_cb_index[i], parm->gb_cb_index[i]);
-            ctx->gain_code = g729_get_gain_code(ctx, parm->ga_cb_index[i], parm->gb_cb_index[i], fc);
+            // Decoding of the fixed codebook gain (4.1.5 and 3.9.1)
+            gp = cb_GA[parm->ga_cb_index[i]][0] + cb_GB[parm->gb_cb_index[i]][0];
+
+            ctx->gain_code = g729_get_gain_code(parm->ga_cb_index[i],
+                    parm->gb_cb_index[i],
+                    fc,
+                    ctx->pred_energ_q,
+                    ctx->subframe_size);
 
             /* save pitch gain value for next subframe */
             ctx->gain_pitch=FFMIN(FFMAX(gp, GAIN_PITCH_MIN), GAIN_PITCH_MAX);
         }
 
-        g729_mem_update(ctx, fc, gp, ctx->gain_code, ctx->exc+i*ctx->subframe_size);
+        g729_mem_update(fc, gp, ctx->gain_code, ctx->exc+i*ctx->subframe_size, ctx->subframe_size);
         g729_reconstruct_speech(ctx, lp+i*10, intT1, ctx->exc+i*ctx->subframe_size, out_frame+i*ctx->subframe_size);
         ctx->subframe_idx++;
     }
