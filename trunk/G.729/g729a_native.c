@@ -939,13 +939,11 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const float *lp_gn, cons
     for(i=0; i<10; i++)
         hf[i+1]=lp_gn[i];
 
-    for(i=11; i<22;i++)
-        hf[i]=0;
+    for(i=0; i<10; i++)
+        tmp_buf[i]=hf[i+11]=0;
+    hf[21] = 0;
 
     /* Applying 1/A(z/GAMMA_D) to hf */
-    for(i=0; i<10; i++)
-        tmp_buf[i]=hf[i+11];
-
     for(n=0; n<22; n++)
     {
         sum=hf[n];
