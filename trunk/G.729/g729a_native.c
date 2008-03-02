@@ -101,6 +101,7 @@ Q<n>      : Means "value * (1<<n)" (i.e. fixed-point value with 2^n base)
 #define GA_BITS 3             ///< GA codebook index (size in bits)
 #define GB_BITS 4             ///< GB codebook index (size in bits)
 #define FC_PULSE_COUNT 4      ///< Number of pulses in fixed-codebook vector
+#define FC_BITS(ctx) (formats[ctx->format].fc_index_bits*FC_PULSE_COUNT+1) ///< Fixed codebook index (size in bits)
 
 typedef struct
 {
@@ -1541,21 +1542,23 @@ static int g729_bytes2parm(G729A_Context *ctx, const uint8_t *buf, int buf_size,
 
     init_get_bits(&gb, buf, buf_size);
 
-    parm->ma_predictor     = get_bits(&gb, L0_BITS); //L0
-    parm->quantizer_1st    = get_bits(&gb, L1_BITS); //L1
-    parm->quantizer_2nd_lo = get_bits(&gb, L2_BITS); //L2
-    parm->quantizer_2nd_hi = get_bits(&gb, L3_BITS); //L3
-    parm->ac_index[0]      = get_bits(&gb, P1_BITS); //P1
-    parm->parity           = get_bits(&gb, P0_BITS); //Parity
-    parm->fc_indexes[0]    = get_bits(&gb, formats[ctx->format].fc_index_bits*FC_PULSE_COUNT+1); //C1
+    parm->ma_predictor     = get_bits(&gb, L0_BITS);        //L0
+    parm->quantizer_1st    = get_bits(&gb, L1_BITS);        //L1
+    parm->quantizer_2nd_lo = get_bits(&gb, L2_BITS);        //L2
+    parm->quantizer_2nd_hi = get_bits(&gb, L3_BITS);        //L3
+
+    parm->ac_index[0]      = get_bits(&gb, P1_BITS);        //P1
+    parm->parity           = get_bits(&gb, P0_BITS);        //P0 (parity)
+    parm->fc_indexes[0]    = get_bits(&gb, FC_BITS(ctx));   //C1
     parm->pulses_signs[0]  = get_bits(&gb, FC_PULSE_COUNT); //S1
-    parm->ga_cb_index[0]   = get_bits(&gb, GA_BITS); //GA1
-    parm->gb_cb_index[0]   = get_bits(&gb, GB_BITS); //GB1
-    parm->ac_index[1]      = get_bits(&gb, P2_BITS); //P2
-    parm->fc_indexes[1]    = get_bits(&gb, formats[ctx->format].fc_index_bits*FC_PULSE_COUNT+1); //C2
+    parm->ga_cb_index[0]   = get_bits(&gb, GA_BITS);        //GA1
+    parm->gb_cb_index[0]   = get_bits(&gb, GB_BITS);        //GB1
+
+    parm->ac_index[1]      = get_bits(&gb, P2_BITS);        //P2
+    parm->fc_indexes[1]    = get_bits(&gb, FC_BITS(ctx));   //C2
     parm->pulses_signs[1]  = get_bits(&gb, FC_PULSE_COUNT); //S2
-    parm->ga_cb_index[1]   = get_bits(&gb, GA_BITS); //GA2
-    parm->gb_cb_index[1]   = get_bits(&gb, GB_BITS); //GB2
+    parm->ga_cb_index[1]   = get_bits(&gb, GA_BITS);        //GA2
+    parm->gb_cb_index[1]   = get_bits(&gb, GB_BITS);        //GB2
 
     return 0;
 }
