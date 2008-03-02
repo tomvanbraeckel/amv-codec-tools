@@ -777,15 +777,28 @@ static void g729_update_gain_erasure(int16_t *pred_energ_q)
 }
 
 /**
- * \brief Decoding of the adaptive and fixed codebook gains (4.1.5 and 3.9.1)
+ * \brief Decoding of the fixed codebook gain (4.1.5 and 3.9.1)
+ * \param GA Gain codebook (stage 2)
+ * \param GB Gain codebook (stage 2)
+ *
+ * \return (Q14) quantized fixed-codebook gain (gain pitch)
+ */
+static inline int16_t g729_get_gain_pitch(int nGA, int nGB)
+{
+    /* 3.9.1, Equation 73 */
+    return cb_GA[nGA][0]+cb_GB[nGB][0]; // Q14
+}
+
+/**
+ * \brief Decoding of the adaptive codebook gain (4.1.5 and 3.9.1)
  * \param ctx private data structure
  * \param GA Gain codebook (stage 2)
  * \param GB Gain codebook (stage 2)
  * \param fc_v (Q13) fixed-codebook vector
- * \param gp (Q14) pointer to variable receiving quantized fixed-codebook gain (gain pitch)
- * \param gc (Q1) pointer to variable receiving quantized adaptive-codebook gain (gain code)
+ *
+ * \return (Q1) quantized adaptive-codebook gain (gain code)
  */
-static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, const int16_t* fc_v, int16_t* gp, int16_t* gc)
+static int16_t g729_get_gain_code(G729A_Context *ctx, int nGA, int nGB, const int16_t* fc_v)
 {
     float energy;
     int i;
@@ -817,11 +830,8 @@ static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, const int16_t* f
     /* 3.9.1, Equation 72 */
     ctx->pred_energ_q[0] = 20 * 1024 * log(cb1_sum) / M_LN10; //FIXME: should there be subframe_size/2 ?
 
-    /* 3.9.1, Equation 73 */
-    *gp = cb_GA[nGA][0]+cb_GB[nGB][0];           // quantized adaptive-codebook gain (gain code)
-
     /* 3.9.1, Equation 74 */
-    *gc = 2*energy*(cb1_sum);  //quantized fixed-codebook gain (gain pitch) Q0 -> Q1
+    return 2*energy*(cb1_sum);  // Q0 -> Q1
 }
 
 /**
@@ -1526,7 +1536,8 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
         }
         else
         {
-            g729_get_gain(ctx, parm->ga_cb_index[i], parm->gb_cb_index[i], fc, &gp, &gc);
+            gp = g729_get_gain_pitch(parm->ga_cb_index[i], parm->gb_cb_index[i]);
+            gc = g729_get_gain_code(ctx, parm->ga_cb_index[i], parm->gb_cb_index[i], fc);
 
             /* save gain code value for next subframe */
             ctx->gain_code=gc;
