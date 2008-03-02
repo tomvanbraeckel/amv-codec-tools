@@ -953,52 +953,43 @@ static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residua
 static void g729a_tilt_compensation(G729A_Context *ctx, const float *lp_gn, const float *lp_gd, float* res_pst)
 {
     float tmp;
-    float gt,k,rh1,rh0;
-    float hf[22]; // A(Z/GAMMA_N)/A(z/GAMMA_D) filter impulse response
-    float tmp_buf[11+22];
+    float gt,rh1,rh0;
+    float hf_buf[11+22]; // A(Z/GAMMA_N)/A(z/GAMMA_D) filter impulse response
     float sum;
     int i, n;
 
-    hf[0]=1;
-    for(i=0; i<10; i++)
-        hf[i+1]=lp_gn[i];
+    memset(hf_buf, 0, 33 * sizeof(float));
 
+    hf_buf[10] = 1;
     for(i=0; i<10; i++)
-        tmp_buf[i]=hf[i+11]=0;
-    hf[21] = 0;
+        hf_buf[i+11] = lp_gn[i];
 
     /* Applying 1/A(z/GAMMA_D) to hf */
     for(n=0; n<22; n++)
     {
-        sum=hf[n];
+        sum=hf_buf[n+10];
         for(i=0; i<10; i++)
-            sum -= lp_gd[i]*tmp_buf[n-i-1+10];
-        tmp_buf[n+10]=sum;
-        hf[n]=sum;
+            sum -= lp_gd[i]*hf_buf[n+10-i-1];
+        hf_buf[n+10]=sum;
     }
 
-    /* Now hf contains impulse response of A(z/GAMMA_N)/A(z/GAMMA_D) filter */
+    /* Now hf_buf (starting with 10) contains impulse response of A(z/GAMMA_N)/A(z/GAMMA_D) filter */
 
     /* A.4.2.3, Equation A.14, calcuating rh(0)  */
-    rh0 = sum_of_squares(hf, 22, 0);
+    rh0 = sum_of_squares(hf_buf+10, 22, 0);
 
     /* A.4.2.3, Equation A.14, calcuating rh(1)  */
-    rh1 = sum_of_squares(hf, 22-1, 1);
+    rh1 = sum_of_squares(hf_buf+10, 22-1, 1);
 
     /* A.4.2.3, Equation A.14 */
-    k=-rh1/rh0;
-
-    if(k>=0)
-        gt=0;
-    else
-        gt=GAMMA_T*k;
+    gt = -GAMMA_T * FFMAX(rh1 / rh0, 0);
 
     /* A.4.2.3. Equation A.13, applying filter to signal */
     tmp=res_pst[ctx->subframe_size-1];
 
     for(i=ctx->subframe_size-1; i>=1; i--)
-        res_pst[i] += gt*res_pst[i-1];
-    res_pst[0] += gt*ctx->ht_prev_data;
+        res_pst[i] += gt * res_pst[i-1];
+    res_pst[0] += gt * ctx->ht_prev_data;
 
     ctx->ht_prev_data=tmp;
 }
