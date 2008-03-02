@@ -571,30 +571,39 @@ static int l_shr_r(int var1, int16_t var2)
 }
 
 /**
- * \brief Calculates gain value of speech signal
- * \param speech signal buffer
- * \param length signal buffer length
+ * \brief Calculates sum of array elements multiplications
+ * \param speech array with input data
+ * \param cycles number elements to proceed
+ * \param offset offset for calculation sum of s[i]*s[i+offset]
  *
- * \return squared gain value
+ * \return sum of multiplications
+ *
+ * \note array must be at least length+offset long!
  */
-static float sum_of_squares(const float *speech, int length)
+static float sum_of_squares(const float *speech, int cycles, int offset)
 {
     int n;
     float sum=0;
 
-    for(n=0; n<length; n++)
-       sum+=speech[n]*speech[n];
+    if(offset<0)
+        return 0;
+
+    for(n=0; n<cycles; n++)
+       sum+=speech[n]*speech[n+offset];
 
     return sum;
 }
 
-static float sum_of_squares16(const int16_t *speech, int length)
+static float sum_of_squares16(const int16_t *speech, int cycles, int offset)
 {
     int n;
     int sum=0;
 
-    for(n=0; n<length; n++)
-       sum+=speech[n]*speech[n];
+    if(offset<0)
+        return 0;
+
+    for(n=0; n<cycles; n++)
+       sum+=speech[n]*speech[n+offset];
 
     return sum;
 }
@@ -753,7 +762,7 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
     float cb1_sum;
 
     /* 3.9.1, Equation 66 */
-    energy=sum_of_squares16(fc_v, subframe_size) / (Q13_BASE * Q13_BASE);
+    energy=sum_of_squares16(fc_v, subframe_size, 0) / (Q13_BASE * Q13_BASE);
 
     /*
       energy=mean_energy-E
@@ -901,10 +910,8 @@ static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residua
     corr_max=INT_MIN;
     for(k=minT0; k<=maxT0; k++)
     {
-        correlation=0;
         /* 4.2.1, Equation 80 */
-        for(n=0; n<ctx->subframe_size; n++)
-            correlation+=ctx->residual[n+PITCH_MAX]*ctx->residual[n+PITCH_MAX-k];
+        correlation = sum_of_squares(ctx->residual+PITCH_MAX-k, ctx->subframe_size, k);
         if(correlation>corr_max)
         {
             corr_max=correlation;
@@ -912,8 +919,8 @@ static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residua
         }
     }
 
-    corr_t0 = sum_of_squares(ctx->residual+PITCH_MAX-intT0, ctx->subframe_size);
-    corr_0  = sum_of_squares(ctx->residual+PITCH_MAX,       ctx->subframe_size);
+    corr_t0 = sum_of_squares(ctx->residual+PITCH_MAX-intT0, ctx->subframe_size, 0);
+    corr_0  = sum_of_squares(ctx->residual+PITCH_MAX,       ctx->subframe_size, 0);
 
     /* 4.2.1, Equation 82. checking if filter should be disabled */
     if(corr_max*corr_max < 0.5*corr_0*corr_t0)
@@ -973,14 +980,10 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const float *lp_gn, cons
     /* Now hf contains impulse response of A(z/GAMMA_N)/A(z/GAMMA_D) filter */
 
     /* A.4.2.3, Equation A.14, calcuating rh(0)  */
-    rh0=0;
-    for(i=0; i<22; i++)
-        rh0+=hf[i]*hf[i];
+    rh0 = sum_of_squares(hf, 22, 0);
 
     /* A.4.2.3, Equation A.14, calcuating rh(1)  */
-    rh1=0;
-    for(i=0; i<22-1; i++)
-        rh1+=hf[i]*hf[i+1];
+    rh1 = sum_of_squares(hf, 22-1, 1);
 
     /* A.4.2.3, Equation A.14 */
     k=-rh1/rh0;
@@ -1042,7 +1045,7 @@ static void g729a_postfilter(G729A_Context *ctx, const float *lp, int intT1, flo
     }
 
     /* Calculating gain of unfiltered signal for using in AGC */
-    gain_before=sum_of_squares(speech, ctx->subframe_size);
+    gain_before=sum_of_squares(speech, ctx->subframe_size, 0);
 
     /* long-term filter (A.4.2.1) */
     g729a_long_term_filter(ctx, intT1, residual_filt);
@@ -1054,7 +1057,7 @@ static void g729a_postfilter(G729A_Context *ctx, const float *lp, int intT1, flo
     g729_lp_synthesis_filter(lp_gd, residual_filt, speech, ctx->res_filter_data, ctx->subframe_size);
 
     /* Calculating gain of filtered signal for using in AGC */
-    gain_after=sum_of_squares(speech, ctx->subframe_size);
+    gain_after=sum_of_squares(speech, ctx->subframe_size, 0);
 
     /* adaptive gain control (A.4.2.4) */
     g729a_adaptive_gain_control(ctx, gain_before, gain_after, speech);
