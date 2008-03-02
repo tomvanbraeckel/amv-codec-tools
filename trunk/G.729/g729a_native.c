@@ -75,29 +75,16 @@ test    : PASS
 #define PITCH_MAX 143
 #define INTERPOL_LEN 11
 
-
-
-
-///Switched MA predictor of LSP quantizer (size in bits)
-#define L0_BITS 1
-///First stage vector of quantizer (size in bits)
-#define L1_BITS 7
-///First stage lowervector of quantizer (size in bits)
-#define L2_BITS 5
-///First stage hihjer vector of quantizer (size in bits)
-#define L3_BITS 5
-///Adaptive codebook index for first subframe (size in bits)
-#define P1_BITS 8
-///Adaptive codebook index for second subframe (size in bits)
-#define P2_BITS 5
-///Parity bit for pitch delay (size in bits)
-#define P0_BITS 1
-/// GA codebook index (size in bits)
-#define GA_BITS 3
-/// GB codebook index (size in bits)
-#define GB_BITS 4
-/// Number of pulses in fixed-codebook vector
-#define FC_PULSE_COUNT 4
+#define L0_BITS 1             ///< Switched MA predictor of LSP quantizer (size in bits)
+#define L1_BITS 7             ///< First stage vector of quantizer (size in bits)
+#define L2_BITS 5             ///< First stage lowervector of quantizer (size in bits)
+#define L3_BITS 5             ///< First stage hihjer vector of quantizer (size in bits)
+#define P1_BITS 8             ///< Adaptive codebook index for first subframe (size in bits)
+#define P2_BITS 5             ///< Adaptive codebook index for second subframe (size in bits)
+#define P0_BITS 1             ///< Parity bit for pitch delay (size in bits)
+#define GA_BITS 3             ///< GA codebook index (size in bits)
+#define GB_BITS 4             ///< GB codebook index (size in bits)
+#define FC_PULSE_COUNT 4      ///< Number of pulses in fixed-codebook vector
 
 typedef struct
 {
@@ -119,12 +106,9 @@ typedef struct
 static const struct
 {
     int sample_rate;
-    ///Size (in bytes) of input frame
-    uint8_t input_frame_size;
-    ///Size (in bytes) of output frame
-    uint8_t output_frame_size;
-    ///Size (in bits) of fixed codebook index
-    uint8_t fc_index_bits;
+    uint8_t input_frame_size; ///< Size (in bytes) of input frame
+    uint8_t output_frame_size;///< Size (in bytes) of output frame
+    uint8_t fc_index_bits;    ///< Size (in bits) of fixed codebook index entry
 } formats[] =
 {
   {8000, 10, 160, 3},
@@ -139,34 +123,34 @@ static const struct
 
 typedef struct
 {
-    int format;             ///< format index from formats array
-    int subframe_size;      ///< number of samples produced from one subframe
-    int data_error;         ///< data error detected during decoding
-    int bad_pitch;          ///< parity check failed
+    int format;                 ///< format index from formats array
+    int subframe_size;          ///< number of samples produced from one subframe
+    int data_error;             ///< data error detected during decoding
+    int bad_pitch;              ///< parity check failed
     /// past excitation signal buffer
     float exc_base[2*MAX_SUBFRAME_SIZE+PITCH_MAX+INTERPOL_LEN];
-    float* exc;             ///< start of past excitation data in buffer
-    int intT2_prev;         ///< int(T2) value of previous frame (4.1.3)
+    float* exc;                 ///< start of past excitation data in buffer
+    int intT2_prev;             ///< int(T2) value of previous frame (4.1.3)
     int16_t lq_prev[MA_NP][10]; ///< (Q13) LSP quantizer output (3.2.4)
-    int16_t lsp_prev[10];   ///< (Q15) LSP coefficients from previous frame (3.2.5)
-    int16_t lsf_prev[10];   ///< (Q13) LSF coefficients from previous frame
-    int16_t pred_energ_q[4];///< (Q10) past quantized energies
-    int16_t gain_pitch;     ///< (Q14) Pitch gain of previous subframe (3.8) [GAIN_PITCH_MIN ... GAIN_PITCH_MAX]
-    int16_t gain_code;      ///< (Q1) Gain code of previous subframe
+    int16_t lsp_prev[10];       ///< (Q15) LSP coefficients from previous frame (3.2.5)
+    int16_t lsf_prev[10];       ///< (Q13) LSF coefficients from previous frame
+    int16_t pred_energ_q[4];    ///< (Q10) past quantized energies
+    int16_t gain_pitch;         ///< (Q14) Pitch gain of previous subframe (3.8) [GAIN_PITCH_MIN ... GAIN_PITCH_MAX]
+    int16_t gain_code;          ///< (Q1) Gain code of previous subframe
     /// Residual signal buffer (used in long-term postfilter)
     float residual[MAX_SUBFRAME_SIZE+PITCH_MAX];
     float syn_filter_data[10];
     float res_filter_data[10];
-    float ht_prev_data;     ///< previous data for 4.2.3, equation 86
-    float g;                ///< gain coefficient (4.2.4)
-    uint16_t rand_value;    ///< random number generator value (4.4.4)
-    int prev_mode;          ///< L0 from previous frame
+    float ht_prev_data;         ///< previous data for 4.2.3, equation 86
+    float g;                    ///< gain coefficient (4.2.4)
+    uint16_t rand_value;        ///< random number generator value (4.4.4)
+    int prev_mode;              ///< L0 from previous frame
     //High-pass filter data
     float hpf_f1;
     float hpf_f2;
     float hpf_z0;
     float hpf_z1;
-    int subframe_idx;      ///< subframe index (for debugging)
+    int subframe_idx;           ///< subframe index (for debugging)
 }  G729A_Context;
 
 //Stability constants (3.2.4)
@@ -738,15 +722,15 @@ static void g729_update_gain_erasure(int16_t *pred_energ_q)
 /**
  * \brief Decoding of the adaptive codebook gain (4.1.5 and 3.9.1)
  * \param ctx private data structure
- * \param GA Gain codebook (stage 2)
- * \param GB Gain codebook (stage 2)
+ * \param ga_cb_index GA gain codebook index (stage 2)
+ * \param gb_cb_index GB gain codebook (stage 2)
  * \param fc_v (Q13) fixed-codebook vector
  * \param pred_energ_q (Q13) past quantized energies
  * \param subframe_size length of subframe
  *
  * \return (Q1) quantized adaptive-codebook gain (gain code)
  */
-static int16_t g729_get_gain_code(int nGA, int nGB, const int16_t* fc_v, int16_t* pred_energ_q, int subframe_size)
+static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_t* fc_v, int16_t* pred_energ_q, int subframe_size)
 {
     float energy;
     int i;
@@ -773,13 +757,13 @@ static int16_t g729_get_gain_code(int nGA, int nGB, const int16_t* fc_v, int16_t
     for(i=3; i>0; i--)
         pred_energ_q[i]=pred_energ_q[i-1];
 
-    cb1_sum = cb_GA[nGA][1]+cb_GB[nGB][1];
+    cb1_sum = cb_GA[ga_cb_index][1]+cb_GB[gb_cb_index][1];
     cb1_sum /= 1<<13;
     /* 3.9.1, Equation 72 */
     pred_energ_q[0] = 20 * 1024 * log(cb1_sum) / M_LN10; //FIXME: should there be subframe_size/2 ?
 
     /* 3.9.1, Equation 74 */
-    return 2*energy*(cb1_sum);  // Q0 -> Q1
+    return 2*energy*cb1_sum;  // Q0 -> Q1
 }
 
 /**
@@ -862,10 +846,9 @@ static void g729a_adaptive_gain_control(G729A_Context *ctx, float gain_before, f
  */
 static void g729a_weighted_filter(const float* Az, float gamma, float *Azg)
 {
-    float gamma_pow;
+    float gamma_pow = gamma;
     int n;
 
-    gamma_pow=gamma;
     for(n=0; n<10; n++)
     {
         Azg[n]=Az[n]*gamma_pow;
@@ -882,12 +865,12 @@ static void g729a_weighted_filter(const float* Az, float gamma, float *Azg)
 static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residual_filt)
 {
     int k, n, intT0;
-    float gl;      ///< gain coefficient for long-term postfilter
-    float corr_t0; ///< correlation of residual signal with delay intT0
-    float corr_0;  ///< correlation of residual signal with delay 0
+    float gl;      // gain coefficient for long-term postfilter
+    float corr_t0; // correlation of residual signal with delay intT0
+    float corr_0;  // correlation of residual signal with delay 0
     float correlation, corr_max;
-    float inv_glgp;///< 1.0/(1+gl*GAMMA_P)
-    float glgp_inv_glgp; ///< gl*GAMMA_P/(1+gl*GAMMA_P);
+    float inv_glgp;      // 1.0/(1+gl*GAMMA_P)
+    float glgp_inv_glgp; // gl*GAMMA_P/(1+gl*GAMMA_P);
 
     /* A.4.2.1 */
     int minT0=FFMIN(intT1, PITCH_MAX-3)-3;
@@ -913,8 +896,8 @@ static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residua
         }
     }
 
-    corr_t0=sum_of_squares(ctx->residual+PITCH_MAX-intT0, ctx->subframe_size);
-    corr_0=sum_of_squares(ctx->residual+PITCH_MAX, ctx->subframe_size);
+    corr_t0 = sum_of_squares(ctx->residual+PITCH_MAX-intT0, ctx->subframe_size);
+    corr_0  = sum_of_squares(ctx->residual+PITCH_MAX,       ctx->subframe_size);
 
     /* 4.2.1, Equation 82. checking if filter should be disabled */
     if(corr_max*corr_max < 0.5*corr_0*corr_t0)
@@ -924,8 +907,9 @@ static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residua
     else
         gl=FFMIN(corr_max/corr_t0, 1);
 
-    inv_glgp = 1.0 / (1 + gl*GAMMA_P);
-    glgp_inv_glgp = gl * GAMMA_P * inv_glgp;
+    gl *= GAMMA_P;
+    inv_glgp = 1.0 / (1 + gl);
+    glgp_inv_glgp = gl * inv_glgp;
 
     /* 4.2.1, Equation 78, reconstructing delayed signal */
     for(n=0; n<ctx->subframe_size; n++)
