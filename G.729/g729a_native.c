@@ -1294,28 +1294,28 @@ static void g729_lsp2lp(const int16_t* lsp, int16_t* lp)
 }
 
 /**
- * \brief interpolate LSP end decode LP for both first and second subframes (3.2.5 and 3.2.6)
- * \param (Q15) lsp_curr current LSP coefficients
+ * \brief Interpolate LSP for the first subframe and convert LSP -> LP for both subframes (3.2.5 and 3.2.6)
+ * \param (Q15) lsp_2nd LSP coefficients of the second subframe
  * \param (Q15) lsp_prev past LSP coefficients
  * \param lp [out] (Q12) decoded LP coefficients
  */
-static void g729_lp_decode(const int16_t* lsp_curr, int16_t* lsp_prev, int16_t* lp)
+static void g729_lp_decode(const int16_t* lsp_2nd, int16_t* lsp_prev, int16_t* lp)
 {
-    int16_t lsp[10]; // Q15
+    int16_t lsp_1st[10]; // Q15
     int i;
 
     /* LSP values for first subframe (3.2.5, Equation 24)*/
     for(i=0;i<10;i++)
-        lsp[i]=(lsp_curr[i]>>1)+(lsp_prev[i]>>1);
+        lsp_1st[i]=(lsp_2nd[i]>>1)+(lsp_prev[i]>>1);
 
-    g729_lsp2lp(lsp, lp);
+    g729_lsp2lp(lsp_1st, lp);
 
     /* LSP values for second subframe (3.2.5)*/
-    g729_lsp2lp(lsp_curr, lp+10);
+    g729_lsp2lp(lsp_2nd, lp+10);
 
     /* saving LSP coefficients for using in next frame */
     for(i=0;i<10;i++)
-        lsp_prev[i]=lsp_curr[i];
+        lsp_prev[i]=lsp_2nd[i];
 }
 
 
@@ -1327,7 +1327,7 @@ static void g729_lp_decode(const int16_t* lsp_curr, int16_t* lsp_prev, int16_t* 
 
 /**
  * \brief G.729A decoder initialization
- * \param ctx private data structure
+ * \param avctx private data structure
  * \return 0 if success, non-zero otherwise
  */
 static int ff_g729a_decoder_init(AVCodecContext * avctx)
@@ -1346,7 +1346,14 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
         av_log(avctx, AV_LOG_ERROR, "Sample rate %d is not supported\n", avctx->sample_rate);
         return AVERROR_NOFMT;
     }
-    ctx->subframe_size=formats[ctx->format].output_frame_size>>2; // cnumber of 2-byte long samples in one subframe
+
+    /*
+       subframe size in 2-byte samples
+
+       1st ">>1" : bytes -> samples
+       2nd ">>1" : frame -> subframe 
+    */
+    ctx->subframe_size=formats[ctx->format].output_frame_size>>2;
 
     assert(ctx->subframe_size>0 && ctx->subframe_size<=MAX_SUBFRAME_SIZE);
 
@@ -1397,14 +1404,15 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
 
 /**
  * \brief decode one G.729 frame into PCM samples
- * \param serial array if bits (0x81 - 1, 0x7F -0)
- * \param serial_size number of items in array
+ * \param ctx private data structure
  * \param out_frame array for output PCM samples
  * \param out_frame_size maximum number of elements in output array
+ * \param parm decoded parameters of the codec
+ *
+ * \return 2 * subframe_size
  */
-static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int out_frame_size, G729_parameters *parm)
+static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, int out_frame_size, G729_parameters *parm)
 {
-    G729A_Context* ctx=context;
     int16_t lp[20];              // Q12
     int16_t lsp[10];             // Q15
     int16_t lsf[10];             // Q13
@@ -1523,7 +1531,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
  * \param ctx private data structure
  * \param buf 10 bytes of decoder parameters
  * \param buf_size size of input buffer
- * \param int parm output vector of decoded parameters
+ * \param parm [out] decoded parameters of the codec
  *
  * \return 0 if success, nonzero - otherwise
  */
@@ -1559,27 +1567,21 @@ static int ff_g729a_decode_frame(AVCodecContext *avctx,
 {
     G729_parameters parm;
     G729A_Context *ctx=avctx->priv_data;
-    int in_frame_size=formats[ctx->format].input_frame_size;
-    int out_frame_size=formats[ctx->format].output_frame_size;
-    int i, ret;
-    uint8_t *dst=data;
-    const uint8_t *src=buf;
+    int in_frame_size  = formats[ctx->format].input_frame_size;
+    int out_frame_size = formats[ctx->format].output_frame_size;
+    int ret;
 
     if (buf_size<in_frame_size)
         return AVERROR(EIO);
 
-    *data_size=0;
-    for(i=0; i<buf_size; i+=in_frame_size)
-    {
-        ret=g729_bytes2parm(ctx, src, in_frame_size, &parm);
-        if(ret)
-            return ret;
-        g729a_decode_frame_internal(ctx, (int16_t*)dst, out_frame_size, &parm);
-        dst+=out_frame_size;
-        src+=in_frame_size;
-    }
-    *data_size=(dst-(uint8_t*)data);
-    return (src-buf);
+    ret=g729_bytes2parm(ctx, buf, in_frame_size, &parm);
+    if(ret)
+        return ret;
+
+    g729a_decode_frame_internal(ctx, (int16_t*)data, out_frame_size, &parm);
+
+    *data_size = out_frame_size;
+    return in_frame_size;
 }
 
 AVCodec g729a_decoder =
