@@ -151,7 +151,7 @@ typedef struct
     int16_t lsp_prev[10];   ///< (Q15) LSP coefficients from previous frame (3.2.5)
     int16_t lsf_prev[10];   ///< (Q13) LSF coefficients from previous frame
     int16_t pred_energ_q[4];///< (Q10) past quantized energies
-    float gain_pitch;       ///< Pitch gain of previous subframe (3.8) [GAIN_PITCH_MIN ... GAIN_PITCH_MAX]
+    int16_t gain_pitch;     ///< (Q14) Pitch gain of previous subframe (3.8) [GAIN_PITCH_MIN ... GAIN_PITCH_MAX]
     float gain_code;        ///< Gain code of previous subframe
     /// Residual signal buffer (used in long-term postfilter)
     float residual[MAX_SUBFRAME_SIZE+PITCH_MAX];
@@ -176,8 +176,8 @@ typedef struct
 #define LSFQ_DIFF_MIN 321 //0.0391 in Q13
 
 /* Gain pitch maximum and minimum (3.8) */
-#define GAIN_PITCH_MIN 0.2
-#define GAIN_PITCH_MAX 0.8
+#define GAIN_PITCH_MIN  3277 //0.2 in Q14
+#define GAIN_PITCH_MAX 13107 //0.8 in Q14
 
 /* 4.2.2 */
 #define GAMMA_N 0.55
@@ -747,7 +747,7 @@ static void g729_decode_fc_vector(G729A_Context* ctx, int fc_index, int pulses_s
 /**
  * \brief fixed codebook vector modification if delay is less than 40 (4.1.4 and 3.8)
  * \param pitch_delay integer part of pitch delay
- * \param gain_pitch (Q15) gain pitch
+ * \param gain_pitch (Q14) gain pitch
  * \param fc_v [in/out] (Q13) fixed codebook vector to change
  * \param length length of fc_v array
  */
@@ -756,7 +756,7 @@ static void g729_fix_fc_vector(int pitch_delay, int16_t gain_pitch, int16_t* fc_
     int i;
 
     for(i=pitch_delay; i<length;i++)
-        fc_v[i] += fc_v[i-pitch_delay]*gain_pitch >> 15;
+        fc_v[i] += fc_v[i-pitch_delay]*gain_pitch >> 14;
 }
 
 /**
@@ -783,10 +783,10 @@ static void g729_update_gain_erasure(int16_t *pred_energ_q)
  * \param GA Gain codebook (stage 2)
  * \param GB Gain codebook (stage 2)
  * \param fc_v (Q13) fixed-codebook vector
- * \param gp pointer to variable receiving quantized fixed-codebook gain (gain pitch)
+ * \param gp (Q14) pointer to variable receiving quantized fixed-codebook gain (gain pitch)
  * \param gc pointer to variable receiving quantized adaptive-codebook gain (gain code)
  */
-static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, const int16_t* fc_v, float* gp, float* gc)
+static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, const int16_t* fc_v, int16_t* gp, float* gc)
 {
     float energy;
     int i;
@@ -820,7 +820,6 @@ static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, const int16_t* f
 
     /* 3.9.1, Equation 73 */
     *gp = cb_GA[nGA][0]+cb_GB[nGB][0];           // quantized adaptive-codebook gain (gain code)
-    *gp /= 1<<14;
 
     /* 3.9.1, Equation 74 */
     *gc = energy*(cb1_sum);  //quantized fixed-codebook gain (gain pitch)
@@ -830,16 +829,16 @@ static void g729_get_gain(G729A_Context *ctx, int nGA, int nGB, const int16_t* f
  * \brief Memory update (3.10)
  * \param ctx private data structure
  * \param fc_v (Q13) fixed-codebook vector
- * \param gp quantized fixed-codebook gain (gain pitch)
+ * \param gp (Q14) quantized fixed-codebook gain (gain pitch)
  * \param gc quantized adaptive-codebook gain (gain code)
  * \param exc last excitation signal buffer for current subframe
  */
-static void g729_mem_update(G729A_Context *ctx, const int16_t *fc_v, float gp, float gc, float* exc)
+static void g729_mem_update(G729A_Context *ctx, const int16_t *fc_v, int16_t gp, float gc, float* exc)
 {
     int i;
 
     for(i=0; i<ctx->subframe_size; i++)
-        exc[i]=exc[i]*gp+fc_v[i]*gc / Q13_BASE;
+        exc[i]=(exc[i]*gp/2 + fc_v[i]*gc) / Q13_BASE;
 }
 
 /**
@@ -1463,9 +1462,10 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
     int16_t lsf[10];             // Q13
     int pitch_delay;             // pitch delay
     int16_t fc[MAX_SUBFRAME_SIZE]; // fixed codebooc vector
-    float gp, gc;
+    int16_t gp;
+    float gc;
     int intT1, i;
-int j;
+
     ctx->data_error=0;
     ctx->bad_pitch=0;
 
@@ -1510,7 +1510,7 @@ int j;
         }
 
         g729_decode_fc_vector(ctx, parm->fc_indexes[i], parm->pulses_signs[i], fc);
-        g729_fix_fc_vector(pitch_delay/3, ctx->gain_pitch * Q15_BASE, fc, ctx->subframe_size);
+        g729_fix_fc_vector(pitch_delay/3, ctx->gain_pitch, fc, ctx->subframe_size);
         if(ctx->data_error)
         {
             /*
@@ -1519,7 +1519,7 @@ int j;
             */
 
             /* 4.4.2, Equation 94 */
-            ctx->gain_pitch = gp = FFMIN(0.9 * ctx->gain_pitch, 0.9);
+            ctx->gain_pitch = gp = (14745 * FFMIN(ctx->gain_pitch, 16384)) << 14; // 0.9 and 1.0 in Q14
             /* 4.4.2, Equation 93 */
             ctx->gain_code  = 0.98 * ctx->gain_code;
 
