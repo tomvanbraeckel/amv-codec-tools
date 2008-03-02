@@ -1542,7 +1542,7 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
     //Save signal for using in next frame
     memmove(ctx->exc_base, ctx->exc_base+2*ctx->subframe_size, (PITCH_MAX+INTERPOL_LEN)*sizeof(float));
 
-    return 2*ctx->subframe_size;
+    return 4*ctx->subframe_size; // output size in bytes
 }
 
 /**
