@@ -1181,7 +1181,7 @@ static void g729_lsf_restore_from_previous(G729A_Context *ctx, int16_t* lsfq)
 }
 
 /**
- * \brief Decode LP coefficients from L0-L3 (3.2.4)
+ * \brief Decode LSP coefficients from L0-L3 (3.2.4)
  * \param ctx private data structure
  * \param L0 Switched MA predictor of LSP quantizer
  * \param L1 First stage vector of quantizer
