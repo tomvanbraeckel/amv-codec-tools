@@ -1260,7 +1260,6 @@ static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
 static void get_lsp_coefficients(const int16_t* lsp, int* f)
 {
     int i, j;
-    int qidx=2;
 
     f[0] = 0x1000000;          // 1.0 in Q24
     f[1] = -lsp[0] << 10;      // *2 and Q15 -> Q24
@@ -1270,10 +1269,9 @@ static void get_lsp_coefficients(const int16_t* lsp, int* f)
         f[i] = f[i-2];
 
         for(j=i; j>1; j--)
-            f[j] -= (mul_24_15(f[j-1], lsp[qidx])<<1) - f[j-2];
+            f[j] -= (mul_24_15(f[j-1], lsp[2*i-2])<<1) - f[j-2];
 
-        f[1] -= lsp[qidx]  << 10;
-        qidx+=2;
+        f[1] -= lsp[2*i-2]  << 10;
     }
 }
 /**
