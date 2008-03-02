@@ -667,10 +667,10 @@ static void g729_decode_ac_vector(int pitch_delay_int, int pitch_delay_frac, flo
         for(i=0; i<10; i++)
         {
             /*  R(x):=ac_v[-k+x] */
-            v+=ac_v[n-pitch_delay_int-i  ] * (interp_filter[i][  pitch_delay_frac] / Q15_BASE); //R(n-i)*b30(t+3i)
-            v+=ac_v[n-pitch_delay_int+i+1] * (interp_filter[i][3-pitch_delay_frac] / Q15_BASE); //R(n+i+1)*b30(3-t+3i)
+            v+=ac_v[n-pitch_delay_int-i  ] * interp_filter[i][  pitch_delay_frac]; //R(n-i)*b30(t+3i)
+            v+=ac_v[n-pitch_delay_int+i+1] * interp_filter[i][3-pitch_delay_frac]; //R(n+i+1)*b30(3-t+3i)
         }
-        ac_v[n]=v;
+        ac_v[n]=v / Q15_BASE;
     }
 }
 
