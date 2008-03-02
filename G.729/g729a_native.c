@@ -188,6 +188,7 @@ typedef struct
 /* 4.2.1 */
 #define GAMMA_P 0.50
 
+#define Q12_BASE 4096.0
 #define Q13_BASE 8192.0
 #define Q15_BASE 32768.0
 /**
@@ -837,7 +838,7 @@ static void g729_lp_synthesis_filter(const int16_t* lp, const float *in, float *
     {
         tmp[n]=in[n];
         for(i=0; i<10; i++)
-            tmp[n] -= (2*lp[i]*tmp[n-i-1])/Q13_BASE;
+            tmp[n] -= (lp[i] * tmp[n-i-1]) / Q12_BASE;
     }
     memcpy(filter_data, tmp+subframe_size-10, 10*sizeof(float));
     memcpy(out, tmp, subframe_size*sizeof(float));
@@ -970,9 +971,9 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn16, 
     /* temporary hack */
 
     for(i=0;i<10;i++)
-        lp_gn[i]=(2*lp_gn16[i]) / Q13_BASE;
+        lp_gn[i]=lp_gn16[i] / Q12_BASE;
     for(i=0;i<10;i++)
-        lp_gd[i]=(2*lp_gd16[i]) / Q13_BASE;
+        lp_gd[i]=lp_gd16[i] / Q12_BASE;
 
     memset(hf_buf, 0, 33 * sizeof(float));
 
@@ -1048,7 +1049,7 @@ static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_de
     {
         ctx->residual[n+PITCH_MAX]=speech[n];
         for(i=0; i<10; i++)
-            ctx->residual[n+PITCH_MAX] += 2 * lp_gn[i] * speech[n-i-1] / Q13_BASE;
+            ctx->residual[n+PITCH_MAX] += lp_gn[i] * speech[n-i-1] / Q12_BASE;
     }
 
     /* Calculating gain of unfiltered signal for using in AGC */
