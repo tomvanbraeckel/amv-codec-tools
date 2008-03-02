@@ -40,12 +40,28 @@ algthm  : PASS
 erasure : PASS
 fixed   : PASS
 lsp     : PASS
-overflow: PASS
+overflow: FAIL
 parity  : PASS
 pitch   : PASS
 speech  : PASS
 tame    : PASS
 test    : PASS
+
+Naming conventions:
+
+Routines:
+g729_*    : common for G.729 and G.729 AnnexA
+g729a_*   : specific to G.729 AnnexA. Those marked
+ff_       : interface to FFmpeg API
+no prefix : common routines for miscelaneous tasks (e.g. fixed-point math operations)
+
+Parameters:
+[out]     : all data in array will be overwritten regardless of previous value
+[in/out]  : array is filled using previously stored data
+no mark   : input data only
+
+Misc:
+Q<n>      : Means "value * (1<<n)" (i.e. fixed-point value with 2^n base)
 
 */
 
@@ -609,7 +625,7 @@ int g729_parity_check(uint8_t P1, int P0)
  * \brief Decoding of the adaptive-codebook vector (4.1.3)
  * \param pitch_delay_int pitch delay, integer part
  * \param pitch_delay_frac pitch delay, fraction part [-1, 0, 1]
- * \param ac_v buffer to store decoded vector into
+ * \param ac_v [out] buffer to store decoded vector into
  * \param subframe_size length of subframe
  */
 static void g729_decode_ac_vector(int pitch_delay_int, int pitch_delay_frac, float* ac_v, int subframe_size)
@@ -703,11 +719,11 @@ static void g729_fix_fc_vector(int pitch_delay, int16_t gain_pitch, int16_t* fc_
 
 /**
  * \brief Attenuation of the memory of the gain predictor (4.4.3)
- * \param pred_energ_q (Q10) past quantized energies
+ * \param pred_energ_q [in/out] (Q10) past quantized energies
  */
 static void g729_update_gain_erasure(int16_t *pred_energ_q)
 {
-    int avg_gain=pred_energ_q[3];
+    int avg_gain=pred_energ_q[3]; // Q10
     int i;
 
     /* 4.4.3. Equation 95 */
@@ -725,7 +741,7 @@ static void g729_update_gain_erasure(int16_t *pred_energ_q)
  * \param ga_cb_index GA gain codebook index (stage 2)
  * \param gb_cb_index GB gain codebook (stage 2)
  * \param fc_v (Q13) fixed-codebook vector
- * \param pred_energ_q (Q13) past quantized energies
+ * \param pred_energ_q [in/out] (Q10) past quantized energies
  * \param subframe_size length of subframe
  *
  * \return (Q1) quantized adaptive-codebook gain (gain code)
@@ -771,7 +787,7 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
  * \param fc_v (Q13) fixed-codebook vector
  * \param gp (Q14) quantized fixed-codebook gain (gain pitch)
  * \param gc (Q1) quantized adaptive-codebook gain (gain code)
- * \param exc last excitation signal buffer for current subframe
+ * \param exc [in/out] last excitation signal buffer for current subframe
  * \param subframe_size length of subframe
  */
 static void g729_mem_update(const int16_t *fc_v, int16_t gp, int16_t gc, float* exc, int subframe_size)
@@ -786,8 +802,8 @@ static void g729_mem_update(const int16_t *fc_v, int16_t gp, int16_t gc, float* 
  * \brief LP synthesis filter
  * \param lp filter coefficients
  * \param in input signal
- * \param out output (filtered) signal
- * \param filter_data filter data array (previous synthesis data)
+ * \param out [out] output (filtered) signal
+ * \param filter_data [in/out] filter data array (previous synthesis data)
  * \param subframe_size length of subframe
  *
  * Routine applies 1/A(z) filter to given speech data
@@ -816,7 +832,7 @@ static void g729_lp_synthesis_filter(const float* lp, const float *in, float *ou
  * \param ctx private data structure
  * \param gain_before gain of speech before applying postfilters
  * \param gain_after  gain of speech after applying postfilters
- * \param speech signal buffer
+ * \param speech [in/out] signal buffer
  */
 static void g729a_adaptive_gain_control(G729A_Context *ctx, float gain_before, float gain_after, float *speech)
 {
@@ -839,7 +855,7 @@ static void g729a_adaptive_gain_control(G729A_Context *ctx, float gain_before, f
  * \brief Calculates coefficients of weighted A(z/GAMMA) filter
  * \param Az source filter
  * \param gamma weight coefficients
- * \param Azg resulted weighted A(z/GAMMA) filter
+ * \param Azg [out] resulted weighted A(z/GAMMA) filter
  *
  * Azg[i]=GAMMA^i*Az[i] , i=0..subframe_size
  *
@@ -860,7 +876,7 @@ static void g729a_weighted_filter(const float* Az, float gamma, float *Azg)
  * \brief long-term postfilter (4.2.1)
  * \param ctx private data structure
  * \param intT1 integer part of the pitch delay T1 in the first subframe
- * \param residual_filt speech signal with applied A(z/GAMMA_N) filter
+ * \param residual_filt [out] speech signal with applied A(z/GAMMA_N) filter
  */
 static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residual_filt)
 {
@@ -925,7 +941,7 @@ static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residua
  * \param ctx private data structure
  * \param lp_gn coefficients of A(z/GAMMA_N) filter
  * \param lp_gd coefficients of A(z/GAMMA_D) filter
- * \param res_pst residual signal (partially filtered)
+ * \param res_pst [in/out] residual signal (partially filtered)
 */
 static void g729a_tilt_compensation(G729A_Context *ctx, const float *lp_gn, const float *lp_gd, float* res_pst)
 {
@@ -989,7 +1005,7 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const float *lp_gn, cons
  * \param ctx private data structure
  * \param lp LP filter coefficients
  * \param intT1 integer part of the pitch delay T1 of the first subframe
- * \param speech_buf signal buffer, containing at the top 10 samples from previous subframe
+ * \param speech_buf [in/out] signal buffer, containing at the top 10 samples from previous subframe
  *
  * Filtering has following  stages:
  *   Long-term postfilter (4.2.1)
@@ -1047,7 +1063,7 @@ static void g729a_postfilter(G729A_Context *ctx, const float *lp, int intT1, flo
 /**
  * \brief high-pass filtering and upscaling (4.2.5)
  * \param ctx private data structure
- * \param speech reconstructed speech signal for applying filter to
+ * \param speech [in/out] reconstructed speech signal for applying filter to
  *
  * Filter has cut-off frequency 100Hz
  */
@@ -1075,28 +1091,29 @@ static void g729_high_pass_filter(G729A_Context* ctx, float* speech)
 /**
  * \brief Computing the reconstructed speech (4.1.6)
  * \param ctx private data structure
- * \param lp LP filter coefficients
+ * \param lp (Q12) LP filter coefficients
  * \param intT1 integer part of the pitch delay T1 of the first subframe
  * \param exc excitation
- * \param speech reconstructed speech buffer (ctx->subframe_size items)
+ * \param speech [out] reconstructed speech buffer (ctx->subframe_size items)
  */
-static void g729_reconstruct_speech(G729A_Context *ctx, const int16_t *lp16, int intT1, const float* exc, int16_t* speech)
+static void g729_reconstruct_speech(G729A_Context *ctx, const int16_t *lp, int intT1, const float* exc, int16_t* speech)
 {
     float tmp_speech_buf[MAX_SUBFRAME_SIZE+10];
     float* tmp_speech=tmp_speech_buf+10;
     int i;
-    float lp[10];
+    float lp_f[10];
 
+    /* temporary hack */
     for(i=0;i<20;i++)
-        lp[i]=(2*lp16[i]) / Q13_BASE;
+        lp_f[i]=(2*lp[i]) / Q13_BASE;
 
     memcpy(tmp_speech_buf, ctx->syn_filter_data, 10 * sizeof(float));
 
     /* 4.1.6, Equation 77  */
-    g729_lp_synthesis_filter(lp, exc, tmp_speech, ctx->syn_filter_data, ctx->subframe_size);
+    g729_lp_synthesis_filter(lp_f, exc, tmp_speech, ctx->syn_filter_data, ctx->subframe_size);
 
     /* 4.2 */
-    g729a_postfilter(ctx, lp, intT1, tmp_speech_buf);
+    g729a_postfilter(ctx, lp_f, intT1, tmp_speech_buf);
 
     //Postprocessing
     g729_high_pass_filter(ctx,tmp_speech);
@@ -1112,7 +1129,7 @@ static void g729_reconstruct_speech(G729A_Context *ctx, const int16_t *lp16, int
 /**
  * \brief Convert LSF to LSP
  * \param lsf (Q13) LSF coefficients (0 <= lsf < PI)
- * \param lsp [out] LSP coefficients (-1 <= lsp < 1)
+ * \param lsp [out] (Q15) LSP coefficients (-1 <= lsp < 1)
  *
  * \remark It is safe to pass the same array in lsf and lsp parameters
  */
@@ -1134,7 +1151,7 @@ static void g729_lsf2lsp(const int16_t *lsf, int16_t *lsp)
 /**
  * \brief Restore LSP parameters using previous frame data
  * \param ctx private data structure
- * \param lsfq (Q13) Decoded LSF coefficients
+ * \param lsfq [out] (Q13) Decoded LSF coefficients
  */
 static void g729_lsf_restore_from_previous(G729A_Context *ctx, int16_t* lsfq)
 {
@@ -1170,7 +1187,7 @@ static void g729_lsf_restore_from_previous(G729A_Context *ctx, int16_t* lsfq)
  * \param L1 First stage vector of quantizer
  * \param L2 Second stage lower vector of LSP quantizer
  * \param L3 Second stage higher vector of LSP quantizer
- * \param lsfq (Q13) Decoded LSP coefficients
+ * \param lsfq [out] (Q13) Decoded LSP coefficients
  */
 static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t L2, int16_t L3, int16_t* lsfq)
 {
@@ -1262,14 +1279,14 @@ static void get_lsp_coefficients(const int16_t* lsp, int* f)
 /**
  * \brief LSP to LP conversion (3.2.6)
  * \param lsp (Q15) LSP coefficients
- * \param lp (Q12) decoded LP coefficients
+ * \param lp [out] (Q12) decoded LP coefficients
  */
 
 static void g729_lsp2lp(const int16_t* lsp, int16_t* lp)
 {
     int i;
-    int f1[6];
-    int f2[6];
+    int f1[6]; // Q24
+    int f2[6]; // Q24
 
     get_lsp_coefficients(lsp,   f1);
     get_lsp_coefficients(lsp+1, f2);
@@ -1293,7 +1310,7 @@ static void g729_lsp2lp(const int16_t* lsp, int16_t* lp)
  */
 static void g729_lp_decode(const int16_t* lsp_curr, int16_t* lsp_prev, int16_t* lp)
 {
-    int16_t lsp[10];
+    int16_t lsp[10]; // Q15
     int i;
 
     /* LSP values for first subframe (3.2.5, Equation 24)*/
