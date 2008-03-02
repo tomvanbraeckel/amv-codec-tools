@@ -1472,7 +1472,6 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
     int pitch_delay;             // pitch delay
     int16_t fc[MAX_SUBFRAME_SIZE]; // fixed codebooc vector
     int16_t gp;
-    int16_t gc;
     int intT1, i;
 
     ctx->data_error=0;
@@ -1530,22 +1529,20 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
             /* 4.4.2, Equation 94 */
             ctx->gain_pitch = gp = (14745 * FFMIN(ctx->gain_pitch, 16384)) << 14; // 0.9 and 1.0 in Q14
             /* 4.4.2, Equation 93 */
-            ctx->gain_code  = gc = (8028 * ctx->gain_code) >> 13; // 0.98 in Q13
+            ctx->gain_code  = (8028 * ctx->gain_code) >> 13; // 0.98 in Q13
 
             g729_update_gain_erasure(ctx->pred_energ_q);
         }
         else
         {
             gp = g729_get_gain_pitch(parm->ga_cb_index[i], parm->gb_cb_index[i]);
-            gc = g729_get_gain_code(ctx, parm->ga_cb_index[i], parm->gb_cb_index[i], fc);
+            ctx->gain_code = g729_get_gain_code(ctx, parm->ga_cb_index[i], parm->gb_cb_index[i], fc);
 
-            /* save gain code value for next subframe */
-            ctx->gain_code=gc;
             /* save pitch gain value for next subframe */
             ctx->gain_pitch=FFMIN(FFMAX(gp, GAIN_PITCH_MIN), GAIN_PITCH_MAX);
         }
 
-        g729_mem_update(ctx, fc, gp, gc, ctx->exc+i*ctx->subframe_size);
+        g729_mem_update(ctx, fc, gp, ctx->gain_code, ctx->exc+i*ctx->subframe_size);
         g729_reconstruct_speech(ctx, lp+i*10, intT1, ctx->exc+i*ctx->subframe_size, out_frame+i*ctx->subframe_size);
         ctx->subframe_idx++;
     }
