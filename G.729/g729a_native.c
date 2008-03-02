@@ -1422,7 +1422,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
         g729_lsf_restore_from_previous(ctx, lsf);
     else
         g729_lsf_decode(ctx, 
-	         parm->ma_predictor,
+                 parm->ma_predictor,
                  parm->quantizer_1st,
                  parm->quantizer_2nd_lo,
                  parm->quantizer_2nd_hi,
@@ -1443,7 +1443,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
                 pitch_delay = 3*ctx->intT2_prev+1;
             else if(parm->ac_index[i] >= 197)
                pitch_delay = 3*parm->ac_index[i] - 335;
-	    else
+            else
                pitch_delay = parm->ac_index[i] + 59;
 
             intT1=pitch_delay/3;    //Used in long-term postfilter    
@@ -1475,7 +1475,7 @@ static int  g729a_decode_frame_internal(void* context, int16_t* out_frame, int o
                 parm->pulses_signs[i],
                 fc,
                 ctx->subframe_size))
-	    ctx->data_error = 1;
+            ctx->data_error = 1;
 
         g729_fix_fc_vector(pitch_delay/3, ctx->gain_pitch, fc, ctx->subframe_size);
         if(ctx->data_error)
