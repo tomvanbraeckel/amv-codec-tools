@@ -548,10 +548,9 @@ static const int16_t slope_cos[64] =
  * \param var_15 (Q15) 16-bit integer
  * \return (Q24) result of mupliplication
  *
- * FIXME: if var_q15 declared as int16_t routine gives wrong result
  * \note this code is bit-equal to reference's Mpy_32_16
  */
-static inline int mul_24_15(int var_q24, int var_q15)
+static inline int mul_24_15(int var_q24, int16_t var_q15)
 {
     int hi = var_q24 >> 16;
     int lo = (var_q24 - (hi << 16))>>1;
