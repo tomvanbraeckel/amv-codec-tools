@@ -998,7 +998,7 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const float *lp_gn, cons
  * \brief Signal postfiltering (4.2, with A.4.2 simplification)
  * \param ctx private data structure
  * \param lp LP filter coefficients
- * \param intT1 integer part of the pitch delay T1 of the first subframe
+ * \param pitch_delay_int integer part of the pitch delay T1 of the first subframe
  * \param speech_buf [in/out] signal buffer, containing at the top 10 samples from previous subframe
  *
  * Filtering has following  stages:
@@ -1009,7 +1009,7 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const float *lp_gn, cons
  *
  * \note This routine is G.729 Annex A specific.
  */
-static void g729a_postfilter(G729A_Context *ctx, const float *lp, int intT1, float *speech_buf)
+static void g729a_postfilter(G729A_Context *ctx, const float *lp, int pitch_delay_int, float *speech_buf)
 {
     int i, n;
     float *speech=speech_buf+10;
@@ -1039,7 +1039,7 @@ static void g729a_postfilter(G729A_Context *ctx, const float *lp, int intT1, flo
     gain_before=sum_of_squares(speech, ctx->subframe_size, 0);
 
     /* long-term filter (A.4.2.1) */
-    g729a_long_term_filter(ctx, intT1, residual_filt);
+    g729a_long_term_filter(ctx, pitch_delay_int, residual_filt);
 
     /* short-term filter tilt compensation (A.4.2.3) */
     g729a_tilt_compensation(ctx, lp_gn, lp_gd, residual_filt);
