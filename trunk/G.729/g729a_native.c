@@ -181,8 +181,8 @@ typedef struct
 #define GAIN_PITCH_MAX 13107 //0.8 in Q14
 
 /* 4.2.2 */
-#define GAMMA_N 0.55
-#define GAMMA_D 0.70
+#define GAMMA_N 18022 //0.55 in Q15
+#define GAMMA_D 22938 //0.70 in Q15
 #define GAMMA_T 0.80
 
 /* 4.2.1 */
@@ -816,7 +816,7 @@ static void g729_mem_update(const int16_t *fc_v, int16_t gp, int16_t gc, float* 
 
 /**
  * \brief LP synthesis filter
- * \param lp filter coefficients
+ * \param lp (Q12) filter coefficients
  * \param in input signal
  * \param out [out] output (filtered) signal
  * \param filter_data [in/out] filter data array (previous synthesis data)
@@ -825,7 +825,7 @@ static void g729_mem_update(const int16_t *fc_v, int16_t gp, int16_t gc, float* 
  * Routine applies 1/A(z) filter to given speech data
  *
  */
-static void g729_lp_synthesis_filter(const float* lp, const float *in, float *out, float *filter_data, int subframe_size)
+static void g729_lp_synthesis_filter(const int16_t* lp, const float *in, float *out, float *filter_data, int subframe_size)
 {
     float tmp_buf[MAX_SUBFRAME_SIZE+10];
     float* tmp=tmp_buf+10;
@@ -837,7 +837,7 @@ static void g729_lp_synthesis_filter(const float* lp, const float *in, float *ou
     {
         tmp[n]=in[n];
         for(i=0; i<10; i++)
-            tmp[n] -= lp[i]*tmp[n-i-1];
+            tmp[n] -= (2*lp[i]*tmp[n-i-1])/Q13_BASE;
     }
     memcpy(filter_data, tmp+subframe_size-10, 10*sizeof(float));
     memcpy(out, tmp, subframe_size*sizeof(float));
@@ -869,22 +869,22 @@ static void g729a_adaptive_gain_control(G729A_Context *ctx, float gain_before, f
 
 /**
  * \brief Calculates coefficients of weighted A(z/GAMMA) filter
- * \param Az source filter
- * \param gamma weight coefficients
- * \param Azg [out] resulted weighted A(z/GAMMA) filter
+ * \param Az (Q12) source filter
+ * \param gamma (Q15) weight coefficients
+ * \param Azg [out] (Q12) resulted weighted A(z/GAMMA) filter
  *
  * Azg[i]=GAMMA^i*Az[i] , i=0..subframe_size
  *
  */
-static void g729a_weighted_filter(const float* Az, float gamma, float *Azg)
+static void g729a_weighted_filter(const int16_t* Az, int16_t gamma, int16_t *Azg)
 {
-    float gamma_pow = gamma;
+    int gamma_pow = gamma;
     int n;
 
     for(n=0; n<10; n++)
     {
-        Azg[n]=Az[n]*gamma_pow;
-        gamma_pow*=gamma;
+        Azg[n] = Az[n]*gamma_pow >> 15;
+        gamma_pow = gamma_pow * gamma >> 15;
     }
 }
 
@@ -953,17 +953,26 @@ static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residua
 /**
  * \brief compensates the tilt in the short-term postfilter (4.2.3)
  * \param ctx private data structure
- * \param lp_gn coefficients of A(z/GAMMA_N) filter
- * \param lp_gd coefficients of A(z/GAMMA_D) filter
+ * \param lp_gn (Q12) coefficients of A(z/GAMMA_N) filter
+ * \param lp_gd (Q12) coefficients of A(z/GAMMA_D) filter
  * \param res_pst [in/out] residual signal (partially filtered)
 */
-static void g729a_tilt_compensation(G729A_Context *ctx, const float *lp_gn, const float *lp_gd, float* res_pst)
+static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn16, const int16_t *lp_gd16, float* res_pst)
 {
     float tmp;
     float gt,rh1,rh0;
     float hf_buf[11+22]; // A(Z/GAMMA_N)/A(z/GAMMA_D) filter impulse response
     float sum;
     int i, n;
+    float lp_gn[10];
+    float lp_gd[10];
+    
+    /* temporary hack */
+
+    for(i=0;i<10;i++)
+        lp_gn[i]=(2*lp_gn16[i]) / Q13_BASE;
+    for(i=0;i<10;i++)
+        lp_gd[i]=(2*lp_gd16[i]) / Q13_BASE;
 
     memset(hf_buf, 0, 33 * sizeof(float));
 
@@ -1004,7 +1013,7 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const float *lp_gn, cons
 /**
  * \brief Signal postfiltering (4.2, with A.4.2 simplification)
  * \param ctx private data structure
- * \param lp LP filter coefficients
+ * \param lp (Q12) LP filter coefficients
  * \param pitch_delay_int integer part of the pitch delay T1 of the first subframe
  * \param speech_buf [in/out] signal buffer, containing at the top 10 samples from previous subframe
  *
@@ -1016,14 +1025,14 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const float *lp_gn, cons
  *
  * \note This routine is G.729 Annex A specific.
  */
-static void g729a_postfilter(G729A_Context *ctx, const float *lp, int pitch_delay_int, float *speech_buf)
+static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_delay_int, float *speech_buf)
 {
     int i, n;
     float *speech=speech_buf+10;
     float residual_filt_buf[MAX_SUBFRAME_SIZE+10];
     float* residual_filt=residual_filt_buf+10;
-    float lp_gn[10];
-    float lp_gd[10];
+    int16_t lp_gn[10]; // Q12
+    int16_t lp_gd[10]; // Q12
     float gain_before, gain_after;
 
     /* Calculating coefficients of A(z/GAMMA_N) filter */
@@ -1039,7 +1048,7 @@ static void g729a_postfilter(G729A_Context *ctx, const float *lp, int pitch_dela
     {
         ctx->residual[n+PITCH_MAX]=speech[n];
         for(i=0; i<10; i++)
-            ctx->residual[n+PITCH_MAX] += lp_gn[i]*speech[n-i-1];
+            ctx->residual[n+PITCH_MAX] += 2 * lp_gn[i] * speech[n-i-1] / Q13_BASE;
     }
 
     /* Calculating gain of unfiltered signal for using in AGC */
@@ -1105,19 +1114,14 @@ static void g729_reconstruct_speech(G729A_Context *ctx, const int16_t *lp, int i
     float tmp_speech_buf[MAX_SUBFRAME_SIZE+10];
     float* tmp_speech=tmp_speech_buf+10;
     int i;
-    float lp_f[10];
-
-    /* temporary hack */
-    for(i=0;i<20;i++)
-        lp_f[i]=(2*lp[i]) / Q13_BASE;
 
     memcpy(tmp_speech_buf, ctx->syn_filter_data, 10 * sizeof(float));
 
     /* 4.1.6, Equation 77  */
-    g729_lp_synthesis_filter(lp_f, exc, tmp_speech, ctx->syn_filter_data, ctx->subframe_size);
+    g729_lp_synthesis_filter(lp, exc, tmp_speech, ctx->syn_filter_data, ctx->subframe_size);
 
     /* 4.2 */
-    g729a_postfilter(ctx, lp_f, intT1, tmp_speech_buf);
+    g729a_postfilter(ctx, lp, intT1, tmp_speech_buf);
 
     //Postprocessing
     g729_high_pass_filter(ctx,tmp_speech);
