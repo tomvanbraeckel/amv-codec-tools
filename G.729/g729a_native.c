@@ -823,9 +823,13 @@ static void g729_mem_update(const int16_t *fc_v, int16_t gp, int16_t gc, float* 
  * \param filter_data [in/out] filter data array (previous synthesis data)
  * \param subframe_size length of subframe
  *
+ * \return 1 if overflow occured, o - otherwise
+ *
  * Routine applies 1/A(z) filter to given speech data
+ *
+ * \note If overflow occured routine updates neither out nor filter data arrays
  */
-static void g729_lp_synthesis_filter(const int16_t* lp, const float *in, float *out, float *filter_data, int subframe_size)
+static int g729_lp_synthesis_filter(const int16_t* lp, const float *in, float *out, float *filter_data, int subframe_size)
 {
     float tmp_buf[MAX_SUBFRAME_SIZE+10];
     float* tmp=tmp_buf+10;
@@ -838,9 +842,12 @@ static void g729_lp_synthesis_filter(const int16_t* lp, const float *in, float *
         tmp[n]=in[n];
         for(i=0; i<10; i++)
             tmp[n] -= (lp[i] * tmp[n-i-1]) / Q12_BASE;
+	if(tmp[n] > 32767.0 || tmp[n] < -32768.0)
+	    return 1;
     }
     memcpy(filter_data, tmp+subframe_size-10, 10*sizeof(float));
     memcpy(out, tmp, subframe_size*sizeof(float));
+    return 0;
 }
 
 /**
@@ -1101,8 +1108,12 @@ static void g729_high_pass_filter(G729A_Context* ctx, float* speech)
  * \param intT1 integer part of the pitch delay T1 of the first subframe
  * \param exc excitation
  * \param speech [out] reconstructed speech buffer (ctx->subframe_size items)
+ *
+ * \return 1 if overflow occured, 0 - otherwise
+ *
+ * \note If overflow occured routine neither updates output buffer nor makes postfiltering
  */
-static void g729_reconstruct_speech(G729A_Context *ctx, const int16_t *lp, int intT1, const float* exc, int16_t* speech)
+static int g729_reconstruct_speech(G729A_Context *ctx, const int16_t *lp, int intT1, const float* exc, int16_t* speech)
 {
     float tmp_speech_buf[MAX_SUBFRAME_SIZE+10];
     float* tmp_speech=tmp_speech_buf+10;
@@ -1111,7 +1122,8 @@ static void g729_reconstruct_speech(G729A_Context *ctx, const int16_t *lp, int i
     memcpy(tmp_speech_buf, ctx->syn_filter_data, 10 * sizeof(float));
 
     /* 4.1.6, Equation 77  */
-    g729_lp_synthesis_filter(lp, exc, tmp_speech, ctx->syn_filter_data, ctx->subframe_size);
+    if(g729_lp_synthesis_filter(lp, exc, tmp_speech, ctx->syn_filter_data, ctx->subframe_size))
+        return 1;
 
     /* 4.2 */
     g729a_postfilter(ctx, lp, intT1, tmp_speech_buf);
@@ -1121,6 +1133,8 @@ static void g729_reconstruct_speech(G729A_Context *ctx, const int16_t *lp, int i
 
     for(i=0; i<ctx->subframe_size; i++)
         speech[i]=FFMAX(FFMIN(lrintf(tmp_speech[i]), 32767), -32768);
+
+    return 0;
 }
 
 /**
@@ -1431,7 +1445,7 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
     int pitch_delay;             // pitch delay
     int16_t fc[MAX_SUBFRAME_SIZE]; // fixed codebooc vector
     int16_t gp;
-    int intT1, i;
+    int intT1, i, j;
 
     ctx->data_error = frame_erasure;
     ctx->bad_pitch=0;
@@ -1535,7 +1549,14 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
         }
 
         g729_mem_update(fc, gp, ctx->gain_code, ctx->exc + i*ctx->subframe_size, ctx->subframe_size);
-        g729_reconstruct_speech(ctx, lp+i*10, intT1, ctx->exc + i*ctx->subframe_size, out_frame + i*ctx->subframe_size);
+        if(g729_reconstruct_speech(ctx, lp+i*10, intT1, ctx->exc + i*ctx->subframe_size, out_frame + i*ctx->subframe_size))
+        {
+            //Overflow occured, downscaling excitation signal...
+            for(j=0; j<2*MAX_SUBFRAME_SIZE+PITCH_MAX+INTERPOL_LEN; j++)
+                ctx->exc_base[j] /= 2;
+            //... and calling the same routine again
+            g729_reconstruct_speech(ctx, lp+i*10, intT1, ctx->exc + i*ctx->subframe_size, out_frame + i*ctx->subframe_size);
+        }
         ctx->subframe_idx++;
     }
 
