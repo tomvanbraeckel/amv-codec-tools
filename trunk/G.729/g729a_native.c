@@ -195,7 +195,7 @@ typedef struct
  * L1 codebook (10-dimensional, with 128 entries (3.24)
  */
 static const int16_t cb_L1[1<<L1_BITS][10] =
-{        /* Q13 */
+{ /* Q13 */
   { 1486,  2168,  3751,  9074, 12134, 13944, 17983, 19173, 21190, 21820},
   { 1730,  2640,  3450,  4870,  6126,  7876, 15644, 17817, 20294, 21902},
   { 1568,  2256,  3088,  4874, 11063, 13393, 18307, 19293, 21109, 21741},
@@ -330,7 +330,7 @@ static const int16_t cb_L1[1<<L1_BITS][10] =
  * L2 and L3 codebooks (both 5-dimensional, with 32 entries (3.2.4)
  */
 static const int16_t cb_L2_L3[1<<L2_BITS][10] =
-{        /* Q13 */
+{ /* Q13 */
   { -435,  -815,  -742,  1033,  -518,   582, -1201,   829,    86,   385},
   { -833,  -891,   463,    -8, -1251,  1450,    72,  -231,   864,   661},
   {-1021,   231,  -306,   321,  -220,  -163,  -526,  -754, -1633,   267},
@@ -400,7 +400,7 @@ static const int16_t cb_L2_L3[1<<L2_BITS][10] =
  *
  */
 static const int16_t interp_filter[10][3] =
-{       /* Q15 */
+{ /* Q15 */
   { 29443,   25207,   14701},
   {  3143,   -4402,   -5850},
   { -2783,    1211,    3130},
@@ -457,7 +457,7 @@ static int16_t cb_GB[GB_CB_SIZE][2] =
  * MA predictor (3.2.4)
  */
 static const int16_t ma_predictor[2][MA_NP][10] =
-{       /* Q15 */
+{ /* Q15 */
   {
     { 8421,  9109,  9175,  8965,  9034,  9057,  8765,  8775,  9106,  8673},
     { 7018,  7189,  7638,  7307,  7444,  7379,  7038,  6956,  6930,  6868},
@@ -476,13 +476,13 @@ static const int16_t ma_predictor[2][MA_NP][10] =
  * ma_predicot_sum[i] := 1-sum{1}{4}{ma_predictor[k][i]}
  */
 static const int16_t ma_predictor_sum[2][10] =
-{      /* Q15 */
+{ /* Q15 */
   { 7798,  8447,  8205,  8293,  8126,  8477,  8447,  8703,  9043,  8604},
   {14585, 18333, 19772, 17344, 16426, 16459, 15155, 15220, 16043, 15708}
 };
 
 static const int16_t ma_predictor_sum_inv[2][10] =
-{     /* Q12 */
+{ /* Q12 */
   {17210, 15888, 16357, 16183, 16516, 15833, 15888, 15421, 14840, 15597},
   { 9202,  7320,  6788,  7738,  8170,  8154,  8856,  8818,  8366,  8544}
 };
@@ -561,8 +561,8 @@ static const int16_t slope_cos[64] =
 static inline int mul_24_15(int var_q24, int16_t var_q15)
 {
     int hi = var_q24 >> 16;
-    int lo = (var_q24 - (hi << 16))>>1;
-    return (var_q15 * hi + ((var_q15 * lo) >> 15))<<1;
+    int lo = (var_q24 - (hi << 16)) >> 1;
+    return (var_q15 * hi + ((var_q15 * lo) >> 15)) << 1;
 }
 
 /**
@@ -572,10 +572,10 @@ static inline int mul_24_15(int var_q24, int16_t var_q15)
  */
 static int l_shr_r(int var1, int16_t var2)
 {
-    if(var1 && (var1 & (1<<(var2-1))))
-        return (var1>>var2)+1;
+    if(var1 && (var1 & (1 << (var2 - 1))))
+        return (var1 >> var2) + 1;
     else
-        return (var1>>var2);
+        return (var1 >> var2);
 }
 
 /**
@@ -588,30 +588,30 @@ static int l_shr_r(int var1, int16_t var2)
  *
  * \note array must be at least length+offset long!
  */
-static float sum_of_squares(const float *speech, int cycles, int offset)
+static float sum_of_squares(const float* speech, int cycles, int offset)
 {
     int n;
-    float sum=0;
+    float sum = 0;
 
-    if(offset<0)
+    if(offset < 0)
         return 0;
 
     for(n=0; n<cycles; n++)
-       sum+=speech[n]*speech[n+offset];
+       sum += speech[n] * speech[n + offset];
 
     return sum;
 }
 
-static float sum_of_squares16(const int16_t *speech, int cycles, int offset)
+static float sum_of_squares16(const int16_t* speech, int cycles, int offset)
 {
     int n;
     int sum=0;
 
-    if(offset<0)
+    if(offset < 0)
         return 0;
 
     for(n=0; n<cycles; n++)
-       sum+=speech[n]*speech[n+offset];
+       sum += speech[n] * speech[n + offset];
 
     return sum;
 }
@@ -635,7 +635,7 @@ static inline uint16_t g729_random(G729A_Context* ctx)
 int g729_parity_check(uint8_t P1, int P0)
 {
     //Parity is calculated on six most significant bits of P1
-   return ((0x6996966996696996ULL >> (P1>>2)) ^ P0) & 1;
+   return ((0x6996966996696996ULL >> (P1 >> 2)) ^ P0) & 1;
 }
 
 /**
@@ -651,10 +651,10 @@ static void g729_decode_ac_vector(int pitch_delay_int, int pitch_delay_frac, flo
     float v;
 
     //Make sure that pitch_delay_frac will be always positive
-    pitch_delay_frac=-pitch_delay_frac;
-    if(pitch_delay_frac<0)
+    pitch_delay_frac =- pitch_delay_frac;
+    if(pitch_delay_frac < 0)
     {
-        pitch_delay_frac+=3;
+        pitch_delay_frac += 3;
         pitch_delay_int++;
     }
 
@@ -667,10 +667,10 @@ static void g729_decode_ac_vector(int pitch_delay_int, int pitch_delay_frac, flo
         for(i=0; i<10; i++)
         {
             /*  R(x):=ac_v[-k+x] */
-            v+=ac_v[n-pitch_delay_int-i  ] * interp_filter[i][  pitch_delay_frac]; //R(n-i)*b30(t+3i)
-            v+=ac_v[n-pitch_delay_int+i+1] * interp_filter[i][3-pitch_delay_frac]; //R(n+i+1)*b30(3-t+3i)
+            v+=ac_v[n - pitch_delay_int - i    ] * interp_filter[i][    pitch_delay_frac]; //R(n-i)*b30(t+3i)
+            v+=ac_v[n - pitch_delay_int + i + 1] * interp_filter[i][3 - pitch_delay_frac]; //R(n+i+1)*b30(3-t+3i)
         }
-        ac_v[n]=v / Q15_BASE;
+        ac_v[n] = v / Q15_BASE;
     }
 }
 
@@ -696,7 +696,7 @@ static int g729_decode_fc_vector(int fc_index, int fc_index_bits, int pulses_sig
     int index;
     int mask=(1 << fc_index_bits) - 1;
 
-    memset(fc_v, 0, sizeof(int16_t)*subframe_size);
+    memset(fc_v, 0, sizeof(int16_t) * subframe_size);
 
     /* reverted Equation 62 and Equation 45 */
     for(i=0; i<FC_PULSE_COUNT-1; i++)
@@ -731,7 +731,7 @@ static void g729_fix_fc_vector(int pitch_delay, int16_t gain_pitch, int16_t* fc_
     int i;
 
     for(i=pitch_delay; i<length;i++)
-        fc_v[i] += fc_v[i-pitch_delay]*gain_pitch >> 14;
+        fc_v[i] += (fc_v[i - pitch_delay] * gain_pitch) >> 14;
 }
 
 /**
@@ -746,8 +746,8 @@ static void g729_update_gain_erasure(int16_t *pred_energ_q)
     /* 4.4.3. Equation 95 */
     for(i=3; i>0; i--)
     {
-        avg_gain      +=pred_energ_q[i-1];
-        pred_energ_q[i]=pred_energ_q[i-1];
+        avg_gain       += pred_energ_q[i-1];
+        pred_energ_q[i] = pred_energ_q[i-1];
     }
     pred_energ_q[0] = FFMAX((avg_gain >> 2) - 4096, -14336); // -14 in Q10
 }
@@ -770,33 +770,33 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
     float cb1_sum;
 
     /* 3.9.1, Equation 66 */
-    energy=sum_of_squares16(fc_v, subframe_size, 0) / (Q13_BASE * Q13_BASE);
+    energy = sum_of_squares16(fc_v, subframe_size, 0) / (Q13_BASE * Q13_BASE);
 
     /*
       energy=mean_energy-E
       mean_energy=30dB
       E is calculated in 3.9.1 Equation 66
     */
-    energy = 30 - 10.0*log(energy/subframe_size)/M_LN10;
+    energy = 30 - 10.0 * log(energy / subframe_size) / M_LN10;
 
     /* 3.9.1, Equation 69 */
     for(i=0; i<4; i++)
-        energy+= 1.0 * pred_energ_q[i] * ma_prediction_coeff[i] / (1<<23);
+        energy+= 1.0 * pred_energ_q[i] * ma_prediction_coeff[i] / (1 << 23);
 
     /* 3.9.1, Equation 71 */
-    energy = exp(M_LN10*energy/20); //FIXME: should there be subframe_size/2 ?
+    energy = exp(M_LN10 * energy / 20); //FIXME: should there be subframe_size/2 ?
 
     // shift prediction error vector
     for(i=3; i>0; i--)
         pred_energ_q[i]=pred_energ_q[i-1];
 
-    cb1_sum = cb_GA[ga_cb_index][1]+cb_GB[gb_cb_index][1];
-    cb1_sum /= 1<<13;
+    cb1_sum = cb_GA[ga_cb_index][1] + cb_GB[gb_cb_index][1];
+    cb1_sum /= 1 << 13;
     /* 3.9.1, Equation 72 */
     pred_energ_q[0] = 20 * 1024 * log(cb1_sum) / M_LN10; //FIXME: should there be subframe_size/2 ?
 
     /* 3.9.1, Equation 74 */
-    return 2*energy*cb1_sum;  // Q0 -> Q1
+    return 2 * energy * cb1_sum;  // Q0 -> Q1
 }
 
 /**
@@ -812,7 +812,7 @@ static void g729_mem_update(const int16_t *fc_v, int16_t gp, int16_t gc, float* 
     int i;
 
     for(i=0; i<subframe_size; i++)
-        exc[i]=(exc[i]*gp + fc_v[i]*gc) / (2 * Q13_BASE); // Q14 -> Q0, Q1 -> Q0
+        exc[i] = (exc[i] * gp + fc_v[i] * gc) / (2 * Q13_BASE); // Q14 -> Q0, Q1 -> Q0
 }
 
 /**
@@ -845,7 +845,7 @@ static int g729_lp_synthesis_filter(const int16_t* lp, const float *in, float *o
 	if(tmp[n] > 32767.0 || tmp[n] < -32768.0)
 	    return 1;
     }
-    memcpy(filter_data, tmp+subframe_size-10, 10*sizeof(float));
+    memcpy(filter_data, tmp + subframe_size - 10, 10*sizeof(float));
     memcpy(out, tmp, subframe_size*sizeof(float));
     return 0;
 }
@@ -869,7 +869,7 @@ static void g729a_adaptive_gain_control(G729A_Context *ctx, float gain_before, f
 
     for(n=0; n<ctx->subframe_size; n++)
     {
-        ctx->g = 0.9*ctx->g + 0.1*gain;
+        ctx->g = 0.9 * ctx->g + 0.1 * gain;
         speech[n] *= ctx->g;
     }
 }
@@ -889,8 +889,8 @@ static void g729a_weighted_filter(const int16_t* Az, int16_t gamma, int16_t *Azg
 
     for(n=0; n<10; n++)
     {
-        Azg[n] = Az[n]*gamma_pow >> 15;
-        gamma_pow = gamma_pow * gamma >> 15;
+        Azg[n] = (Az[n] * gamma_pow) >> 15;
+        gamma_pow = (gamma_pow * gamma) >> 15;
     }
 }
 
@@ -924,7 +924,7 @@ static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residua
     for(k=minT0; k<=maxT0; k++)
     {
         /* 4.2.1, Equation 80 */
-        correlation = sum_of_squares(ctx->residual+PITCH_MAX-k, ctx->subframe_size, k);
+        correlation = sum_of_squares(ctx->residual + PITCH_MAX - k, ctx->subframe_size, k);
         if(correlation>corr_max)
         {
             corr_max=correlation;
@@ -932,11 +932,11 @@ static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residua
         }
     }
 
-    corr_t0 = sum_of_squares(ctx->residual+PITCH_MAX-intT0, ctx->subframe_size, 0);
-    corr_0  = sum_of_squares(ctx->residual+PITCH_MAX,       ctx->subframe_size, 0);
+    corr_t0 = sum_of_squares(ctx->residual + PITCH_MAX - intT0, ctx->subframe_size, 0);
+    corr_0  = sum_of_squares(ctx->residual + PITCH_MAX,         ctx->subframe_size, 0);
 
     /* 4.2.1, Equation 82. checking if filter should be disabled */
-    if(corr_max*corr_max < 0.5*corr_0*corr_t0)
+    if(corr_max * corr_max < 0.5 * corr_0 * corr_t0)
         gl=0;
     else if(!corr_t0)
         gl=1;
@@ -949,11 +949,11 @@ static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residua
 
     /* 4.2.1, Equation 78, reconstructing delayed signal */
     for(n=0; n<ctx->subframe_size; n++)
-        residual_filt[n] = ctx->residual[n+PITCH_MAX] * inv_glgp +
-                           ctx->residual[n+PITCH_MAX-intT0] * glgp_inv_glgp;
+        residual_filt[n] = ctx->residual[n + PITCH_MAX        ] * inv_glgp +
+                           ctx->residual[n + PITCH_MAX - intT0] * glgp_inv_glgp;
 
     //Shift residual for using in next subframe
-    memmove(ctx->residual, ctx->residual+ctx->subframe_size, PITCH_MAX*sizeof(float));
+    memmove(ctx->residual, ctx->residual + ctx->subframe_size, PITCH_MAX*sizeof(float));
 }
 
 /**
@@ -983,8 +983,8 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn, co
     {
         sum=hf_buf[n+10];
         for(i=0; i<10; i++)
-            sum -= (lp_gd[i]*hf_buf[n+10-i-1]) >> 12;
-        hf_buf[n+10]=sum;
+            sum -= (lp_gd[i] * hf_buf[n+10-i-1]) >> 12;
+        hf_buf[n+10] = sum;
     }
 
     /* Now hf_buf (starting with 10) contains impulse response of A(z/GAMMA_N)/A(z/GAMMA_D) filter */
@@ -1046,7 +1046,7 @@ static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_de
     */
     for(n=0; n<ctx->subframe_size; n++)
     {
-        ctx->residual[n+PITCH_MAX]=speech[n];
+        ctx->residual[n+PITCH_MAX] = speech[n];
         for(i=0; i<10; i++)
             ctx->residual[n+PITCH_MAX] += lp_gn[i] * speech[n-i-1] / Q12_BASE;
     }
@@ -1148,14 +1148,14 @@ static void g729_lsf2lsp(const int16_t *lsf, int16_t *lsp)
 {
     int i;
 
-    /* Convert LSF to LSP */
+    /* Convert LSF to LSP, lsp=cos(lsf) */
     for(i=0;i<10; i++)
     {
         int16_t freq= (lsf[i] * 20861)>>15; //1.0/(2.0*PI) in Q17, result in Q16
         int16_t offset= freq & 0xff;
         int16_t ind = FFMIN(freq >> 8, 63);
 
-        lsp[i] = base_cos[ind]+((slope_cos[ind]*offset)>>12);
+        lsp[i] = base_cos[ind] + ((slope_cos[ind] * offset) >> 12);
     }
 }
 
@@ -1222,7 +1222,7 @@ static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
     {
         for(i=1; i<10; i++)
         {
-            diff = (lq[i-1] - lq[i] + J[j])>>1;
+            diff = (lq[i-1] - lq[i] + J[j]) >> 1;
             if(diff>0)
             {
                 lq[i-1]-= diff;
@@ -1380,7 +1380,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
     */
     ctx->subframe_size=formats[ctx->format].output_frame_size>>2;
 
-    assert(ctx->subframe_size>0 && ctx->subframe_size<=MAX_SUBFRAME_SIZE);
+    assert(ctx->subframe_size > 0 && ctx->subframe_size <= MAX_SUBFRAME_SIZE);
 
     /* Decoder initialization. 4.3, Table 9 */
 
@@ -1475,18 +1475,18 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
             // Decoding of the adaptive-codebook vector delay for first subframe (4.1.3)
             if(ctx->bad_pitch || ctx->data_error)
             {
-                pitch_delay = 3*ctx->intT2_prev+1;
+                pitch_delay = 3 * ctx->intT2_prev + 1;
 
-                intT1=FFMIN(ctx->intT2_prev+1, PITCH_MAX);
+                intT1=FFMIN(ctx->intT2_prev + 1, PITCH_MAX);
             }
             else
             {
                 if(parm->ac_index[i] >= 197)
-                    pitch_delay = 3*parm->ac_index[i] - 335;
+                    pitch_delay = 3 * parm->ac_index[i] - 335;
                 else
                     pitch_delay = parm->ac_index[i] + 59;
 
-                intT1=pitch_delay/3;    //Used in long-term postfilter    
+                intT1=pitch_delay / 3;    //Used in long-term postfilter    
             }
         }
         else
@@ -1499,11 +1499,13 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
             }
             else
             {
-                pitch_delay = parm->ac_index[i] + 3*FFMIN(FFMAX(pitch_delay/3-5, PITCH_MIN), PITCH_MAX-9) - 1;
-                ctx->intT2_prev=pitch_delay/3;
+                pitch_delay = parm->ac_index[i] +
+                        3*FFMIN(FFMAX(pitch_delay/3-5, PITCH_MIN), PITCH_MAX-9) - 1;
+                ctx->intT2_prev = pitch_delay / 3;
             }
         }
-        g729_decode_ac_vector(pitch_delay/3, (pitch_delay%3)-1, ctx->exc + i*ctx->subframe_size, ctx->subframe_size);
+        g729_decode_ac_vector(pitch_delay / 3, (pitch_delay%3)-1,
+                ctx->exc + i*ctx->subframe_size, ctx->subframe_size);
 
         if(ctx->data_error)
         {
@@ -1549,13 +1551,17 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
         }
 
         g729_mem_update(fc, gp, ctx->gain_code, ctx->exc + i*ctx->subframe_size, ctx->subframe_size);
-        if(g729_reconstruct_speech(ctx, lp+i*10, intT1, ctx->exc + i*ctx->subframe_size, out_frame + i*ctx->subframe_size))
+        if(g729_reconstruct_speech(ctx, lp+i*10, intT1,
+                ctx->exc  + i*ctx->subframe_size,
+                out_frame + i*ctx->subframe_size))
         {
             //Overflow occured, downscaling excitation signal...
             for(j=0; j<2*MAX_SUBFRAME_SIZE+PITCH_MAX+INTERPOL_LEN; j++)
                 ctx->exc_base[j] /= 2;
             //... and calling the same routine again
-            g729_reconstruct_speech(ctx, lp+i*10, intT1, ctx->exc + i*ctx->subframe_size, out_frame + i*ctx->subframe_size);
+            g729_reconstruct_speech(ctx, lp+i*10, intT1,
+                    ctx->exc  + i*ctx->subframe_size,
+                    out_frame + i*ctx->subframe_size);
         }
         ctx->subframe_idx++;
     }
@@ -1563,7 +1569,7 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
     //Save signal for using in next frame
     memmove(ctx->exc_base, ctx->exc_base+2*ctx->subframe_size, (PITCH_MAX+INTERPOL_LEN)*sizeof(float));
 
-    return 4*ctx->subframe_size; // output size in bytes
+    return 2 * sizeof(int16_t) * ctx->subframe_size; // output size in bytes
 }
 
 /**
