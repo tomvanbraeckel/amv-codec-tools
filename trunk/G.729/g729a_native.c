@@ -1445,7 +1445,6 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
     int16_t lsf[10];             // Q13
     int pitch_delay;             // pitch delay
     int16_t fc[MAX_SUBFRAME_SIZE]; // fixed codebooc vector
-    int16_t gp;
     int intT1, i, j;
 
     ctx->data_error = frame_erasure;
@@ -1530,7 +1529,7 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
             */
 
             /* 4.4.2, Equation 94 */
-            ctx->gain_pitch = gp = (14745 * FFMIN(ctx->gain_pitch, 16384)) >> 14; // 0.9 and 1.0 in Q14
+            ctx->gain_pitch = (14745 * FFMIN(ctx->gain_pitch, 16384)) >> 14; // 0.9 and 1.0 in Q14
             /* 4.4.2, Equation 93 */
             ctx->gain_code  = (8028 * ctx->gain_code) >> 13; // 0.98 in Q13
 
@@ -1539,7 +1538,7 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
         else
         {
             // Decoding of the fixed codebook gain (4.1.5 and 3.9.1)
-            ctx->gain_pitch = gp = cb_GA[parm->ga_cb_index[i]][0] + cb_GB[parm->gb_cb_index[i]][0];
+            ctx->gain_pitch = cb_GA[parm->ga_cb_index[i]][0] + cb_GB[parm->gb_cb_index[i]][0];
 
             ctx->gain_code = g729_get_gain_code(parm->ga_cb_index[i],
                     parm->gb_cb_index[i],
@@ -1548,11 +1547,11 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
                     ctx->subframe_size);
 
             /* save pitch sharpening for next subframe */
-            ctx->pitch_sharp = FFMIN(FFMAX(gp, SHARP_MIN), SHARP_MAX);
             
         }
+        ctx->pitch_sharp = FFMIN(FFMAX(ctx->gain_pitch, SHARP_MIN), SHARP_MAX);
 
-        g729_mem_update(fc, gp, ctx->gain_code, ctx->exc + i*ctx->subframe_size, ctx->subframe_size);
+        g729_mem_update(fc, ctx->gain_pitch, ctx->gain_code, ctx->exc + i*ctx->subframe_size, ctx->subframe_size);
         if(g729_reconstruct_speech(ctx, lp+i*10, intT1,
                 ctx->exc  + i*ctx->subframe_size,
                 out_frame + i*ctx->subframe_size))
