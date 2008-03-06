@@ -179,7 +179,7 @@ typedef struct
 
 /* Gain pitch maximum and minimum (3.8) */
 #define SHARP_MIN  3277 //0.2 in Q14
-#define SHARP_MAX 13107 //0.8 in Q14
+#define SHARP_MAX 13017 //0.8 in Q14
 
 /* 4.2.2 */
 #define GAMMA_N 18022 //0.55 in Q15
