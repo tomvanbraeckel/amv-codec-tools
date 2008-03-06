@@ -1552,7 +1552,7 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
         ctx->pitch_sharp = FFMIN(FFMAX(ctx->gain_pitch, SHARP_MIN), SHARP_MAX);
 
         g729_mem_update(fc, ctx->gain_pitch, ctx->gain_code, ctx->exc + i*ctx->subframe_size, ctx->subframe_size);
-        if(g729_reconstruct_speech(ctx, lp+i*10, intT1,
+        if(g729_reconstruct_speech(ctx, lp+i*10, pitch_delay/3,
                 ctx->exc  + i*ctx->subframe_size,
                 out_frame + i*ctx->subframe_size))
         {
@@ -1560,7 +1560,7 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
             for(j=0; j<2*MAX_SUBFRAME_SIZE+PITCH_MAX+INTERPOL_LEN; j++)
                 ctx->exc_base[j] /= 2;
             //... and calling the same routine again
-            g729_reconstruct_speech(ctx, lp+i*10, intT1,
+            g729_reconstruct_speech(ctx, lp+i*10, pitch_delay/3,
                     ctx->exc  + i*ctx->subframe_size,
                     out_frame + i*ctx->subframe_size);
         }
