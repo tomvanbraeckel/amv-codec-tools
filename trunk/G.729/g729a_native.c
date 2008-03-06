@@ -152,8 +152,9 @@ typedef struct
     int16_t lsp_prev[10];       ///< (Q15) LSP coefficients from previous frame (3.2.5)
     int16_t lsf_prev[10];       ///< (Q13) LSF coefficients from previous frame
     int16_t pred_energ_q[4];    ///< (Q10) past quantized energies
-    int16_t gain_pitch;         ///< (Q14) Pitch gain of previous subframe (3.8) [GAIN_PITCH_MIN ... GAIN_PITCH_MAX]
+    int16_t gain_pitch;         ///< (Q14) Pitch gain of previous subframe (3.8) [SHARP_MIN ... SHARP_MAX]
     int16_t gain_code;          ///< (Q1) Gain code of previous subframe
+    int16_t pitch_sharp;        ///< pitch sharpening of the previous frame
     /// Residual signal buffer (used in long-term postfilter)
     float residual[MAX_SUBFRAME_SIZE+PITCH_MAX];
     float syn_filter_data[10];
@@ -177,8 +178,8 @@ typedef struct
 #define LSFQ_DIFF_MIN 321 //0.0391 in Q13
 
 /* Gain pitch maximum and minimum (3.8) */
-#define GAIN_PITCH_MIN  3277 //0.2 in Q14
-#define GAIN_PITCH_MAX 13107 //0.8 in Q14
+#define SHARP_MIN  3277 //0.2 in Q14
+#define SHARP_MAX 13107 //0.8 in Q14
 
 /* 4.2.2 */
 #define GAMMA_N 18022 //0.55 in Q15
@@ -1389,7 +1390,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
 
     (EE) This does not comply with specification, but reference
          and Intel decoder uses here minimum sharpen value instead of maximum. */
-    ctx->gain_pitch=GAIN_PITCH_MIN;
+    ctx->pitch_sharp=SHARP_MIN;
 
     /* gain coefficient */
     ctx->g=1.0;
@@ -1520,7 +1521,7 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
                 ctx->subframe_size))
             ctx->data_error = 1;
 
-        g729_fix_fc_vector(pitch_delay/3, ctx->gain_pitch, fc, ctx->subframe_size);
+        g729_fix_fc_vector(pitch_delay/3, ctx->pitch_sharp, fc, ctx->subframe_size);
         if(ctx->data_error)
         {
             /*
@@ -1538,7 +1539,7 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
         else
         {
             // Decoding of the fixed codebook gain (4.1.5 and 3.9.1)
-            gp = cb_GA[parm->ga_cb_index[i]][0] + cb_GB[parm->gb_cb_index[i]][0];
+            ctx->gain_pitch = gp = cb_GA[parm->ga_cb_index[i]][0] + cb_GB[parm->gb_cb_index[i]][0];
 
             ctx->gain_code = g729_get_gain_code(parm->ga_cb_index[i],
                     parm->gb_cb_index[i],
@@ -1546,8 +1547,9 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
                     ctx->pred_energ_q,
                     ctx->subframe_size);
 
-            /* save pitch gain value for next subframe */
-            ctx->gain_pitch=FFMIN(FFMAX(gp, GAIN_PITCH_MIN), GAIN_PITCH_MAX);
+            /* save pitch sharpening for next subframe */
+            ctx->pitch_sharp = FFMIN(FFMAX(gp, SHARP_MIN), SHARP_MAX);
+            
         }
 
         g729_mem_update(fc, gp, ctx->gain_code, ctx->exc + i*ctx->subframe_size, ctx->subframe_size);
