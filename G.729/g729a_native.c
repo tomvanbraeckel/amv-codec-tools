@@ -558,6 +558,19 @@ static const uint16_t tab_pow2[33] =
   31379, 32066, 32767
 };
 
+/**
+ * Table used to compute log2(x)
+ *
+ * tab_log2[i] = log2(1 + i/32), i=0..32
+ */
+static const uint16_t tab_log2[33] =
+{ /* Q15 */
+     0,  1455,  2866,  4236,  5568,  6863,  8124,  9352, 10549, 11716,
+ 12855, 13967, 15054, 16117, 17156, 18172, 19167, 20142, 21097, 22033,
+ 22951, 23852, 24735, 25603, 26455, 27291, 28113, 28922, 29716, 30497,
+ 31266, 32023, 32767
+};
+
 /*
 -------------------------------------------------------------------------------
           Internal routines
@@ -636,6 +649,47 @@ static int l_pow2(int power)
     return result;
 }
 
+/**
+ * \brief Calculates log2(x)
+ * \param value function argument (>0)
+ *
+ * \return (Q15) result of log2(value)
+ */
+static int l_log2(int value)
+{
+    int result;
+    int power_int;
+    uint16_t frac_x0;
+    uint16_t frac_dx;
+
+//    assert(value > 0);
+    if(value<=0)
+        return 0;
+    // Stripping zeros from beginning ( ?? -> Q31)
+    result=value;    
+    for(power_int=31; power_int>=0 && !(result & 0x80000000); power_int--)
+        result <<= 1;
+
+    /*
+      After normalization :
+      b31 - integer part (always nonzero)
+      b00-b30 - fractional part
+
+      When fractional part is treated as Q26,
+      bits 26-31 are integer part, 16-25 - fractional
+    */
+    frac_x0 = (result & 0x7c000000) >> 26; // b26-b31 and [32..63] -> [0..31]  then Q26 -> Q0
+    frac_dx = (result & 0x03ff0000) >> 11; // b16-b25 and Q26 -> Q15, [0..1) in Q15
+
+    result = tab_log2[frac_x0] << 15; // Q15 -> Q30
+    result += frac_dx * (tab_log2[frac_x0+1] - tab_log2[frac_x0]); // Q15*Q15;
+
+    result >>= 15; // Q30 -> Q15
+
+    result += (power_int-15) << 15; // Q0 -> Q15
+
+    return result;
+}
 /**
  * \brief Calculates sum of array elements multiplications
  * \param speech array with input data
@@ -829,16 +883,18 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
     int energ_int;
 
     /* 3.9.1, Equation 66 */
-    energy = sum_of_squares16(fc_v, subframe_size, 0) / (Q13_BASE * Q13_BASE);
+    energ_int = sum_of_squares16(fc_v, subframe_size, 0);
+    energ_int >>= 11; // Q25 -> Q15
 
     /*
       energy=mean_energy-E
       mean_energy=30dB
       E is calculated in 3.9.1 Equation 66
-    */
-    energy = 30 - 10.0 * log(energy / subframe_size) / M_LN10;
 
-    energ_int = energy * (1<<23); // -> Q23
+      energy = 30 - 10 * log10(energy / subframe_size) =;
+      =30 - 10*log2(energy/subframe_size)/log2(10)
+    */
+    energ_int = (30 << 23) - ((6165 * l_log2(energ_int/subframe_size)) >> 3);
 
     /* 3.9.1, Equation 69 */
     for(i=0; i<4; i++)
