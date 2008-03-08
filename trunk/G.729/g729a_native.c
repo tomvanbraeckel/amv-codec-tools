@@ -545,6 +545,18 @@ static const int16_t slope_cos[64] =
   -9261,  -8072,  -6863,  -5638,  -4399,  -3150,  -1893,   -632 
 };
 
+/**
+ * Table used to compute pow(2, x)
+ *
+ * tab_pow2[i] = pow(2, i/32) = 2^(i/32) i=0..32
+ */
+static const uint16_t tab_pow2[33] =
+{ /* Q14 */
+  16384, 16743, 17109, 17484, 17867, 18258, 18658, 19066, 19484, 19911,
+  20347, 20792, 21247, 21713, 22188, 22674, 23170, 23678, 24196, 24726,
+  25268, 25821, 26386, 26964, 27554, 28158, 28774, 29405, 30048, 30706,
+  31379, 32066, 32767
+};
 
 /*
 -------------------------------------------------------------------------------
@@ -577,6 +589,51 @@ static int l_shr_r(int var1, int16_t var2)
         return (var1 >> var2) + 1;
     else
         return (var1 >> var2);
+}
+
+/**
+ * \brief Calculates 2^x
+ * \param arg (Q15) power (>=0)
+ *
+ * \return (Q15) result of pow(2, power)
+ *
+ * \note If integer part of power is greater than 15, function
+ *       will return INT_MAX
+ */
+static int l_pow2(int power)
+{
+    uint16_t frac_x0;
+    uint16_t frac_dx;
+    uint16_t power_int = power >> 15;
+    int result;
+
+    assert(power>=0);
+
+    if(power_int > 15 )
+        return INT_MAX; // overflow
+
+    /*
+      power in Q15, thus
+      b31-b15 - integer part
+      b00-b14 - fractional part      
+
+      When fractional part is treated as Q10,
+      bits 10-14 are integer part, 00-09 - fractional
+      
+    */
+    frac_x0 = (power & 0x7c00) >> 10; // b10-b14 and Q10 -> Q0
+    frac_dx = (power & 0x03ff) << 5;  // b00-b09 and Q10 -> Q15 
+
+    result = tab_pow2[frac_x0] << 15; // Q14 -> Q29;
+    result += frac_dx * (tab_pow2[frac_x0+1] - tab_pow2[frac_x0]); // Q15*Q14;
+
+    // multiply by 2^power_int and Q29 -> Q15
+    if(power_int >= 14) 
+        result <<= power_int - 14;
+    else
+        result >>= 14 - power_int;
+
+    return result;
 }
 
 /**
@@ -769,6 +826,7 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
     float energy;
     int i;
     float cb1_sum;
+    int energ_int;
 
     /* 3.9.1, Equation 66 */
     energy = sum_of_squares16(fc_v, subframe_size, 0) / (Q13_BASE * Q13_BASE);
@@ -780,12 +838,19 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
     */
     energy = 30 - 10.0 * log(energy / subframe_size) / M_LN10;
 
+    energ_int = energy * (1<<23); // -> Q23
+
     /* 3.9.1, Equation 69 */
     for(i=0; i<4; i++)
-        energy+= 1.0 * pred_energ_q[i] * ma_prediction_coeff[i] / (1 << 23);
+        energ_int += pred_energ_q[i] * ma_prediction_coeff[i];
 
     /* 3.9.1, Equation 71 */
-    energy = exp(M_LN10 * energy / 20); //FIXME: should there be subframe_size/2 ?
+    /*
+      energy = 10^(energy / 20) = 2^(3.3219 * energy / 20) = 2^ (0.166 * energy)
+      5439 = 0.166 in Q15
+    */
+    energ_int = (5439 * (energ_int >> 15)) >> 8; // Q23->Q8, Q23 -> Q15
+    energ_int = l_pow2 (energ_int); // Q15
 
     // shift prediction error vector
     for(i=3; i>0; i--)
@@ -797,7 +862,7 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
     pred_energ_q[0] = 20 * 1024 * log(cb1_sum) / M_LN10; //FIXME: should there be subframe_size/2 ?
 
     /* 3.9.1, Equation 74 */
-    return 2 * energy * cb1_sum;  // Q0 -> Q1
+    return 2 * energ_int * cb1_sum / Q15_BASE;  // Q0 -> Q1
 }
 
 /**
