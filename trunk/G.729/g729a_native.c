@@ -714,7 +714,7 @@ static float sum_of_squares(const float* speech, int cycles, int offset)
     return sum;
 }
 
-static float sum_of_squares16(const int16_t* speech, int cycles, int offset)
+static int sum_of_squares16(const int16_t* speech, int cycles, int offset)
 {
     int n;
     int sum=0;
@@ -883,8 +883,7 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
     int energ_int;
 
     /* 3.9.1, Equation 66 */
-    energ_int = sum_of_squares16(fc_v, subframe_size, 0);
-    energ_int >>= 11; // Q25 -> Q15
+    energ_int = sum_of_squares16(fc_v, subframe_size, 0) >> 11; // Q25 -> Q15
 
     /*
       energy=mean_energy-E
