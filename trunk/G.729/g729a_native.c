@@ -877,9 +877,8 @@ static void g729_update_gain_erasure(int16_t *pred_energ_q)
  */
 static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_t* fc_v, int16_t* pred_energ_q, int subframe_size)
 {
-    float energy;
     int i;
-    float cb1_sum;
+    int cb1_sum; // Q12
     int energ_int;
 
     /* 3.9.1, Equation 66 */
@@ -911,13 +910,13 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
     for(i=3; i>0; i--)
         pred_energ_q[i]=pred_energ_q[i-1];
 
-    cb1_sum = cb_GA[ga_cb_index][1] + cb_GB[gb_cb_index][1];
-    cb1_sum /= 1 << 13;
+    cb1_sum = (cb_GA[ga_cb_index][1] + cb_GB[gb_cb_index][1]) >> 1; // Q12
+
     /* 3.9.1, Equation 72 */
-    pred_energ_q[0] = 20 * 1024 * log(cb1_sum) / M_LN10; //FIXME: should there be subframe_size/2 ?
+    pred_energ_q[0] = (6165 * l_log2(cb1_sum<<3)) >> 15; //FIXME: should there be subframe_size/2 ?
 
     /* 3.9.1, Equation 74 */
-    return 2 * energ_int * cb1_sum / Q15_BASE;  // Q0 -> Q1
+    return ((energ_int>>10) * (cb1_sum)) >> 16; //Q1
 }
 
 /**
