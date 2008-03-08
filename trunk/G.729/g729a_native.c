@@ -164,10 +164,10 @@ typedef struct
     uint16_t rand_value;        ///< random number generator value (4.4.4)
     int prev_mode;              ///< L0 from previous frame
     //High-pass filter data
-    float hpf_f1;
-    float hpf_f2;
-    float hpf_z0;
-    float hpf_z1;
+    int hpf_f1;
+    int hpf_f2;
+    int16_t hpf_z0;
+    int16_t hpf_z1;
     int subframe_idx;           ///< subframe index (for debugging)
 }  G729A_Context;
 
@@ -1203,10 +1203,10 @@ static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_de
  *
  * Filter has cut-off frequency 100Hz
  */
-static void g729_high_pass_filter(G729A_Context* ctx, float* speech)
+static void g729_high_pass_filter(G729A_Context* ctx, int16_t* speech)
 {
-    float z_2=0;
-    float f_0=0;
+    int16_t z_2=0;
+    int f_0=0;
     int i;
 
     for(i=0; i<ctx->subframe_size; i++)
@@ -1215,13 +1215,15 @@ static void g729_high_pass_filter(G729A_Context* ctx, float* speech)
         ctx->hpf_z1=ctx->hpf_z0;
         ctx->hpf_z0=speech[i];
 
-        f_0 = 1.9330735  * ctx->hpf_f1
-            - 0.93589199 * ctx->hpf_f2
-            - 1.8795834  * ctx->hpf_z1
-            + 0.93980581 * (ctx->hpf_z0 + z_2);
+        f_0 = mul_24_15(ctx->hpf_f1, 15836)
+            + mul_24_15(ctx->hpf_f2, -7667)
+            +  7699 * ctx->hpf_z0
+            - 15398 * ctx->hpf_z1
+            +  7699 * z_2;
+	f_0 <<= 2; // Q13 -> Q15
 
-        speech[i] = f_0*2.0;
-
+        speech[i] = FFMAX(FFMIN(f_0 >> 14, 32768), -32767); // 2*f_0 in 15
+	
         ctx->hpf_f2=ctx->hpf_f1;
         ctx->hpf_f1=f_0;
     }
@@ -1254,11 +1256,12 @@ static int g729_reconstruct_speech(G729A_Context *ctx, const int16_t *lp, int in
     /* 4.2 */
     g729a_postfilter(ctx, lp, intT1, tmp_speech_buf);
 
-    //Postprocessing
-    g729_high_pass_filter(ctx,tmp_speech);
 
     for(i=0; i<ctx->subframe_size; i++)
         speech[i]=FFMAX(FFMIN(lrintf(tmp_speech[i]), 32767), -32768);
+
+    //Postprocessing
+    g729_high_pass_filter(ctx, speech);
 
     return 0;
 }
