@@ -850,7 +850,7 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
       5439 = 0.166 in Q15
     */
     energ_int = (5439 * (energ_int >> 15)) >> 8; // Q23->Q8, Q23 -> Q15
-    energ_int = l_pow2 (energ_int); // Q15
+    energ_int = l_pow2(energ_int); // Q15
 
     // shift prediction error vector
     for(i=3; i>0; i--)
@@ -1617,10 +1617,9 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
                     fc,
                     ctx->pred_energ_q,
                     ctx->subframe_size);
-
-            /* save pitch sharpening for next subframe */
-            
         }
+
+        /* save pitch sharpening for next subframe */
         ctx->pitch_sharp = FFMIN(FFMAX(ctx->gain_pitch, SHARP_MIN), SHARP_MAX);
 
         g729_mem_update(fc, ctx->gain_pitch, ctx->gain_code, ctx->exc + i*ctx->subframe_size, ctx->subframe_size);
