@@ -662,9 +662,8 @@ static int l_log2(int value)
     uint16_t frac_x0;
     uint16_t frac_dx;
 
-//    assert(value > 0);
-    if(value<=0)
-        return 0;
+    assert(value > 0);
+
     // Stripping zeros from beginning ( ?? -> Q31)
     result=value;    
     for(power_int=31; power_int>=0 && !(result & 0x80000000); power_int--)
@@ -913,7 +912,7 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
     cb1_sum = (cb_GA[ga_cb_index][1] + cb_GB[gb_cb_index][1]) >> 1; // Q12
 
     /* 3.9.1, Equation 72 */
-    pred_energ_q[0] = (6165 * l_log2(cb1_sum<<3)) >> 15; //FIXME: should there be subframe_size/2 ?
+    pred_energ_q[0] = (6165 * l_log2(cb1_sum<<3)) >> 15;
 
     /* 3.9.1, Equation 74 */
     return ((energ_int>>10) * (cb1_sum)) >> 16; //Q1
