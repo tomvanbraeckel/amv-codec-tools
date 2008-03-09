@@ -1250,27 +1250,6 @@ static void g729_high_pass_filter(G729A_Context* ctx, int16_t* speech, int lengt
 }
 
 /**
- * \brief Computing the reconstructed speech (4.1.6)
- * \param ctx private data structure
- * \param lp (Q12) LP filter coefficients
- * \param intT1 integer part of the pitch delay T1 of the first subframe
- * \param exc excitation
- * \param speech [out] reconstructed speech buffer (ctx->subframe_size items)
- *
- * \return 1 if overflow occured, 0 - otherwise
- *
- * \note If overflow occured routine neither updates output buffer nor makes postfiltering
- */
-static int g729_reconstruct_speech(G729A_Context *ctx, const int16_t *lp, int intT1, const float* exc, int16_t* speech, int exit_on_overflow)
-{
-    /* 4.1.6, Equation 77  */
-    if(g729_lp_synthesis_filter(lp, exc, speech, ctx->syn_filter_data, ctx->subframe_size, exit_on_overflow))
-        return 1;
-
-    return 0;
-}
-
-/**
  * \brief Convert LSF to LSP
  * \param lsf (Q13) LSF coefficients (0 <= lsf < PI)
  * \param lsp [out] (Q15) LSP coefficients (-1 <= lsp < 1)
@@ -1683,17 +1662,26 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
         ctx->pitch_sharp = FFMIN(FFMAX(ctx->gain_pitch, SHARP_MIN), SHARP_MAX);
 
         g729_mem_update(fc, ctx->gain_pitch, ctx->gain_code, ctx->exc + i*ctx->subframe_size, ctx->subframe_size);
-        if(g729_reconstruct_speech(ctx, lp+i*10, pitch_delay/3,
+
+        /* 4.1.6, Equation 77  */
+        if(g729_lp_synthesis_filter(lp+i*10, 
                 ctx->exc  + i*ctx->subframe_size,
-                out_frame + i*ctx->subframe_size, 1))
+                out_frame + i*ctx->subframe_size,
+                ctx->syn_filter_data,
+                ctx->subframe_size,
+                1))
         {
             //Overflow occured, downscaling excitation signal...
             for(j=0; j<2*MAX_SUBFRAME_SIZE+PITCH_MAX+INTERPOL_LEN; j++)
                 ctx->exc_base[j] /= 4;
+
             //... and calling the same routine again
-            g729_reconstruct_speech(ctx, lp+i*10, pitch_delay/3,
+            g729_lp_synthesis_filter(lp+i*10, 
                     ctx->exc  + i*ctx->subframe_size,
-                    out_frame + i*ctx->subframe_size, 0);
+                    out_frame + i*ctx->subframe_size,
+                    ctx->syn_filter_data,
+                    ctx->subframe_size,
+                    0);
         }
 
         /* 4.2 */
