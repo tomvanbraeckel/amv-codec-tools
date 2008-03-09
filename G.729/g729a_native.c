@@ -714,7 +714,7 @@ static float sum_of_squares(const float* speech, int cycles, int offset)
     return sum;
 }
 
-static int sum_of_squares16(const int16_t* speech, int cycles, int offset)
+static int sum_of_squares16(const int16_t* speech, int cycles, int offset, int shift)
 {
     int n;
     int sum=0;
@@ -723,7 +723,7 @@ static int sum_of_squares16(const int16_t* speech, int cycles, int offset)
         return 0;
 
     for(n=0; n<cycles; n++)
-       sum += speech[n] * speech[n + offset];
+       sum += (speech[n] >> shift) * (speech[n + offset] >> shift);
 
     return sum;
 }
@@ -882,7 +882,7 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
     int energ_int;
 
     /* 3.9.1, Equation 66 */
-    energ_int = sum_of_squares16(fc_v, subframe_size, 0) >> 11; // Q25 -> Q15
+    energ_int = sum_of_squares16(fc_v, subframe_size, 0, 0) >> 11; // Q25 -> Q15
 
     /*
       energy=mean_energy-E
@@ -1117,10 +1117,10 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn, co
     /* Now hf_buf (starting with 10) contains impulse response of A(z/GAMMA_N)/A(z/GAMMA_D) filter */
 
     /* A.4.2.3, Equation A.14, calcuating rh(0)  */
-    rh0 = sum_of_squares16(hf_buf+10, 22, 0);
+    rh0 = sum_of_squares16(hf_buf+10, 22, 0, 0);
 
     /* A.4.2.3, Equation A.14, calcuating rh(1)  */
-    rh1 = sum_of_squares16(hf_buf+10, 22-1, 1);
+    rh1 = sum_of_squares16(hf_buf+10, 22-1, 1, 0);
     rh1 >>= 12; // Q24 -> Q12
     rh1 = rh1 * GAMMA_T >> 3; // Q12 * Q15 = Q27 -> Q24
 
@@ -1192,7 +1192,7 @@ static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_de
     }
 
     /* Calculating gain of unfiltered signal for using in AGC */
-    gain_before=sum_of_squares(tmp_speech, ctx->subframe_size, 0);
+    gain_before=sum_of_squares16(speech, ctx->subframe_size, 0, 4);
 
     /* long-term filter (A.4.2.1) */
     g729a_long_term_filter(ctx, pitch_delay_int, residual_filt);
@@ -1203,11 +1203,11 @@ static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_de
     /* Applying second half of short-term postfilter: 1/A(z/GAMMA_D)*/
     g729_lp_synthesis_filter(lp_gd, residual_filt, tmp_speech, ctx->res_filter_data, ctx->subframe_size, 0);
 
-    /* Calculating gain of filtered signal for using in AGC */
-    gain_after=sum_of_squares(tmp_speech, ctx->subframe_size, 0);
-
     for(i=0; i<ctx->subframe_size; i++)
         speech[i] = tmp_speech[i];
+
+    /* Calculating gain of filtered signal for using in AGC */
+    gain_after=sum_of_squares16(speech, ctx->subframe_size, 0, 4);
 
     /* adaptive gain control (A.4.2.4) */
     g729a_adaptive_gain_control(ctx, gain_before, gain_after, speech);
