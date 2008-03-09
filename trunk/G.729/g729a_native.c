@@ -1526,9 +1526,6 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
     for(i=0; i<4; i++)
         ctx->pred_energ_q[i] = -14336; // -14 in Q10
 
-    memset(ctx->syn_filter_data, 0, 10*sizeof(float));
-    memset(ctx->res_filter_data, 0, 10*sizeof(float));
-
     //High-pass filter data
     ctx->hpf_f1=0.0;
     ctx->hpf_f2=0.0;
