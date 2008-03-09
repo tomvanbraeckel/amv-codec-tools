@@ -942,7 +942,7 @@ static void g729_mem_update(const int16_t *fc_v, int16_t gp, int16_t gc, float* 
  * \brief LP synthesis filter
  * \param lp (Q12) filter coefficients
  * \param in input signal
- * \param out [out] output (filtered) signal
+ * \param out [out] (Q0) output (filtered) signal
  * \param filter_data [in/out] filter data array (previous synthesis data)
  * \param subframe_size length of subframe
  * \param exit_on_overflow 1 - If overflow occured routine updates neither out nor
@@ -952,7 +952,7 @@ static void g729_mem_update(const int16_t *fc_v, int16_t gp, int16_t gc, float* 
  *
  * Routine applies 1/A(z) filter to given speech data
  */
-static int g729_lp_synthesis_filter(const int16_t* lp, const float *in, float *out, float *filter_data, int subframe_size, int exit_on_overflow)
+static int g729_lp_synthesis_filter(const int16_t* lp, const float *in, int16_t *out, float *filter_data, int subframe_size, int exit_on_overflow)
 {
     float tmp_buf[MAX_SUBFRAME_SIZE+10];
     float* tmp=tmp_buf+10;
@@ -970,10 +970,14 @@ static int g729_lp_synthesis_filter(const int16_t* lp, const float *in, float *o
             if(exit_on_overflow)
                 return 1;
 	}
-        tmp[n]=FFMAX(FFMIN(lrintf(tmp[n]), 32767), -32768);
+        tmp[n] = FFMAX(FFMIN(lrintf(tmp[n]), 32767), -32768);
     }
+
     memcpy(filter_data, tmp + subframe_size - 10, 10*sizeof(float));
-    memcpy(out, tmp, subframe_size*sizeof(float));
+
+    for(i=0;i<subframe_size; i++)
+        out[i]=tmp[i];
+
     return 0;
 }
 
@@ -1201,10 +1205,7 @@ static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_de
     g729a_tilt_compensation(ctx, lp_gn, lp_gd, residual_filt);
 
     /* Applying second half of short-term postfilter: 1/A(z/GAMMA_D)*/
-    g729_lp_synthesis_filter(lp_gd, residual_filt, tmp_speech, ctx->res_filter_data, ctx->subframe_size, 0);
-
-    for(i=0; i<ctx->subframe_size; i++)
-        speech[i] = tmp_speech[i];
+    g729_lp_synthesis_filter(lp_gd, residual_filt, speech, ctx->res_filter_data, ctx->subframe_size, 0);
 
     /* Calculating gain of filtered signal for using in AGC */
     gain_after=sum_of_squares16(speech, ctx->subframe_size, 0, 4);
@@ -1262,15 +1263,9 @@ static void g729_high_pass_filter(G729A_Context* ctx, int16_t* speech, int lengt
  */
 static int g729_reconstruct_speech(G729A_Context *ctx, const int16_t *lp, int intT1, const float* exc, int16_t* speech, int exit_on_overflow)
 {
-    float tmp_speech[MAX_SUBFRAME_SIZE];
-    int i;
-
     /* 4.1.6, Equation 77  */
-    if(g729_lp_synthesis_filter(lp, exc, tmp_speech, ctx->syn_filter_data, ctx->subframe_size, exit_on_overflow))
+    if(g729_lp_synthesis_filter(lp, exc, speech, ctx->syn_filter_data, ctx->subframe_size, exit_on_overflow))
         return 1;
-
-    for(i=0; i<ctx->subframe_size; i++)
-        speech[i]=FFMAX(FFMIN(lrintf(tmp_speech[i]), 32767), -32768);
 
     return 0;
 }
