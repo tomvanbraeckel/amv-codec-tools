@@ -1200,16 +1200,17 @@ static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_de
  * \brief high-pass filtering and upscaling (4.2.5)
  * \param ctx private data structure
  * \param speech [in/out] reconstructed speech signal for applying filter to
+ * \param length size of input data
  *
  * Filter has cut-off frequency 100Hz
  */
-static void g729_high_pass_filter(G729A_Context* ctx, int16_t* speech)
+static void g729_high_pass_filter(G729A_Context* ctx, int16_t* speech, int length)
 {
     int16_t z_2=0;
     int f_0=0;
     int i;
 
-    for(i=0; i<ctx->subframe_size; i++)
+    for(i=0; i<length; i++)
     {
         z_2=ctx->hpf_z1;
         ctx->hpf_z1=ctx->hpf_z0;
@@ -1261,7 +1262,7 @@ static int g729_reconstruct_speech(G729A_Context *ctx, const int16_t *lp, int in
         speech[i]=FFMAX(FFMIN(lrintf(tmp_speech[i]), 32767), -32768);
 
     //Postprocessing
-    g729_high_pass_filter(ctx, speech);
+    g729_high_pass_filter(ctx, speech, ctx->subframe_size);
 
     return 0;
 }
