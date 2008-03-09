@@ -982,9 +982,9 @@ static int g729_lp_synthesis_filter(const int16_t* lp, const float *in, float *o
  * \param ctx private data structure
  * \param gain_before gain of speech before applying postfilters
  * \param gain_after  gain of speech after applying postfilters
- * \param speech [in/out] signal buffer
+ * \param speech [in/out] (Q0) signal buffer
  */
-static void g729a_adaptive_gain_control(G729A_Context *ctx, float gain_before, float gain_after, float *speech)
+static void g729a_adaptive_gain_control(G729A_Context *ctx, float gain_before, float gain_after, int16_t *speech)
 {
     float gain;
     int n;
@@ -1206,11 +1206,12 @@ static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_de
     /* Calculating gain of filtered signal for using in AGC */
     gain_after=sum_of_squares(tmp_speech, ctx->subframe_size, 0);
 
-    /* adaptive gain control (A.4.2.4) */
-    g729a_adaptive_gain_control(ctx, gain_before, gain_after, tmp_speech);
-
     for(i=0; i<ctx->subframe_size; i++)
         speech[i] = tmp_speech[i];
+
+    /* adaptive gain control (A.4.2.4) */
+    g729a_adaptive_gain_control(ctx, gain_before, gain_after, speech);
+
 }
 
 /**
