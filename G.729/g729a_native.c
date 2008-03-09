@@ -1261,9 +1261,6 @@ static int g729_reconstruct_speech(G729A_Context *ctx, const int16_t *lp, int in
     for(i=0; i<ctx->subframe_size; i++)
         speech[i]=FFMAX(FFMIN(lrintf(tmp_speech[i]), 32767), -32768);
 
-    //Postprocessing
-    g729_high_pass_filter(ctx, speech, ctx->subframe_size);
-
     return 0;
 }
 
@@ -1697,6 +1694,9 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
 
     //Save signal for using in next frame
     memmove(ctx->exc_base, ctx->exc_base+2*ctx->subframe_size, (PITCH_MAX+INTERPOL_LEN)*sizeof(float));
+
+    //Postprocessing
+    g729_high_pass_filter(ctx, out_frame, 2 * ctx->subframe_size);
 
     return 2 * sizeof(int16_t) * ctx->subframe_size; // output size in bytes
 }
