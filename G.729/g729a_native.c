@@ -159,6 +159,7 @@ typedef struct
     float residual[MAX_SUBFRAME_SIZE+PITCH_MAX];
     float syn_filter_data[10];
     float res_filter_data[10];
+    int16_t pos_filter_data[10];///< previous speech data for postfilter
     float ht_prev_data;         ///< previous data for 4.2.3, equation 86
     float g;                    ///< gain coefficient (4.2.4)
     uint16_t rand_value;        ///< random number generator value (4.4.4)
@@ -1141,7 +1142,7 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn, co
  * \param ctx private data structure
  * \param lp (Q12) LP filter coefficients
  * \param pitch_delay_int integer part of the pitch delay T1 of the first subframe
- * \param speech_buf [in/out] signal buffer, containing at the top 10 samples from previous subframe
+ * \param speech [in/out] (Q0) signal buffer
  *
  * Filtering has following  stages:
  *   Long-term postfilter (4.2.1)
@@ -1151,15 +1152,28 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn, co
  *
  * \note This routine is G.729 Annex A specific.
  */
-static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_delay_int, float *speech_buf)
+static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_delay_int, int16_t *speech)
 {
     int i, n;
-    float *speech=speech_buf+10;
+    float tmp_speech_buf[MAX_SUBFRAME_SIZE+10];
+    float *tmp_speech=tmp_speech_buf+10;
     float residual_filt_buf[MAX_SUBFRAME_SIZE+10];
     float* residual_filt=residual_filt_buf+10;
     int16_t lp_gn[10]; // Q12
     int16_t lp_gd[10]; // Q12
     float gain_before, gain_after;
+
+    // Copying data from previous frame
+    for(i=0; i<10; i++)
+    {
+        tmp_speech[-10+i] = ctx->pos_filter_data[i];
+        // Save data for using in next subframe
+        ctx->pos_filter_data[i] = speech[ctx->subframe_size-10+i];
+    }
+
+    // Copying the rest of speech data
+    for(i=0; i<ctx->subframe_size; i++)
+        tmp_speech[i] = speech[i];
 
     /* Calculating coefficients of A(z/GAMMA_N) filter */
     g729a_weighted_filter(lp, GAMMA_N, lp_gn);
@@ -1172,13 +1186,13 @@ static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_de
     */
     for(n=0; n<ctx->subframe_size; n++)
     {
-        ctx->residual[n+PITCH_MAX] = speech[n];
+        ctx->residual[n+PITCH_MAX] = tmp_speech[n];
         for(i=0; i<10; i++)
-            ctx->residual[n+PITCH_MAX] += lp_gn[i] * speech[n-i-1] / Q12_BASE;
+            ctx->residual[n+PITCH_MAX] += lp_gn[i] * tmp_speech[n-i-1] / Q12_BASE;
     }
 
     /* Calculating gain of unfiltered signal for using in AGC */
-    gain_before=sum_of_squares(speech, ctx->subframe_size, 0);
+    gain_before=sum_of_squares(tmp_speech, ctx->subframe_size, 0);
 
     /* long-term filter (A.4.2.1) */
     g729a_long_term_filter(ctx, pitch_delay_int, residual_filt);
@@ -1187,13 +1201,16 @@ static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_de
     g729a_tilt_compensation(ctx, lp_gn, lp_gd, residual_filt);
 
     /* Applying second half of short-term postfilter: 1/A(z/GAMMA_D)*/
-    g729_lp_synthesis_filter(lp_gd, residual_filt, speech, ctx->res_filter_data, ctx->subframe_size, 0);
+    g729_lp_synthesis_filter(lp_gd, residual_filt, tmp_speech, ctx->res_filter_data, ctx->subframe_size, 0);
 
     /* Calculating gain of filtered signal for using in AGC */
-    gain_after=sum_of_squares(speech, ctx->subframe_size, 0);
+    gain_after=sum_of_squares(tmp_speech, ctx->subframe_size, 0);
 
     /* adaptive gain control (A.4.2.4) */
-    g729a_adaptive_gain_control(ctx, gain_before, gain_after, speech);
+    g729a_adaptive_gain_control(ctx, gain_before, gain_after, tmp_speech);
+
+    for(i=0; i<ctx->subframe_size; i++)
+        speech[i] = tmp_speech[i];
 }
 
 /**
@@ -1244,19 +1261,12 @@ static void g729_high_pass_filter(G729A_Context* ctx, int16_t* speech, int lengt
  */
 static int g729_reconstruct_speech(G729A_Context *ctx, const int16_t *lp, int intT1, const float* exc, int16_t* speech, int exit_on_overflow)
 {
-    float tmp_speech_buf[MAX_SUBFRAME_SIZE+10];
-    float* tmp_speech=tmp_speech_buf+10;
+    float tmp_speech[MAX_SUBFRAME_SIZE];
     int i;
-
-    memcpy(tmp_speech_buf, ctx->syn_filter_data, 10 * sizeof(float));
 
     /* 4.1.6, Equation 77  */
     if(g729_lp_synthesis_filter(lp, exc, tmp_speech, ctx->syn_filter_data, ctx->subframe_size, exit_on_overflow))
         return 1;
-
-    /* 4.2 */
-    g729a_postfilter(ctx, lp, intT1, tmp_speech_buf);
-
 
     for(i=0; i<ctx->subframe_size; i++)
         speech[i]=FFMAX(FFMIN(lrintf(tmp_speech[i]), 32767), -32768);
@@ -1689,6 +1699,10 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
                     ctx->exc  + i*ctx->subframe_size,
                     out_frame + i*ctx->subframe_size, 0);
         }
+
+        /* 4.2 */
+        g729a_postfilter(ctx, lp+i*10, pitch_delay/3, out_frame + i*ctx->subframe_size);
+
         ctx->subframe_idx++;
     }
 
