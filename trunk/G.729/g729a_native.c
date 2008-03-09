@@ -969,8 +969,8 @@ static int g729_lp_synthesis_filter(const int16_t* lp, const float *in, float *o
 	{
             if(exit_on_overflow)
                 return 1;
-            tmp[n]=FFMAX(FFMIN(tmp[n], 32767.0), -32768.0);
 	}
+        tmp[n]=FFMAX(FFMIN(lrintf(tmp[n]), 32767), -32768);
     }
     memcpy(filter_data, tmp + subframe_size - 10, 10*sizeof(float));
     memcpy(out, tmp, subframe_size*sizeof(float));
