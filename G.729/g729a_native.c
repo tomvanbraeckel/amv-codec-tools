@@ -157,8 +157,8 @@ typedef struct
     int16_t pitch_sharp;        ///< pitch sharpening of the previous frame
     /// Residual signal buffer (used in long-term postfilter)
     float residual[MAX_SUBFRAME_SIZE+PITCH_MAX];
-    float syn_filter_data[10];
-    float res_filter_data[10];
+    int16_t syn_filter_data[10];
+    int16_t res_filter_data[10];
     int16_t pos_filter_data[10];///< previous speech data for postfilter
     float ht_prev_data;         ///< previous data for 4.2.3, equation 86
     float g;                    ///< gain coefficient (4.2.4)
@@ -943,7 +943,7 @@ static void g729_mem_update(const int16_t *fc_v, int16_t gp, int16_t gc, float* 
  * \param lp (Q12) filter coefficients
  * \param in input signal
  * \param out [out] (Q0) output (filtered) signal
- * \param filter_data [in/out] filter data array (previous synthesis data)
+ * \param filter_data [in/out] (Q0) filter data array (previous synthesis data)
  * \param subframe_size length of subframe
  * \param exit_on_overflow 1 - If overflow occured routine updates neither out nor
  *                         filter data arrays, 0 - always update
@@ -952,31 +952,32 @@ static void g729_mem_update(const int16_t *fc_v, int16_t gp, int16_t gc, float* 
  *
  * Routine applies 1/A(z) filter to given speech data
  */
-static int g729_lp_synthesis_filter(const int16_t* lp, const float *in, int16_t *out, float *filter_data, int subframe_size, int exit_on_overflow)
+static int g729_lp_synthesis_filter(const int16_t* lp, const float *in, int16_t *out, int16_t *filter_data, int subframe_size, int exit_on_overflow)
 {
-    float tmp_buf[MAX_SUBFRAME_SIZE+10];
-    float* tmp=tmp_buf+10;
+    int16_t tmp_buf[MAX_SUBFRAME_SIZE+10];
+    int16_t* tmp=tmp_buf+10;
     int i,n;
+    int sum;
 
-    memcpy(tmp_buf, filter_data, 10*sizeof(float));
+    memcpy(tmp_buf, filter_data, 10*sizeof(int16_t));
 
     for(n=0; n<subframe_size; n++)
     {
-        tmp[n]=in[n];
+        sum=in[n] * Q12_BASE;
         for(i=0; i<10; i++)
-            tmp[n] -= (lp[i] * tmp[n-i-1]) / Q12_BASE;
-	if(tmp[n] > 32767.0 || tmp[n] < -32768.0)
+            sum -= (lp[i] * tmp[n-i-1]);
+	sum >>= 12;
+	if(sum > 32767 || sum < -32768)
 	{
             if(exit_on_overflow)
                 return 1;
+            sum = FFMAX(FFMIN(sum, 32767), -32768);
 	}
-        tmp[n] = FFMAX(FFMIN(lrintf(tmp[n]), 32767), -32768);
+        tmp[n] = sum;
     }
 
-    memcpy(filter_data, tmp + subframe_size - 10, 10*sizeof(float));
-
-    for(i=0;i<subframe_size; i++)
-        out[i]=tmp[i];
+    memcpy(filter_data, tmp + subframe_size - 10, 10*sizeof(int16_t));
+    memcpy(out, tmp, subframe_size*sizeof(int16_t));
 
     return 0;
 }
