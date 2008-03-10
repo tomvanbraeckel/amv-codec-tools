@@ -145,8 +145,8 @@ typedef struct
     int data_error;             ///< data error detected during decoding
     int bad_pitch;              ///< parity check failed
     /// past excitation signal buffer
-    float exc_base[2*MAX_SUBFRAME_SIZE+PITCH_MAX+INTERPOL_LEN];
-    float* exc;                 ///< start of past excitation data in buffer
+    int16_t exc_base[2*MAX_SUBFRAME_SIZE+PITCH_MAX+INTERPOL_LEN];
+    int16_t* exc;               ///< start of past excitation data in buffer
     int intT2_prev;             ///< int(T2) value of previous frame (4.1.3)
     int16_t lq_prev[MA_NP][10]; ///< (Q13) LSP quantizer output (3.2.4)
     int16_t lsp_prev[10];       ///< (Q15) LSP coefficients from previous frame (3.2.5)
@@ -763,10 +763,10 @@ int g729_parity_check(uint8_t P1, int P0)
  * \brief Decoding of the adaptive-codebook vector (4.1.3)
  * \param pitch_delay_int pitch delay, integer part
  * \param pitch_delay_frac pitch delay, fraction part [-1, 0, 1]
- * \param ac_v [out] buffer to store decoded vector into
+ * \param ac_v [out] (Q0) buffer to store decoded vector into
  * \param subframe_size length of subframe
  */
-static void g729_decode_ac_vector(int pitch_delay_int, int pitch_delay_frac, float* ac_v, int subframe_size)
+static void g729_decode_ac_vector(int pitch_delay_int, int pitch_delay_frac, int16_t* ac_v, int subframe_size)
 {
     int n, i;
     int v;
@@ -934,10 +934,10 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
  * \param fc_v (Q13) fixed-codebook vector
  * \param gp (Q14) quantized fixed-codebook gain (gain pitch)
  * \param gc (Q1) quantized adaptive-codebook gain (gain code)
- * \param exc [in/out] last excitation signal buffer for current subframe
+ * \param exc [in/out] (Q0) last excitation signal buffer for current subframe
  * \param subframe_size length of subframe
  */
-static void g729_mem_update(const int16_t *fc_v, int16_t gp, int16_t gc, float* exc, int subframe_size)
+static void g729_mem_update(const int16_t *fc_v, int16_t gp, int16_t gc, int16_t* exc, int subframe_size)
 {
     int i, sum;
 
@@ -952,7 +952,7 @@ static void g729_mem_update(const int16_t *fc_v, int16_t gp, int16_t gc, float* 
 /**
  * \brief LP synthesis filter
  * \param lp (Q12) filter coefficients
- * \param in input signal
+ * \param in (Q0) input signal
  * \param out [out] (Q0) output (filtered) signal
  * \param filter_data [in/out] (Q0) filter data array (previous synthesis data)
  * \param subframe_size length of subframe
@@ -963,7 +963,7 @@ static void g729_mem_update(const int16_t *fc_v, int16_t gp, int16_t gc, float* 
  *
  * Routine applies 1/A(z) filter to given speech data
  */
-static int g729_lp_synthesis_filter(const int16_t* lp, const float *in, int16_t *out, int16_t *filter_data, int subframe_size, int exit_on_overflow)
+static int g729_lp_synthesis_filter(const int16_t* lp, const int16_t *in, int16_t *out, int16_t *filter_data, int subframe_size, int exit_on_overflow)
 {
     int16_t tmp_buf[MAX_SUBFRAME_SIZE+10];
     int16_t* tmp=tmp_buf+10;
@@ -1171,8 +1171,8 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn, co
 static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_delay_int, int16_t *speech)
 {
     int i, n;
-    float tmp_speech_buf[MAX_SUBFRAME_SIZE+10];
-    float *tmp_speech=tmp_speech_buf+10;
+    int16_t tmp_speech_buf[MAX_SUBFRAME_SIZE+10];
+    int16_t *tmp_speech=tmp_speech_buf+10;
     float residual_filt_buf[MAX_SUBFRAME_SIZE+10];
     float* residual_filt=residual_filt_buf+10;
     int16_t lp_gn[10]; // Q12
@@ -1217,7 +1217,9 @@ static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_de
     g729a_tilt_compensation(ctx, lp_gn, lp_gd, residual_filt);
 
     /* Applying second half of short-term postfilter: 1/A(z/GAMMA_D)*/
-    g729_lp_synthesis_filter(lp_gd, residual_filt, speech, ctx->res_filter_data, ctx->subframe_size, 0);
+    for(i=0; i<ctx->subframe_size; i++)
+        tmp_speech[i] = residual_filt[i];
+    g729_lp_synthesis_filter(lp_gd, tmp_speech, speech, ctx->res_filter_data, ctx->subframe_size, 0);
 
     /* Calculating gain of filtered signal for using in AGC */
     gain_after=sum_of_squares16(speech, ctx->subframe_size, 0, 4);
@@ -1694,7 +1696,7 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
     }
 
     //Save signal for using in next frame
-    memmove(ctx->exc_base, ctx->exc_base+2*ctx->subframe_size, (PITCH_MAX+INTERPOL_LEN)*sizeof(float));
+    memmove(ctx->exc_base, ctx->exc_base+2*ctx->subframe_size, (PITCH_MAX+INTERPOL_LEN)*sizeof(int16_t));
 
     //Postprocessing
     g729_high_pass_filter(ctx, out_frame, 2 * ctx->subframe_size);
