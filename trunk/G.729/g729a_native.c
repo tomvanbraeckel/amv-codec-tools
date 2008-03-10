@@ -193,6 +193,10 @@ typedef struct
 #define Q12_BASE 4096.0
 #define Q13_BASE 8192.0
 #define Q15_BASE 32768.0
+
+#define INT6_MIN -32768
+#define INT6_MAX 32767
+
 /**
  * L1 codebook (10-dimensional, with 128 entries (3.24)
  */
@@ -728,6 +732,14 @@ static int sum_of_squares16(const int16_t* speech, int cycles, int offset, int s
     return sum;
 }
 
+static int16_t g729_round(int value)
+{
+    if(value > INT_MAX-0x8000) // Overflow
+        return INT16_MAX;
+
+    return (value + 0x8000) >> 16;
+}
+
 /**
  * \brief pseudo random number generator
  */
@@ -760,7 +772,7 @@ int g729_parity_check(uint8_t P1, int P0)
 static void g729_decode_ac_vector(int pitch_delay_int, int pitch_delay_frac, float* ac_v, int subframe_size)
 {
     int n, i;
-    float v;
+    int v;
 
     //Make sure that pitch_delay_frac will be always positive
     pitch_delay_frac =- pitch_delay_frac;
@@ -782,7 +794,8 @@ static void g729_decode_ac_vector(int pitch_delay_int, int pitch_delay_frac, flo
             v+=ac_v[n - pitch_delay_int - i    ] * interp_filter[i][    pitch_delay_frac]; //R(n-i)*b30(t+3i)
             v+=ac_v[n - pitch_delay_int + i + 1] * interp_filter[i][3 - pitch_delay_frac]; //R(n+i+1)*b30(3-t+3i)
         }
-        ac_v[n] = v / Q15_BASE;
+        v = FFMIN(FFMAX(v, INT16_MIN << 15), INT16_MAX << 15);
+        ac_v[n] = g729_round(v << 1);
     }
 }
 
@@ -929,12 +942,13 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
  */
 static void g729_mem_update(const int16_t *fc_v, int16_t gp, int16_t gc, float* exc, int subframe_size)
 {
-    int i;
+    int i, sum;
 
     for(i=0; i<subframe_size; i++)
     {
-        exc[i] = (exc[i] * gp + fc_v[i] * gc) / (2 * Q13_BASE); // Q14 -> Q0, Q1 -> Q0
-        exc[i] = FFMIN(FFMAX(exc[i], -32767.0), 32768.0);
+        sum = exc[i] * gp + fc_v[i] * gc;
+        sum = FFMAX(FFMIN(sum, INT16_MAX << 14), INT16_MIN << 14);
+        exc[i] = g729_round(sum << 2);
     }
 }
 
