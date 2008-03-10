@@ -160,7 +160,7 @@ typedef struct
     int16_t syn_filter_data[10];
     int16_t res_filter_data[10];
     int16_t pos_filter_data[10];///< previous speech data for postfilter
-    float ht_prev_data;         ///< previous data for 4.2.3, equation 86
+    int16_t ht_prev_data;       ///< previous data for 4.2.3, equation 86
     int16_t g;                  ///< gain coefficient (4.2.4)
     uint16_t rand_value;        ///< random number generator value (4.4.4)
     int prev_mode;              ///< L0 from previous frame
@@ -1046,10 +1046,10 @@ static void g729a_weighted_filter(const int16_t* Az, int16_t gamma, int16_t *Azg
  * \brief long-term postfilter (4.2.1)
  * \param intT1 integer part of the pitch delay T1 in the first subframe
  * \param residual (Q0) input data to filtering
- * \param residual_filt [out] speech signal with applied A(z/GAMMA_N) filter
+ * \param residual_filt [out] (Q0) speech signal with applied A(z/GAMMA_N) filter
  * \param subframe_size size of subframe
  */
-static void g729a_long_term_filter(int intT1, int16_t* residual, float *residual_filt, int subframe_size)
+static void g729a_long_term_filter(int intT1, int16_t* residual, int16_t *residual_filt, int subframe_size)
 {
     int k, n, intT0;
     float gl;      // gain coefficient for long-term postfilter
@@ -1110,9 +1110,9 @@ static void g729a_long_term_filter(int intT1, int16_t* residual, float *residual
  * \param ctx private data structure
  * \param lp_gn (Q12) coefficients of A(z/GAMMA_N) filter
  * \param lp_gd (Q12) coefficients of A(z/GAMMA_D) filter
- * \param res_pst [in/out] residual signal (partially filtered)
+ * \param res_pst [in/out] (Q0) residual signal (partially filtered)
 */
-static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn, const int16_t *lp_gd, float* res_pst)
+static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn, const int16_t *lp_gd, int16_t* res_pst)
 {
     float tmp;
     float gt;
@@ -1215,10 +1215,8 @@ static void g729_residual(int16_t* lp, int16_t* speech, int16_t* residual, int s
  */
 static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_delay_int, int16_t *speech)
 {
-    int i, n;
-    int16_t tmp_speech[MAX_SUBFRAME_SIZE];
-    float residual_filt_buf[MAX_SUBFRAME_SIZE+10];
-    float* residual_filt=residual_filt_buf+10;
+    int16_t residual_filt_buf[MAX_SUBFRAME_SIZE+10];
+    int16_t* residual_filt=residual_filt_buf+10;
     int16_t lp_gn[10]; // Q12
     int16_t lp_gd[10]; // Q12
     float gain_before, gain_after;
@@ -1241,16 +1239,13 @@ static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_de
     g729a_tilt_compensation(ctx, lp_gn, lp_gd, residual_filt);
 
     /* Applying second half of short-term postfilter: 1/A(z/GAMMA_D)*/
-    for(i=0; i<ctx->subframe_size; i++)
-        tmp_speech[i] = residual_filt[i];
-    g729_lp_synthesis_filter(lp_gd, tmp_speech, speech, ctx->res_filter_data, ctx->subframe_size, 0);
+    g729_lp_synthesis_filter(lp_gd, residual_filt, speech, ctx->res_filter_data, ctx->subframe_size, 0);
 
     /* Calculating gain of filtered signal for using in AGC */
     gain_after=sum_of_squares16(speech, ctx->subframe_size, 0, 4);
 
     /* adaptive gain control (A.4.2.4) */
     ctx->g = g729a_adaptive_gain_control(gain_before, gain_after, speech, ctx->subframe_size, ctx->g);
-
 }
 
 /**
