@@ -156,7 +156,7 @@ typedef struct
     int16_t gain_code;          ///< (Q1) Gain code of previous subframe
     int16_t pitch_sharp;        ///< pitch sharpening of the previous frame
     /// Residual signal buffer (used in long-term postfilter)
-    float residual[MAX_SUBFRAME_SIZE+PITCH_MAX];
+    int16_t residual[MAX_SUBFRAME_SIZE+PITCH_MAX];
     int16_t syn_filter_data[10];
     int16_t res_filter_data[10];
     int16_t pos_filter_data[10];///< previous speech data for postfilter
@@ -1040,11 +1040,11 @@ static void g729a_weighted_filter(const int16_t* Az, int16_t gamma, int16_t *Azg
 /**
  * \brief long-term postfilter (4.2.1)
  * \param intT1 integer part of the pitch delay T1 in the first subframe
- * \param residual input data to filtering
+ * \param residual (Q0) input data to filtering
  * \param residual_filt [out] speech signal with applied A(z/GAMMA_N) filter
  * \param subframe_size size of subframe
  */
-static void g729a_long_term_filter(int intT1, float* residual, float *residual_filt, int subframe_size)
+static void g729a_long_term_filter(int intT1, int16_t* residual, float *residual_filt, int subframe_size)
 {
     int k, n, intT0;
     float gl;      // gain coefficient for long-term postfilter
@@ -1068,7 +1068,7 @@ static void g729a_long_term_filter(int intT1, float* residual, float *residual_f
     for(k=minT0; k<=maxT0; k++)
     {
         /* 4.2.1, Equation 80 */
-        correlation = sum_of_squares(residual + PITCH_MAX - k, subframe_size, k);
+        correlation = sum_of_squares16(residual + PITCH_MAX - k, subframe_size, k, 1);
         if(correlation>corr_max)
         {
             corr_max=correlation;
@@ -1076,8 +1076,8 @@ static void g729a_long_term_filter(int intT1, float* residual, float *residual_f
         }
     }
 
-    corr_t0 = sum_of_squares(residual + PITCH_MAX - intT0, subframe_size, 0);
-    corr_0  = sum_of_squares(residual + PITCH_MAX,         subframe_size, 0);
+    corr_t0 = sum_of_squares16(residual + PITCH_MAX - intT0, subframe_size, 0, 1);
+    corr_0  = sum_of_squares16(residual + PITCH_MAX,         subframe_size, 0, 1);
 
     /* 4.2.1, Equation 82. checking if filter should be disabled */
     if(corr_max * corr_max < 0.5 * corr_0 * corr_t0)
@@ -1097,7 +1097,7 @@ static void g729a_long_term_filter(int intT1, float* residual, float *residual_f
                            residual[n + PITCH_MAX - intT0] * glgp_inv_glgp;
 
     //Shift residual for using in next subframe
-    memmove(residual, residual + subframe_size, PITCH_MAX*sizeof(float));
+    memmove(residual, residual + subframe_size, PITCH_MAX*sizeof(int16_t));
 }
 
 /**
@@ -1158,11 +1158,11 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn, co
  * \brief Residual signal calculation (4.2.1)
  * \param lp (Q12) A(z/GAMMA_N) filter coefficients
  * \param speech (Q0)input speech data
- * \param residual[out] output data filtered through A(z/GAMMA_N)
+ * \param residual[out] (Q0) output data filtered through A(z/GAMMA_N)
  * \param subframe_size size of one subframe
  * \param pos_filter_data [in/out] (Q0) speech data of previous subframe
  */
-static void g729_residual(int16_t* lp, int16_t* speech, float* residual, int subframe_size, int16_t* pos_filter_data)
+static void g729_residual(int16_t* lp, int16_t* speech, int16_t* residual, int subframe_size, int16_t* pos_filter_data)
 {
     int i, n, sum;
     int16_t tmp_speech_buf[MAX_SUBFRAME_SIZE+10];
