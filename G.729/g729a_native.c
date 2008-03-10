@@ -1155,6 +1155,43 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn, co
 }
 
 /**
+ * \brief Residual signal calculation (4.2.1)
+ * \param lp (Q12) A(z/GAMMA_N) filter coefficients
+ * \param speech (Q0)input speech data
+ * \param residual[out] output data filtered through A(z/GAMMA_N)
+ * \param subframe_size size of one subframe
+ * \param pos_filter_data [in/out] (Q0) speech data of previous subframe
+ */
+static void g729_residual(int16_t* lp, int16_t* speech, float* residual, int subframe_size, int16_t* pos_filter_data)
+{
+    int i, n;
+    int16_t tmp_speech_buf[MAX_SUBFRAME_SIZE+10];
+    int16_t *tmp_speech=tmp_speech_buf+10;
+
+    // Copying data from previous frame
+    for(i=0; i<10; i++)
+        tmp_speech[-10+i] = pos_filter_data[i];
+
+    // Copying the rest of speech data
+    for(i=0; i<subframe_size; i++)
+        tmp_speech[i] = speech[i];
+    /*
+      4.2.1, Equation 79 Residual signal calculation
+      ( filtering through A(z/GAMMA_N) , one half of short-term filter)
+    */
+    for(n=0; n<subframe_size; n++)
+    {
+        residual[n+PITCH_MAX] = tmp_speech[n];
+        for(i=0; i<10; i++)
+            residual[n+PITCH_MAX] += (lp[i] * tmp_speech[n-i-1]) / Q12_BASE;
+    }
+
+    // Save data for using in next subframe
+    for(i=0; i<10; i++)
+        pos_filter_data[i] = speech[subframe_size-10+i];
+}
+
+/**
  * \brief Signal postfiltering (4.2, with A.4.2 simplification)
  * \param ctx private data structure
  * \param lp (Q12) LP filter coefficients
@@ -1172,44 +1209,23 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn, co
 static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_delay_int, int16_t *speech)
 {
     int i, n;
-    int16_t tmp_speech_buf[MAX_SUBFRAME_SIZE+10];
-    int16_t *tmp_speech=tmp_speech_buf+10;
+    int16_t tmp_speech[MAX_SUBFRAME_SIZE];
     float residual_filt_buf[MAX_SUBFRAME_SIZE+10];
     float* residual_filt=residual_filt_buf+10;
     int16_t lp_gn[10]; // Q12
     int16_t lp_gd[10]; // Q12
     float gain_before, gain_after;
 
-    // Copying data from previous frame
-    for(i=0; i<10; i++)
-    {
-        tmp_speech[-10+i] = ctx->pos_filter_data[i];
-        // Save data for using in next subframe
-        ctx->pos_filter_data[i] = speech[ctx->subframe_size-10+i];
-    }
-
-    // Copying the rest of speech data
-    for(i=0; i<ctx->subframe_size; i++)
-        tmp_speech[i] = speech[i];
-
     /* Calculating coefficients of A(z/GAMMA_N) filter */
     g729a_weighted_filter(lp, GAMMA_N, lp_gn);
     /* Calculating coefficients of A(z/GAMMA_D) filter */
     g729a_weighted_filter(lp, GAMMA_D, lp_gd);
 
-    /*
-      4.2.1, Equation 79 Residual signal calculation
-      ( filtering through A(z/GAMMA_N) , one half of short-term filter)
-    */
-    for(n=0; n<ctx->subframe_size; n++)
-    {
-        ctx->residual[n+PITCH_MAX] = tmp_speech[n];
-        for(i=0; i<10; i++)
-            ctx->residual[n+PITCH_MAX] += lp_gn[i] * tmp_speech[n-i-1] / Q12_BASE;
-    }
-
     /* Calculating gain of unfiltered signal for using in AGC */
     gain_before=sum_of_squares16(speech, ctx->subframe_size, 0, 4);
+
+    /* Residual signal calculation (one-half of short-term postfilter) */
+    g729_residual(lp_gn, speech, ctx->residual, ctx->subframe_size, ctx->pos_filter_data);
 
     /* long-term filter (A.4.2.1) */
     g729a_long_term_filter(pitch_delay_int, ctx->residual, residual_filt, ctx->subframe_size);
