@@ -1164,7 +1164,7 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn, co
  */
 static void g729_residual(int16_t* lp, int16_t* speech, float* residual, int subframe_size, int16_t* pos_filter_data)
 {
-    int i, n;
+    int i, n, sum;
     int16_t tmp_speech_buf[MAX_SUBFRAME_SIZE+10];
     int16_t *tmp_speech=tmp_speech_buf+10;
 
@@ -1181,9 +1181,11 @@ static void g729_residual(int16_t* lp, int16_t* speech, float* residual, int sub
     */
     for(n=0; n<subframe_size; n++)
     {
-        residual[n+PITCH_MAX] = tmp_speech[n];
+        sum = tmp_speech[n] << 12;
         for(i=0; i<10; i++)
-            residual[n+PITCH_MAX] += (lp[i] * tmp_speech[n-i-1]) / Q12_BASE;
+            sum += lp[i] * tmp_speech[n-i-1];
+        sum = FFMAX(FFMIN(sum, SHRT_MAX << 12), SHRT_MIN << 12);
+        residual[n+PITCH_MAX] = g729_round(sum << 4);
     }
 
     // Save data for using in next subframe
