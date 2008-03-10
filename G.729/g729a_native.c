@@ -1036,7 +1036,7 @@ static void g729a_weighted_filter(const int16_t* Az, int16_t gamma, int16_t *Azg
  * \param residual_filt [out] (Q0) speech signal with applied A(z/GAMMA_N) filter
  * \param subframe_size size of subframe
  */
-static void g729a_long_term_filter(int intT1, int16_t* residual, int16_t *residual_filt, int subframe_size)
+static void g729a_long_term_filter(int intT1, const int16_t* residual, int16_t *residual_filt, int subframe_size)
 {
     int k, n, intT0;
     float gl;      // gain coefficient for long-term postfilter
@@ -1088,8 +1088,6 @@ static void g729a_long_term_filter(int intT1, int16_t* residual, int16_t *residu
         residual_filt[n] = residual[n + PITCH_MAX        ] * inv_glgp +
                            residual[n + PITCH_MAX - intT0] * glgp_inv_glgp;
 
-    //Shift residual for using in next subframe
-    memmove(residual, residual + subframe_size, PITCH_MAX*sizeof(int16_t));
 }
 
 /**
@@ -1149,12 +1147,12 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn, co
 /**
  * \brief Residual signal calculation (4.2.1)
  * \param lp (Q12) A(z/GAMMA_N) filter coefficients
- * \param speech (Q0)input speech data
- * \param residual[out] (Q0) output data filtered through A(z/GAMMA_N)
+ * \param speech (Q0) input speech data
+ * \param residual [out] (Q0) output data filtered through A(z/GAMMA_N)
  * \param subframe_size size of one subframe
  * \param pos_filter_data [in/out] (Q0) speech data of previous subframe
  */
-static void g729_residual(int16_t* lp, int16_t* speech, int16_t* residual, int subframe_size, int16_t* pos_filter_data)
+static void g729_residual(int16_t* lp, const int16_t* speech, int16_t* residual, int subframe_size, int16_t* pos_filter_data)
 {
     int i, n, sum;
     int16_t tmp_speech_buf[MAX_SUBFRAME_SIZE+10];
@@ -1221,6 +1219,9 @@ static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_de
 
     /* long-term filter (A.4.2.1) */
     g729a_long_term_filter(pitch_delay_int, ctx->residual, residual_filt, ctx->subframe_size);
+
+    //Shift residual for using in next subframe
+    memmove(ctx->residual, ctx->residual + ctx->subframe_size, PITCH_MAX*sizeof(int16_t));
 
     /* short-term filter tilt compensation (A.4.2.3) */
     g729a_tilt_compensation(ctx, lp_gn, lp_gd, residual_filt);
