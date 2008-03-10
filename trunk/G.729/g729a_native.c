@@ -573,6 +573,20 @@ static const uint16_t tab_log2[33] =
  31266, 32023, 32767
 };
 
+/**
+ * Table used to compute 1/sqrt(x)
+ *
+ * tab_inv_sqrt[i] = 1/sqrt((16+i)/64)
+ */
+static const uint16_t tab_inv_sqrt[49] =
+{ /* Q!4 */
+ 32767, 31790, 30894, 30070, 29309, 28602, 27945, 27330, 26755, 26214,
+ 25705, 25225, 24770, 24339, 23930, 23541, 23170, 22817, 22479, 22155,
+ 21845, 21548, 21263, 20988, 20724, 20470, 20225, 19988, 19760, 19539,
+ 19326, 19119, 18919, 18725, 18536, 18354, 18176, 18004, 17837, 17674,
+ 17515, 17361, 17211, 17064, 16921, 16782, 16646, 16514, 16384
+};
+
 /*
 -------------------------------------------------------------------------------
           Internal routines
@@ -691,6 +705,73 @@ static int l_log2(int value)
 
     return result;
 }
+
+/**
+ * \brief Computes 1/sqrt(x)
+ * \param arg (Q0) positive integer
+ *
+ * \return (Q29) 0 < 1/sqrt(arg) <= 1
+ */
+static int l_inv_sqrt(int arg)
+{
+    uint32_t result;
+    uint16_t frac_x0;
+    uint16_t frac_dx;
+    int8_t power_int;
+
+    assert(arg > 0);
+
+    result=arg;    
+    for(power_int=16; power_int>=0 && !(result & 0xc0000000); power_int--)
+        result <<= 2;
+    /*
+      When result is treated as Q26,
+      bits 26-31 are integer part, 16-25 - fractional
+    */
+    frac_x0 = (result >> 26) - 16; // b26-b31 and [16..63] -> [0..47] 
+    frac_dx = (result >> 11) & 0x7fe0; // b16-b25 and Q26 -> Q15 [0..1) in Q15
+
+    result = tab_inv_sqrt[frac_x0] << 15; // Q15 -> Q30
+    result += frac_dx * (tab_inv_sqrt[frac_x0+1] - tab_inv_sqrt[frac_x0]); // Q15*Q15;
+
+    return result >> power_int;
+}
+
+/**
+ * \brief divide two positive fixed point numbers
+ * \param num numenator
+ * \param denom denumenator
+ * \param base base to scale result to
+ *
+ * \return result of division scaled to given base
+ *
+ * \remark numbers should in same base, result will be scaled to given base
+ *
+ * \todo Better implementation requred
+ */
+int l_div(int num, int denom, int base)
+{
+    int diff =0;
+
+    if(!num)
+        return 0;
+
+    assert(denom >0 && num >0);
+
+    for(; num < 0x4000000; diff++)
+        num <<= 1;
+
+    for(; denom < 0x4000000; diff--)
+        denom <<= 1;
+
+    if(diff > base)
+        num >>= diff-base;
+    else
+        denom >>= base-diff;
+
+    return num/denom;
+}
+
 /**
  * \brief Calculates sum of array elements multiplications
  * \param speech array with input data
@@ -998,7 +1079,13 @@ static int16_t g729a_adaptive_gain_control(int gain_before, int gain_after, int1
     if(!gain_after)
         return;
 
-    gain=sqrt(1.0*gain_before/gain_after) * Q12_BASE;
+    if(gain_before)
+    {
+        gain = l_div(gain_after,gain_before,12); // Q12
+        gain = l_inv_sqrt(gain) >> 11; // Q23 -> Q12
+    }
+    else
+        gain = 0;
 
     for(n=0; n<subframe_size; n++)
     {
