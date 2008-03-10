@@ -982,15 +982,15 @@ static int g729_lp_synthesis_filter(const int16_t* lp, const int16_t *in, int16_
 
 /**
  * \brief Adaptive gain control (4.2.4)
- * \param gain_before gain of speech before applying postfilters
- * \param gain_after  gain of speech after applying postfilters
+ * \param gain_before (Q0) gain of speech before applying postfilters
+ * \param gain_after  (Q0) gain of speech after applying postfilters
  * \param speech [in/out] (Q0) signal buffer
  * \param subframe_size length of subframe
  * \param gain_prev previous value of gain coefficient
  *
  * \return last value of gain coefficient
  */
-static int16_t g729a_adaptive_gain_control(float gain_before, float gain_after, int16_t *speech, int subframe_size, int16_t gain_prev)
+static int16_t g729a_adaptive_gain_control(int gain_before, int gain_after, int16_t *speech, int subframe_size, int16_t gain_prev)
 {
     int gain; // Q12
     int n;
@@ -998,7 +998,7 @@ static int16_t g729a_adaptive_gain_control(float gain_before, float gain_after, 
     if(!gain_after)
         return;
 
-    gain=sqrt(gain_before/gain_after) * Q12_BASE;
+    gain=sqrt(1.0*gain_before/gain_after) * Q12_BASE;
 
     for(n=0; n<subframe_size; n++)
     {
@@ -1204,7 +1204,7 @@ static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_de
     int16_t* residual_filt=residual_filt_buf+10;
     int16_t lp_gn[10]; // Q12
     int16_t lp_gd[10]; // Q12
-    float gain_before, gain_after;
+    int gain_before, gain_after;
 
     /* Calculating coefficients of A(z/GAMMA_N) filter */
     g729a_weighted_filter(lp, GAMMA_N, lp_gn);
