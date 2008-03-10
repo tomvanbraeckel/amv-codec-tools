@@ -974,7 +974,7 @@ static int g729_lp_synthesis_filter(const int16_t* lp, const int16_t *in, int16_
 
     for(n=0; n<subframe_size; n++)
     {
-        sum=in[n] * Q12_BASE;
+        sum = in[n] << 12;
         for(i=0; i<10; i++)
             sum -= (lp[i] * tmp[n-i-1]);
 	sum >>= 12;
