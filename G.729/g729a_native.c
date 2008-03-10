@@ -981,11 +981,11 @@ static int g729_lp_synthesis_filter(const int16_t* lp, const float *in, int16_t 
         for(i=0; i<10; i++)
             sum -= (lp[i] * tmp[n-i-1]);
 	sum >>= 12;
-	if(sum > 32767 || sum < -32768)
+	if(sum > INT16_MAX || sum < INT16_MIN)
 	{
             if(exit_on_overflow)
                 return 1;
-            sum = FFMAX(FFMIN(sum, 32767), -32768);
+            sum = FFMAX(FFMIN(sum, INT16_MAX), INT16_MIN);
 	}
         tmp[n] = sum;
     }
@@ -1257,7 +1257,7 @@ static void g729_high_pass_filter(G729A_Context* ctx, int16_t* speech, int lengt
             +  7699 * z_2;
 	f_0 <<= 2; // Q13 -> Q15
 
-        speech[i] = FFMAX(FFMIN(f_0 >> 14, 32768), -32767); // 2*f_0 in 15
+        speech[i] = FFMAX(FFMIN(f_0 >> 14, INT16_MAX), INT16_MIN); // 2*f_0 in 15
 	
         ctx->hpf_f2=ctx->hpf_f1;
         ctx->hpf_f1=f_0;
