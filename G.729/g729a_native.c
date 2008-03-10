@@ -161,7 +161,7 @@ typedef struct
     int16_t res_filter_data[10];
     int16_t pos_filter_data[10];///< previous speech data for postfilter
     float ht_prev_data;         ///< previous data for 4.2.3, equation 86
-    float g;                    ///< gain coefficient (4.2.4)
+    int16_t g;                  ///< gain coefficient (4.2.4)
     uint16_t rand_value;        ///< random number generator value (4.4.4)
     int prev_mode;              ///< L0 from previous frame
     //High-pass filter data
@@ -995,26 +995,31 @@ static int g729_lp_synthesis_filter(const int16_t* lp, const int16_t *in, int16_
 
 /**
  * \brief Adaptive gain control (4.2.4)
- * \param ctx private data structure
  * \param gain_before gain of speech before applying postfilters
  * \param gain_after  gain of speech after applying postfilters
  * \param speech [in/out] (Q0) signal buffer
+ * \param subframe_size length of subframe
+ * \param gain_prev previous value of gain coefficient
+ *
+ * \return last value of gain coefficient
  */
-static void g729a_adaptive_gain_control(G729A_Context *ctx, float gain_before, float gain_after, int16_t *speech)
+static int16_t g729a_adaptive_gain_control(float gain_before, float gain_after, int16_t *speech, int subframe_size, int16_t gain_prev)
 {
-    float gain;
+    int gain; // Q12
     int n;
 
     if(!gain_after)
         return;
 
-    gain=sqrt(gain_before/gain_after);
+    gain=sqrt(gain_before/gain_after) * Q12_BASE;
 
-    for(n=0; n<ctx->subframe_size; n++)
+    for(n=0; n<subframe_size; n++)
     {
-        ctx->g = 0.9 * ctx->g + 0.1 * gain;
-        speech[n] *= ctx->g;
+        // 0.9 * ctx->g + 0.1 * gain
+        gain_prev = (29491 * gain_prev + 3276 * gain) >> 15;
+        speech[n] = (speech[n] * gain_prev) >> 12;
     }
+    return gain_prev;
 }
 
 /**
@@ -1244,7 +1249,7 @@ static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_de
     gain_after=sum_of_squares16(speech, ctx->subframe_size, 0, 4);
 
     /* adaptive gain control (A.4.2.4) */
-    g729a_adaptive_gain_control(ctx, gain_before, gain_after, speech);
+    ctx->g = g729a_adaptive_gain_control(gain_before, gain_after, speech, ctx->subframe_size, ctx->g);
 
 }
 
@@ -1537,7 +1542,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
     ctx->pitch_sharp=SHARP_MIN;
 
     /* gain coefficient */
-    ctx->g=1.0;
+    ctx->g = 4096; // 1.0 in Q12
 
     /* LSP coefficients */
     for(i=0; i<10; i++)
