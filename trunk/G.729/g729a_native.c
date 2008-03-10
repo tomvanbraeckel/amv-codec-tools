@@ -696,26 +696,13 @@ static int l_log2(int value)
  * \param speech array with input data
  * \param cycles number elements to proceed
  * \param offset offset for calculation sum of s[i]*s[i+offset]
+ * \param shift right shift by this value will be done before multiplication
  *
  * \return sum of multiplications
  *
  * \note array must be at least length+offset long!
  */
-static float sum_of_squares(const float* speech, int cycles, int offset)
-{
-    int n;
-    float sum = 0;
-
-    if(offset < 0)
-        return 0;
-
-    for(n=0; n<cycles; n++)
-       sum += speech[n] * speech[n + offset];
-
-    return sum;
-}
-
-static int sum_of_squares16(const int16_t* speech, int cycles, int offset, int shift)
+static int sum_of_squares(const int16_t* speech, int cycles, int offset, int shift)
 {
     int n;
     int sum=0;
@@ -892,7 +879,7 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
     int energ_int;
 
     /* 3.9.1, Equation 66 */
-    energ_int = sum_of_squares16(fc_v, subframe_size, 0, 0) >> 11; // Q25 -> Q15
+    energ_int = sum_of_squares(fc_v, subframe_size, 0, 0) >> 11; // Q25 -> Q15
 
     /*
       energy=mean_energy-E
@@ -1073,7 +1060,7 @@ static void g729a_long_term_filter(int intT1, int16_t* residual, int16_t *residu
     for(k=minT0; k<=maxT0; k++)
     {
         /* 4.2.1, Equation 80 */
-        correlation = sum_of_squares16(residual + PITCH_MAX - k, subframe_size, k, 1);
+        correlation = sum_of_squares(residual + PITCH_MAX - k, subframe_size, k, 1);
         if(correlation>corr_max)
         {
             corr_max=correlation;
@@ -1081,8 +1068,8 @@ static void g729a_long_term_filter(int intT1, int16_t* residual, int16_t *residu
         }
     }
 
-    corr_t0 = sum_of_squares16(residual + PITCH_MAX - intT0, subframe_size, 0, 1);
-    corr_0  = sum_of_squares16(residual + PITCH_MAX,         subframe_size, 0, 1);
+    corr_t0 = sum_of_squares(residual + PITCH_MAX - intT0, subframe_size, 0, 1);
+    corr_0  = sum_of_squares(residual + PITCH_MAX,         subframe_size, 0, 1);
 
     /* 4.2.1, Equation 82. checking if filter should be disabled */
     if(corr_max * corr_max < 0.5 * corr_0 * corr_t0)
@@ -1139,10 +1126,10 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn, co
     /* Now hf_buf (starting with 10) contains impulse response of A(z/GAMMA_N)/A(z/GAMMA_D) filter */
 
     /* A.4.2.3, Equation A.14, calcuating rh(0)  */
-    rh0 = sum_of_squares16(hf_buf+10, 22, 0, 0);
+    rh0 = sum_of_squares(hf_buf+10, 22, 0, 0);
 
     /* A.4.2.3, Equation A.14, calcuating rh(1)  */
-    rh1 = sum_of_squares16(hf_buf+10, 22-1, 1, 0);
+    rh1 = sum_of_squares(hf_buf+10, 22-1, 1, 0);
     rh1 >>= 12; // Q24 -> Q12
     rh1 = rh1 * GAMMA_T >> 3; // Q12 * Q15 = Q27 -> Q24
 
@@ -1227,7 +1214,7 @@ static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_de
     g729a_weighted_filter(lp, GAMMA_D, lp_gd);
 
     /* Calculating gain of unfiltered signal for using in AGC */
-    gain_before=sum_of_squares16(speech, ctx->subframe_size, 0, 4);
+    gain_before=sum_of_squares(speech, ctx->subframe_size, 0, 4);
 
     /* Residual signal calculation (one-half of short-term postfilter) */
     g729_residual(lp_gn, speech, ctx->residual, ctx->subframe_size, ctx->pos_filter_data);
@@ -1242,7 +1229,7 @@ static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_de
     g729_lp_synthesis_filter(lp_gd, residual_filt, speech, ctx->res_filter_data, ctx->subframe_size, 0);
 
     /* Calculating gain of filtered signal for using in AGC */
-    gain_after=sum_of_squares16(speech, ctx->subframe_size, 0, 4);
+    gain_after=sum_of_squares(speech, ctx->subframe_size, 0, 4);
 
     /* adaptive gain control (A.4.2.4) */
     ctx->g = g729a_adaptive_gain_control(gain_before, gain_after, speech, ctx->subframe_size, ctx->g);
