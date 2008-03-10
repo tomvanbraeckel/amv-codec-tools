@@ -1039,11 +1039,12 @@ static void g729a_weighted_filter(const int16_t* Az, int16_t gamma, int16_t *Azg
 
 /**
  * \brief long-term postfilter (4.2.1)
- * \param ctx private data structure
  * \param intT1 integer part of the pitch delay T1 in the first subframe
+ * \param residual input data to filtering
  * \param residual_filt [out] speech signal with applied A(z/GAMMA_N) filter
+ * \param subframe_size size of subframe
  */
-static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residual_filt)
+static void g729a_long_term_filter(int intT1, float* residual, float *residual_filt, int subframe_size)
 {
     int k, n, intT0;
     float gl;      // gain coefficient for long-term postfilter
@@ -1067,7 +1068,7 @@ static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residua
     for(k=minT0; k<=maxT0; k++)
     {
         /* 4.2.1, Equation 80 */
-        correlation = sum_of_squares(ctx->residual + PITCH_MAX - k, ctx->subframe_size, k);
+        correlation = sum_of_squares(residual + PITCH_MAX - k, subframe_size, k);
         if(correlation>corr_max)
         {
             corr_max=correlation;
@@ -1075,8 +1076,8 @@ static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residua
         }
     }
 
-    corr_t0 = sum_of_squares(ctx->residual + PITCH_MAX - intT0, ctx->subframe_size, 0);
-    corr_0  = sum_of_squares(ctx->residual + PITCH_MAX,         ctx->subframe_size, 0);
+    corr_t0 = sum_of_squares(residual + PITCH_MAX - intT0, subframe_size, 0);
+    corr_0  = sum_of_squares(residual + PITCH_MAX,         subframe_size, 0);
 
     /* 4.2.1, Equation 82. checking if filter should be disabled */
     if(corr_max * corr_max < 0.5 * corr_0 * corr_t0)
@@ -1091,12 +1092,12 @@ static void g729a_long_term_filter(G729A_Context *ctx, int intT1, float *residua
     glgp_inv_glgp = gl * inv_glgp;
 
     /* 4.2.1, Equation 78, reconstructing delayed signal */
-    for(n=0; n<ctx->subframe_size; n++)
-        residual_filt[n] = ctx->residual[n + PITCH_MAX        ] * inv_glgp +
-                           ctx->residual[n + PITCH_MAX - intT0] * glgp_inv_glgp;
+    for(n=0; n<subframe_size; n++)
+        residual_filt[n] = residual[n + PITCH_MAX        ] * inv_glgp +
+                           residual[n + PITCH_MAX - intT0] * glgp_inv_glgp;
 
     //Shift residual for using in next subframe
-    memmove(ctx->residual, ctx->residual + ctx->subframe_size, PITCH_MAX*sizeof(float));
+    memmove(residual, residual + subframe_size, PITCH_MAX*sizeof(float));
 }
 
 /**
@@ -1211,7 +1212,7 @@ static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_de
     gain_before=sum_of_squares16(speech, ctx->subframe_size, 0, 4);
 
     /* long-term filter (A.4.2.1) */
-    g729a_long_term_filter(ctx, pitch_delay_int, residual_filt);
+    g729a_long_term_filter(pitch_delay_int, ctx->residual, residual_filt, ctx->subframe_size);
 
     /* short-term filter tilt compensation (A.4.2.3) */
     g729a_tilt_compensation(ctx, lp_gn, lp_gd, residual_filt);
