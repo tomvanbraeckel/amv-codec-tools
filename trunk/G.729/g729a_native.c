@@ -1186,9 +1186,9 @@ static void g729a_long_term_filter(int intT1, const int16_t* residual, int16_t *
 */
 static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn, const int16_t *lp_gd, int16_t* res_pst)
 {
-    float tmp;
-    float gt;
-    int rh1,rh0; // Q24
+    int tmp;
+    int gt;      // Q12
+    int rh1,rh0; // Q12
     int16_t hf_buf[11+22]; // Q12 A(Z/GAMMA_N)/A(z/GAMMA_D) filter impulse response
     int sum;
     int i, n;
@@ -1211,22 +1211,25 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn, co
     /* Now hf_buf (starting with 10) contains impulse response of A(z/GAMMA_N)/A(z/GAMMA_D) filter */
 
     /* A.4.2.3, Equation A.14, calcuating rh(0)  */
-    rh0 = sum_of_squares(hf_buf+10, 22, 0, 0);
+    rh0 = sum_of_squares(hf_buf+10, 22, 0, 0) >> 12;   // Q24 -> Q12
 
     /* A.4.2.3, Equation A.14, calcuating rh(1)  */
-    rh1 = sum_of_squares(hf_buf+10, 22-1, 1, 0);
-    rh1 >>= 12; // Q24 -> Q12
-    rh1 = rh1 * GAMMA_T >> 3; // Q12 * Q15 = Q27 -> Q24
+    rh1 = sum_of_squares(hf_buf+10, 22-1, 1, 0) >> 12; // Q24 -> Q12
+
+    rh1 = rh1 * GAMMA_T >> 15; // Q12 * Q15 = Q27 -> Q12
 
     /* A.4.2.3, Equation A.14 */
-    gt = -FFMAX(1.0 * rh1 / rh0, 0);
+    if(rh1>0)
+        gt = -l_div(rh1, rh0, 12); // l_div accepts only positive parameters
+    else
+        gt = 0;
 
     /* A.4.2.3. Equation A.13, applying filter to signal */
     tmp=res_pst[ctx->subframe_size-1];
 
     for(i=ctx->subframe_size-1; i>=1; i--)
-        res_pst[i] += gt * res_pst[i-1];
-    res_pst[0] += gt * ctx->ht_prev_data;
+        res_pst[i] += (gt * res_pst[i-1]) >> 12;
+    res_pst[0] += (gt * ctx->ht_prev_data) >> 12;
 
     ctx->ht_prev_data=tmp;
 }
