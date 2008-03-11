@@ -813,6 +813,12 @@ static int sum_of_squares(const int16_t* speech, int cycles, int offset, int shi
     return sum;
 }
 
+/**
+ * \brief rounding to nearest
+ * \param value (Q16) 32-bit fixed-point value for rounding
+ *
+ * \return (Q0) 16-bit integer
+ */
 static int16_t g729_round(int value)
 {
     if(value > INT_MAX-0x8000) // Overflow
