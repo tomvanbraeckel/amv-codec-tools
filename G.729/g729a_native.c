@@ -188,7 +188,7 @@ typedef struct
 #define GAMMA_T 26214 //0.80 in Q15
 
 /* 4.2.1 */
-#define GAMMA_P 0.50
+#define GAMMA_P 16384 //0.50  in Q15
 
 #define Q12_BASE 4096.0
 #define Q13_BASE 8192.0
@@ -1126,12 +1126,13 @@ static void g729a_weighted_filter(const int16_t* Az, int16_t gamma, int16_t *Azg
 static void g729a_long_term_filter(int intT1, const int16_t* residual, int16_t *residual_filt, int subframe_size)
 {
     int k, n, intT0;
-    float gl;      // gain coefficient for long-term postfilter
-    float corr_t0; // correlation of residual signal with delay intT0
-    float corr_0;  // correlation of residual signal with delay 0
-    float correlation, corr_max;
-    float inv_glgp;      // 1.0/(1+gl*GAMMA_P)
-    float glgp_inv_glgp; // gl*GAMMA_P/(1+gl*GAMMA_P);
+    int gl;      // gain coefficient for long-term postfilter
+    int corr_t0; // correlation of residual signal with delay intT0
+    int corr_0;  // correlation of residual signal with delay 0
+    int correlation, corr_max;
+    int inv_glgp;      // Q15 1.0/(1+gl*GAMMA_P)
+    int glgp_inv_glgp; // Q15 gl*GAMMA_P/(1+gl*GAMMA_P);
+    int tmp;
 
     /* A.4.2.1 */
     int minT0=FFMIN(intT1, PITCH_MAX-3)-3;
@@ -1158,23 +1159,39 @@ static void g729a_long_term_filter(int intT1, const int16_t* residual, int16_t *
     corr_t0 = sum_of_squares(residual + PITCH_MAX - intT0, subframe_size, 0, 1);
     corr_0  = sum_of_squares(residual + PITCH_MAX,         subframe_size, 0, 1);
 
-    /* 4.2.1, Equation 82. checking if filter should be disabled */
-    if(corr_max * corr_max < 0.5 * corr_0 * corr_t0)
-        gl=0;
-    else if(!corr_t0)
-        gl=1;
-    else
-        gl=FFMIN(corr_max/corr_t0, 1);
+    //Downscaling corellaions to fit on 16-bit
+    tmp = FFMAX(corr_0, FFMAX(corr_t0, corr_max));
+    for(n=0; n<32 && tmp > SHRT_MAX; n++)
+    {
+        corr_t0 >>=1;
+        corr_0 >>=1;
+        corr_max >>=1;
+        tmp >>=1;
+    }
 
-    gl *= GAMMA_P;
-    inv_glgp = 1.0 / (1 + gl);
-    glgp_inv_glgp = gl * inv_glgp;
+    /* 4.2.1, Equation 82. checking if filter should be disabled */
+    if(corr_max * corr_max < (corr_0 * corr_t0) >> 1)
+        gl = 0;
+    else if(!corr_t0 || corr_max > corr_t0)
+        gl = 32768; // 1.0 in Q15
+    else if(corr_max < 0)
+        gl=-l_div(-corr_max, corr_t0, 15); //l_div accepts only positive parameters
+    else
+        gl=l_div(corr_max, corr_t0, 15);
+
+    gl = (gl * GAMMA_P) >> 15;
+
+    if (gl < -32768) // -1.0 in Q15
+        inv_glgp = 0;
+    else
+        inv_glgp = l_div(32768, 32768 + gl, 15); // 1.0 in Q15
+
+    glgp_inv_glgp = 32768 - inv_glgp; // 1.0 in Q15
 
     /* 4.2.1, Equation 78, reconstructing delayed signal */
     for(n=0; n<subframe_size; n++)
-        residual_filt[n] = residual[n + PITCH_MAX        ] * inv_glgp +
-                           residual[n + PITCH_MAX - intT0] * glgp_inv_glgp;
-
+        residual_filt[n] = (residual[n + PITCH_MAX        ] * inv_glgp +
+                            residual[n + PITCH_MAX - intT0] * glgp_inv_glgp) >> 15;
 }
 
 /**
