@@ -752,11 +752,24 @@ static int l_inv_sqrt(int arg)
 int l_div(int num, int denom, int base)
 {
     int diff =0;
+    int sig=0;
+
+    assert(denom);
 
     if(!num)
         return 0;
 
-    assert(denom >0 && num >0);
+    if(num < 0)
+    {
+        num = -num;
+        sig = !sig;
+    }
+
+    if(denom < 0)
+    {
+        denom = -denom;
+        sig = !sig;
+    }
 
     for(; num < 0x4000000; diff++)
         num <<= 1;
@@ -769,7 +782,10 @@ int l_div(int num, int denom, int base)
     else
         denom >>= base-diff;
 
-    return num/denom;
+    if(sig)
+        return -num/denom;
+    else
+        return num/denom;
 }
 
 /**
@@ -1174,8 +1190,6 @@ static void g729a_long_term_filter(int intT1, const int16_t* residual, int16_t *
         gl = 0;
     else if(!corr_t0 || corr_max > corr_t0)
         gl = 32768; // 1.0 in Q15
-    else if(corr_max < 0)
-        gl=-l_div(-corr_max, corr_t0, 15); //l_div accepts only positive parameters
     else
         gl=l_div(corr_max, corr_t0, 15);
 
@@ -1184,7 +1198,7 @@ static void g729a_long_term_filter(int intT1, const int16_t* residual, int16_t *
     if (gl < -32768) // -1.0 in Q15
         inv_glgp = 0;
     else
-        inv_glgp = l_div(32768, 32768 + gl, 15); // 1.0 in Q15
+        inv_glgp = l_div(32768, 32768 + gl, 15); // 1/(1+gl) in Q15
 
     glgp_inv_glgp = 32768 - inv_glgp; // 1.0 in Q15
 
