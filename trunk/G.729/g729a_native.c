@@ -624,7 +624,7 @@ static int l_shr_r(int var1, int16_t var2)
  * \brief Calculates 2^x
  * \param arg (Q15) power (>=0)
  *
- * \return (Q15) result of pow(2, power)
+ * \return (Q0) result of pow(2, power)
  *
  * \note If integer part of power is greater than 15, function
  *       will return INT_MAX
@@ -638,7 +638,7 @@ static int l_pow2(int power)
 
     assert(power>=0);
 
-    if(power_int > 15 )
+    if(power_int > 30 )
         return INT_MAX; // overflow
 
     /*
@@ -656,13 +656,12 @@ static int l_pow2(int power)
     result = tab_pow2[frac_x0] << 15; // Q14 -> Q29;
     result += frac_dx * (tab_pow2[frac_x0+1] - tab_pow2[frac_x0]); // Q15*Q14;
 
-    // multiply by 2^power_int and Q29 -> Q15
-    if(power_int >= 14) 
-        result <<= power_int - 14;
-    else
-        result >>= 14 - power_int;
-
-    return result;
+    // multiply by 2^power_int and Q29 -> Q1
+    result >>= 28 - power_int;
+    // rounding
+    result++;
+    
+    return result >> 1; // Q1 -> Q0
 }
 
 /**
@@ -1004,7 +1003,7 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
       5439 = 0.166 in Q15
     */
     energ_int = (5439 * (energ_int >> 15)) >> 8; // Q23->Q8, Q23 -> Q15
-    energ_int = l_pow2(energ_int); // Q15
+    energ_int = l_pow2(energ_int + (15<<15)); // Q15
 
     // shift prediction error vector
     for(i=3; i>0; i--)
