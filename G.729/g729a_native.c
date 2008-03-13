@@ -602,9 +602,9 @@ static const uint16_t tab_inv_sqrt[49] =
  */
 static inline int mul_24_15(int var_q24, int16_t var_q15)
 {
-    int hi = var_q24 >> 16;
-    int lo = (var_q24 - (hi << 16)) >> 1;
-    return (var_q15 * hi + ((var_q15 * lo) >> 15)) << 1;
+    int hi = var_q24 >> 15;
+    int lo = var_q24 & 0x7fff;
+    return var_q15 * hi + ((var_q15 * lo) >> 15);
 }
 
 /**
