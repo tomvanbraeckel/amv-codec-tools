@@ -701,7 +701,7 @@ static int l_log2(int value)
 
     result >>= 15; // Q30 -> Q15
 
-    result += (power_int-15) << 15; // Q0 -> Q15
+    result += power_int << 15; // Q0 -> Q15
 
     return result;
 }
@@ -992,7 +992,7 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
       energy = 30 - 10 * log10(energy / subframe_size) =;
       =30 - 10*log2(energy/subframe_size)/log2(10)
     */
-    energ_int = (30 << 23) - ((6165 * l_log2(energ_int/subframe_size)) >> 3);
+    energ_int = (30 << 23) - ((6165 * (l_log2(energ_int/subframe_size)-(15<<15))) >> 3);
 
     /* 3.9.1, Equation 69 */
     for(i=0; i<4; i++)
@@ -1013,7 +1013,7 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
     cb1_sum = (cb_GA[ga_cb_index][1] + cb_GB[gb_cb_index][1]) >> 1; // Q12
 
     /* 3.9.1, Equation 72 */
-    pred_energ_q[0] = (6165 * l_log2(cb1_sum<<3)) >> 15;
+    pred_energ_q[0] = (6165 * (l_log2(cb1_sum)-(12<<15))) >> 15;
 
     /* 3.9.1, Equation 74 */
     return ((energ_int>>10) * (cb1_sum)) >> 16; //Q1
