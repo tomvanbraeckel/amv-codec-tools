@@ -694,7 +694,7 @@ static int l_log2(int value)
       bits 26-31 are integer part, 16-25 - fractional
     */
     frac_x0 = (result & 0x7c000000) >> 26; // b26-b31 and [32..63] -> [0..31]  then Q26 -> Q0
-    frac_dx = (result & 0x03ff0000) >> 11; // b16-b25 and Q26 -> Q15, [0..1) in Q15
+    frac_dx = (result & 0x03fff800) >> 11; // b11-b25 and Q26 -> Q15, [0..1) in Q15
 
     result = tab_log2[frac_x0] << 15; // Q15 -> Q30
     result += frac_dx * (tab_log2[frac_x0+1] - tab_log2[frac_x0]); // Q15*Q15;
