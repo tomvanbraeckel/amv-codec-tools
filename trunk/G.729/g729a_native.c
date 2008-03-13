@@ -918,7 +918,7 @@ static int g729_decode_fc_vector(int fc_index, int fc_index_bits, int pulses_sig
         if(index>=subframe_size)
             return 1;
 
-        fc_v[ index ] = (pulses_signs & 1) ? 8192 : -8192; // +/-1 in Q13
+        fc_v[ index ] = (pulses_signs & 1) ? 8191 : -8192; // +/-1 in Q13
         fc_index>>=fc_index_bits;
         pulses_signs>>=1;
     }
@@ -927,7 +927,7 @@ static int g729_decode_fc_vector(int fc_index, int fc_index_bits, int pulses_sig
     if(index>=subframe_size)
         return 1;
 
-    fc_v[ index ] = (pulses_signs & 1) ? 8192 : -8192;
+    fc_v[ index ] = (pulses_signs & 1) ? 8191 : -8192;
     return 0;
 }
 
