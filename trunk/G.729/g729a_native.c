@@ -979,20 +979,34 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
     int i;
     int cb1_sum; // Q12
     int energ_int;
+    int exp;
 
     /* 3.9.1, Equation 66 */
-    energ_int = sum_of_squares(fc_v, subframe_size, 0, 0) >> 11; // Q25 -> Q15
+    energ_int = sum_of_squares(fc_v, subframe_size, 0, 0);
 
     /*
       energy=mean_energy-E
       mean_energy=30dB
       E is calculated in 3.9.1 Equation 66
 
-      energy = 30 - 10 * log10(energy / subframe_size) =;
-      =30 - 10*log2(energy/subframe_size)/log2(10)
+      (energy is in Q26)
+      energy = 30 - 10 * log10(energy / (2^26 * subframe_size))
+      =30 - 10 * log2(energy / (2^26 * subframe_size)) / log2(10)
+      =30 - 10*log2(energy/2^26)/log2(10) + 10*log2(subframe_size)/log2(10)
+      =30 - [10/log2(10)] * log2(energy/2^26) + [10/log2(10)] * log2(subframe_size)
+      = -24660 * log2(energy) + 24660 * log2(subframe_size) + 24660 * 26 + 30<<13
+      
+      24660 = 10/log2(10) in Q13
     */
-    energ_int = (30 << 23) - ((6165 * (l_log2(energ_int/subframe_size)-(15<<15))) >> 3);
+    energ_int =  mul_24_15(l_log2(energ_int),    -24660); // Q13
+    energ_int += mul_24_15(l_log2(subframe_size), 24660); // Q13
+    energ_int += mul_24_15(26 << 15,              24660); // Q13
+    energ_int += 30 << 13;
 
+    // FIXME: Compensation. Makes result bit-equal with reference code
+    energ_int -= 2;
+
+    energ_int <<= 10; // Q14 -> Q23
     /* 3.9.1, Equation 69 */
     for(i=0; i<4; i++)
         energ_int += pred_energ_q[i] * ma_prediction_coeff[i];
@@ -1003,19 +1017,37 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
       5439 = 0.166 in Q15
     */
     energ_int = (5439 * (energ_int >> 15)) >> 8; // Q23->Q8, Q23 -> Q15
-    energ_int = l_pow2(energ_int + (15<<15)); // Q15
+
+    /* 
+      Following code will calculate energy*2^14 instead of energy*2^exp
+      due to recent change of energy_int's integer part.
+      This is done to avoid overflow. Result fits into 16-bit.
+    */
+    exp = (energ_int >> 15);             // integer part (exponent)
+    energ_int += (14-exp) << 15;         // replacing integer part (exponent) with 14
+    energ_int = l_pow2(energ_int) & 0x7fff; // Only fraction part of Q15
 
     // shift prediction error vector
     for(i=3; i>0; i--)
         pred_energ_q[i]=pred_energ_q[i-1];
 
-    cb1_sum = (cb_GA[ga_cb_index][1] + cb_GB[gb_cb_index][1]) >> 1; // Q12
+    cb1_sum = cb_GA[ga_cb_index][1] + cb_GB[gb_cb_index][1]; // Q13
 
     /* 3.9.1, Equation 72 */
-    pred_energ_q[0] = (6165 * (l_log2(cb1_sum)-(12<<15))) >> 15;
+    /*
+      pred_energ_q[0] = 20*log10(cb1_sum) in Q12
+      24660 = 10/log2(10) in Q13
+    */
+    pred_energ_q[0] = (24660 * ((l_log2(cb1_sum) >> 2) - (13 << 13))) >> 15;
+    energ_int *= cb1_sum >> 1; // energy*2^14 in Q12
 
-    /* 3.9.1, Equation 74 */
-    return ((energ_int>>10) * (cb1_sum)) >> 16; //Q1
+    // energy*2^14 in Q12 -> energy*2^exp in Q1
+    if(25-exp > 0)
+        energ_int >>= 25-exp;
+    else
+        energ_int <<= exp-25;
+
+    return energ_int;
 }
 
 /**
@@ -1795,6 +1827,8 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
                     ctx->pred_energ_q,
                     ctx->subframe_size);
         }
+printf("gain pitch:%d\n",ctx->gain_pitch);
+printf("gain code:%d\n",ctx->gain_code);
 
         /* save pitch sharpening for next subframe */
         ctx->pitch_sharp = FFMIN(FFMAX(ctx->gain_pitch, SHARP_MIN), SHARP_MAX);
