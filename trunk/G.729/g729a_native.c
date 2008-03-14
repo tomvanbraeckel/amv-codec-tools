@@ -978,11 +978,11 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
 {
     int i;
     int cb1_sum; // Q12
-    int energ_int;
+    int energy;
     int exp;
 
     /* 3.9.1, Equation 66 */
-    energ_int = sum_of_squares(fc_v, subframe_size, 0, 0);
+    energy = sum_of_squares(fc_v, subframe_size, 0, 0);
 
     /*
       energy=mean_energy-E
@@ -998,34 +998,34 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
       
       24660 = 10/log2(10) in Q13
     */
-    energ_int =  mul_24_15(l_log2(energ_int),    -24660); // Q13
-    energ_int += mul_24_15(l_log2(subframe_size), 24660); // Q13
-    energ_int += mul_24_15(26 << 15,              24660); // Q13
-    energ_int += 30 << 13;
+    energy =  mul_24_15(l_log2(energy),    -24660); // Q13
+    energy += mul_24_15(l_log2(subframe_size), 24660); // Q13
+    energy += mul_24_15(26 << 15,              24660); // Q13
+    energy += 30 << 13;
 
     // FIXME: Compensation. Makes result bit-equal with reference code
-    energ_int -= 2;
+    energy -= 2;
 
-    energ_int <<= 10; // Q14 -> Q23
+    energy <<= 10; // Q14 -> Q23
     /* 3.9.1, Equation 69 */
     for(i=0; i<4; i++)
-        energ_int += pred_energ_q[i] * ma_prediction_coeff[i];
+        energy += pred_energ_q[i] * ma_prediction_coeff[i];
 
     /* 3.9.1, Equation 71 */
     /*
       energy = 10^(energy / 20) = 2^(3.3219 * energy / 20) = 2^ (0.166 * energy)
       5439 = 0.166 in Q15
     */
-    energ_int = (5439 * (energ_int >> 15)) >> 8; // Q23->Q8, Q23 -> Q15
+    energy = (5439 * (energy >> 15)) >> 8; // Q23->Q8, Q23 -> Q15
 
     /* 
       Following code will calculate energy*2^14 instead of energy*2^exp
       due to recent change of energy_int's integer part.
       This is done to avoid overflow. Result fits into 16-bit.
     */
-    exp = (energ_int >> 15);             // integer part (exponent)
-    energ_int += (14-exp) << 15;         // replacing integer part (exponent) with 14
-    energ_int = l_pow2(energ_int) & 0x7fff; // Only fraction part of Q15
+    exp = (energy >> 15);             // integer part (exponent)
+    energy += (14-exp) << 15;         // replacing integer part (exponent) with 14
+    energy = l_pow2(energy) & 0x7fff; // Only fraction part of Q15
 
     // shift prediction error vector
     for(i=3; i>0; i--)
@@ -1039,15 +1039,15 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
       24660 = 10/log2(10) in Q13
     */
     pred_energ_q[0] = (24660 * ((l_log2(cb1_sum) >> 2) - (13 << 13))) >> 15;
-    energ_int *= cb1_sum >> 1; // energy*2^14 in Q12
+    energy *= cb1_sum >> 1; // energy*2^14 in Q12
 
     // energy*2^14 in Q12 -> energy*2^exp in Q1
     if(25-exp > 0)
-        energ_int >>= 25-exp;
+        energy >>= 25-exp;
     else
-        energ_int <<= exp-25;
+        energy <<= exp-25;
 
-    return energ_int;
+    return energy;
 }
 
 /**
