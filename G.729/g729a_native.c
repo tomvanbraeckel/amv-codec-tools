@@ -1574,7 +1574,7 @@ static void get_lsp_coefficients(const int16_t* lsp, int* f)
         f[i] = f[i-2];
 
         for(j=i; j>1; j--)
-            f[j] -= (mul_24_15(f[j-1], lsp[2*i-2])<<1) - f[j-2];
+            f[j] -= (mul_24_15(f[j-1]>>1, lsp[2*i-2])<<2) - f[j-2];
 
         f[1] -= lsp[2*i-2]  << 10;
     }
