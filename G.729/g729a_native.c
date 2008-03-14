@@ -1810,7 +1810,7 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
             */
 
             /* 4.4.2, Equation 94 */
-            ctx->gain_pitch = (14745 * FFMIN(ctx->gain_pitch, 16384)) >> 14; // 0.9 and 1.0 in Q14
+            ctx->gain_pitch = (29491 * FFMIN(ctx->gain_pitch, 16384)) >> 15; // 0.9 (Q15), 1.0 (Q14)
             /* 4.4.2, Equation 93 */
             ctx->gain_code  = (8028 * ctx->gain_code) >> 13; // 0.98 in Q13
 
