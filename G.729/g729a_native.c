@@ -1829,8 +1829,6 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
                     ctx->pred_energ_q,
                     ctx->subframe_size);
         }
-printf("gain pitch:%d\n",ctx->gain_pitch);
-printf("gain code:%d\n",ctx->gain_code);
 
         /* save pitch sharpening for next subframe */
         ctx->pitch_sharp = FFMIN(FFMAX(ctx->gain_pitch, SHARP_MIN), SHARP_MAX);
