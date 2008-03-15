@@ -978,7 +978,6 @@ static void g729_update_gain_erasure(int16_t *pred_energ_q)
         pred_energ_q[i] = pred_energ_q[i-1];
     }
     pred_energ_q[0] = FFMAX((avg_gain >> 2) - 4096, -14336); // -14 in Q10
-printf("av_pred_en: %d\n", pred_energ_q[0]);
 }
 
 /**
