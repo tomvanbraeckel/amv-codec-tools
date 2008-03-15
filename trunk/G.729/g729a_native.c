@@ -1752,7 +1752,6 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
     int i, j;
 
     ctx->data_error = frame_erasure;
-    ctx->bad_pitch=0;
 
     ctx->bad_pitch = !g729_parity_check(parm->ac_index[0], parm->parity);
 
