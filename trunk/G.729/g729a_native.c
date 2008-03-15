@@ -1147,7 +1147,7 @@ static int16_t g729a_adaptive_gain_control(int gain_before, int gain_after, int1
     int n;
 
     if(!gain_after)
-        return;
+        return gain_prev;
 
     if(gain_before)
     {
