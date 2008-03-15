@@ -631,10 +631,10 @@ static int l_shr_r(int var1, int16_t var2)
  */
 static int l_add_trim(int var1, int var2, int min, int max)
 {
-    if(var2<0)
-        return FFMAX(var1,min-var2)+var2;
+    if(var2 < 0)
+        return FFMAX(var1, min - var2) + var2;
     else
-        return FFMIN(var1,max-var2)+var2;
+        return FFMIN(var1, max - var2) + var2;
 }
 
 /**
@@ -767,8 +767,8 @@ static int l_inv_sqrt(int arg)
  */
 int l_div(int num, int denom, int base)
 {
-    int diff =0;
-    int sig=0;
+    int diff = 0;
+    int sig = 0;
 
     assert(denom);
 
@@ -818,7 +818,7 @@ int l_div(int num, int denom, int base)
 static int sum_of_squares(const int16_t* speech, int cycles, int offset, int shift)
 {
     int n;
-    int sum=0;
+    int sum = 0;
 
     if(offset < 0)
         return 0;
@@ -837,7 +837,7 @@ static int sum_of_squares(const int16_t* speech, int cycles, int offset, int shi
  */
 static int16_t g729_round(int value)
 {
-    if(value > INT_MAX-0x8000) // Overflow
+    if(value > INT_MAX - 0x8000) // Overflow
         return SHRT_MAX;
 
     return (value + 0x8000) >> 16;
@@ -894,11 +894,11 @@ static void g729_decode_ac_vector(int pitch_delay_int, int pitch_delay_frac, int
         {
             /*  R(x):=ac_v[-k+x] */
 	    tmp = ac_v[n - pitch_delay_int - i    ] * interp_filter[i][    pitch_delay_frac];
-            v = l_add_trim(v, tmp, INT_MIN>>1, INT_MAX>>1); //v += R(n-i)*interp_filter(t+3i)
+            v = l_add_trim(v, tmp, INT_MIN >> 1, INT_MAX >> 1); //v += R(n-i)*interp_filter(t+3i)
 	    tmp = ac_v[n - pitch_delay_int + i + 1] * interp_filter[i][3 - pitch_delay_frac];
-            v = l_add_trim(v, tmp, INT_MIN>>1, INT_MAX>>1); //v += R(n+i+1)*interp_filter(3-t+3i)
+            v = l_add_trim(v, tmp, INT_MIN >> 1, INT_MAX >> 1); //v += R(n+i+1)*interp_filter(3-t+3i)
         }
-        ac_v[n] = g729_round(v<<1);
+        ac_v[n] = g729_round(v << 1);
     }
 }
 
@@ -1015,7 +1015,7 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
       
       24660 = 10/log2(10) in Q13
     */
-    energy =  mul_24_15(l_log2(energy),    -24660); // Q13
+    energy =  mul_24_15(l_log2(energy),       -24660); // Q13
     energy += mul_24_15(l_log2(subframe_size), 24660); // Q13
     energy += mul_24_15(26 << 15,              24660); // Q13
     energy += 30 << 13;
@@ -1046,7 +1046,7 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
 
     // shift prediction error vector
     for(i=3; i>0; i--)
-        pred_energ_q[i]=pred_energ_q[i-1];
+        pred_energ_q[i] = pred_energ_q[i-1];
 
     cb1_sum = cb_GA[ga_cb_index][1] + cb_GB[gb_cb_index][1]; // Q13
 
@@ -1059,7 +1059,7 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
     energy *= cb1_sum >> 1; // energy*2^14 in Q12
 
     // energy*2^14 in Q12 -> energy*2^exp in Q1
-    if(25-exp > 0)
+    if(25 - exp > 0)
         energy >>= 25-exp;
     else
         energy <<= exp-25;
@@ -1151,7 +1151,7 @@ static int16_t g729a_adaptive_gain_control(int gain_before, int gain_after, int1
 
     if(gain_before)
     {
-        gain = l_div(gain_after,gain_before,12); // Q12
+        gain = l_div(gain_after, gain_before, 12); // Q12
         gain = l_inv_sqrt(gain) >> 11; // Q23 -> Q12
     }
     else
@@ -1233,10 +1233,10 @@ static void g729a_long_term_filter(int intT1, const int16_t* residual, int16_t *
     tmp = FFMAX(corr_0, FFMAX(corr_t0, corr_max));
     for(n=0; n<32 && tmp > SHRT_MAX; n++)
     {
-        corr_t0 >>=1;
-        corr_0 >>=1;
-        corr_max >>=1;
-        tmp >>=1;
+        tmp      >>= 1;
+        corr_t0  >>= 1;
+        corr_0   >>= 1;
+        corr_max >>= 1;
     }
 
     /* 4.2.1, Equation 82. checking if filter should be disabled */
@@ -1485,8 +1485,10 @@ static void g729_lsf_restore_from_previous(G729A_Context *ctx, int16_t* lsfq)
     for(i=0; i<10; i++)
     {
         lq[i]= (int)lsfq[i] << 15; //Q13 -> Q28
+
         for(k=0;k<MA_NP; k++)
             lq[i] -= ctx->lq_prev[k][i] * ma_predictor[ctx->prev_mode][k][i]; // Q28
+
         lq[i] >>= 15;
         lq[i] *= ma_predictor_sum_inv[ctx->prev_mode][i];                     // Q12
         lq[i] >>= 12;
@@ -1496,8 +1498,9 @@ static void g729_lsf_restore_from_previous(G729A_Context *ctx, int16_t* lsfq)
     for(i=0; i<10; i++)
     {
         for(k=MA_NP-1; k>0; k--)
-            ctx->lq_prev[k][i]=ctx->lq_prev[k-1][i];
-        ctx->lq_prev[0][i]=lq[i];
+            ctx->lq_prev[k][i] = ctx->lq_prev[k-1][i];
+
+        ctx->lq_prev[0][i] = lq[i];
     }
 }
 
@@ -1554,6 +1557,7 @@ static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
     {
         for(k=MA_NP-1; k>0; k--)
             ctx->lq_prev[k][i] = ctx->lq_prev[k-1][i];
+
         ctx->lq_prev[0][i] = lq[i];
     }
     ctx->prev_mode=L0;
@@ -1569,6 +1573,7 @@ static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
 
     for(i=0;i<9; i++)
         lsfq[i+1]=FFMAX(lsfq[i+1], lsfq[i] + LSFQ_DIFF_MIN);
+
     lsfq[9] = FFMIN(lsfq[9], LSFQ_MAX);//Is warning required ?
 }
 
@@ -1686,7 +1691,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
        1st ">>1" : bytes -> samples
        2nd ">>1" : frame -> subframe 
     */
-    ctx->subframe_size=formats[ctx->format].output_frame_size>>2;
+    ctx->subframe_size=formats[ctx->format].output_frame_size >> 2;
 
     assert(ctx->subframe_size > 0 && ctx->subframe_size <= MAX_SUBFRAME_SIZE);
 
@@ -1697,7 +1702,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
 
     (EE) This does not comply with specification, but reference
          and Intel decoder uses here minimum sharpen value instead of maximum. */
-    ctx->pitch_sharp=SHARP_MIN;
+    ctx->pitch_sharp = SHARP_MIN;
 
     /* gain coefficient */
     ctx->g = 4096; // 1.0 in Q12
@@ -1713,16 +1718,16 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
         for(i=0; i<10; i++)
             ctx->lq_prev[k][i]=ctx->lq_prev[0][i];
 
-    ctx->exc=&ctx->exc_base[PITCH_MAX+INTERPOL_LEN];
+    ctx->exc = &ctx->exc_base[PITCH_MAX+INTERPOL_LEN];
 
     /* random seed initialization (4.4.4) */
-    ctx->rand_value=21845;
+    ctx->rand_value = 21845;
 
     //quantized prediction error
     for(i=0; i<4; i++)
         ctx->pred_energ_q[i] = -14336; // -14 in Q10
 
-    avctx->frame_size=2*ctx->subframe_size;
+    avctx->frame_size = 2 * ctx->subframe_size;
     return 0;
 }
 
@@ -1875,7 +1880,7 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
     }
 
     //Save signal for using in next frame
-    memmove(ctx->exc_base, ctx->exc_base+2*ctx->subframe_size, (PITCH_MAX+INTERPOL_LEN)*sizeof(int16_t));
+    memmove(ctx->exc_base, ctx->exc_base + 2*ctx->subframe_size, (PITCH_MAX+INTERPOL_LEN)*sizeof(int16_t));
 
     //Postprocessing
     g729_high_pass_filter(ctx, out_frame, 2 * ctx->subframe_size);
