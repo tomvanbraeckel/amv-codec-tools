@@ -621,14 +621,20 @@ static int l_shr_r(int var1, int16_t var2)
 }
 
 /**
- * \brief add two 32 bit intgers, bounding result into [INT_MIN-1,INT_MAX] range
+ * \brief add two 32 bit intgers, bounding result into [min,max] range
+ * \param var1 first variable
+ * \param var2 second variable
+ * \param min lower bound for trimming
+ * \param max higher bound for trimming
+ *
+ * \return var1+var2 trimmed to [min,max] bounds
  */
-static int l_add_trim(int var1, int var2)
+static int l_add_trim(int var1, int var2, int min, int max)
 {
     if(var2<0)
-        return FFMAX(var1,INT_MIN-var2)+var2;
+        return FFMAX(var1,min-var2)+var2;
     else
-        return FFMIN(var1,INT_MAX-var2)+var2;
+        return FFMIN(var1,max-var2)+var2;
 }
 
 /**
@@ -887,12 +893,12 @@ static void g729_decode_ac_vector(int pitch_delay_int, int pitch_delay_frac, int
         for(i=0; i<10; i++)
         {
             /*  R(x):=ac_v[-k+x] */
-	    tmp = (ac_v[n - pitch_delay_int - i    ] * interp_filter[i][    pitch_delay_frac]) << 1;
-            v = l_add_trim(v, tmp); //v += R(n-i)*interp_filter(t+3i)
-	    tmp = (ac_v[n - pitch_delay_int + i + 1] * interp_filter[i][3 - pitch_delay_frac]) << 1;
-            v = l_add_trim(v, tmp); //v += R(n+i+1)*interp_filter(3-t+3i)
+	    tmp = ac_v[n - pitch_delay_int - i    ] * interp_filter[i][    pitch_delay_frac];
+            v = l_add_trim(v, tmp, INT_MIN>>1, INT_MAX>>1); //v += R(n-i)*interp_filter(t+3i)
+	    tmp = ac_v[n - pitch_delay_int + i + 1] * interp_filter[i][3 - pitch_delay_frac];
+            v = l_add_trim(v, tmp, INT_MIN>>1, INT_MAX>>1); //v += R(n+i+1)*interp_filter(3-t+3i)
         }
-        ac_v[n] = g729_round(v);
+        ac_v[n] = g729_round(v<<1);
     }
 }
 
