@@ -1741,7 +1741,8 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
     int16_t lp[20];              // Q12
     int16_t lsp[10];             // Q15
     int16_t lsf[10];             // Q13
-    int pitch_delay;             // pitch delay
+    int pitch_delay_3x;          // pitch delay, multiplied by 3
+    int pitch_delay_int;         // pitch delay, integer part
     int16_t fc[MAX_SUBFRAME_SIZE]; // fixed codebooc vector
     int intT1, i, j;
 
@@ -1773,18 +1774,18 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
             // Decoding of the adaptive-codebook vector delay for first subframe (4.1.3)
             if(ctx->bad_pitch || ctx->data_error)
             {
-                pitch_delay = 3 * ctx->intT2_prev + 1;
+                pitch_delay_3x = 3 * ctx->intT2_prev + 1;
 
                 intT1=FFMIN(ctx->intT2_prev + 1, PITCH_MAX);
             }
             else
             {
                 if(parm->ac_index[i] >= 197)
-                    pitch_delay = 3 * parm->ac_index[i] - 335;
+                    pitch_delay_3x = 3 * parm->ac_index[i] - 335;
                 else
-                    pitch_delay = parm->ac_index[i] + 59;
+                    pitch_delay_3x = parm->ac_index[i] + 59;
 
-                intT1=pitch_delay / 3;    //Used in long-term postfilter    
+                intT1=pitch_delay_3x / 3;    //Used in long-term postfilter    
             }
         }
         else
@@ -1792,17 +1793,19 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
             // Decoding of the adaptive-codebook vector delay for second subframe (4.1.3)
             if(ctx->data_error)
             {
-                pitch_delay=3*intT1+1;
+                pitch_delay_3x=3*intT1+1;
                 ctx->intT2_prev=FFMIN(intT1+1, PITCH_MAX);
             }
             else
             {
-                pitch_delay = parm->ac_index[i] +
-                        3*FFMIN(FFMAX(pitch_delay/3-5, PITCH_MIN), PITCH_MAX-9) - 1;
-                ctx->intT2_prev = pitch_delay / 3;
+                pitch_delay_3x = parm->ac_index[i] +
+                        3*FFMIN(FFMAX(pitch_delay_3x/3-5, PITCH_MIN), PITCH_MAX-9) - 1;
+                ctx->intT2_prev = pitch_delay_3x / 3;
             }
         }
-        g729_decode_ac_vector(pitch_delay / 3, (pitch_delay%3)-1,
+        pitch_delay_int = pitch_delay_3x / 3;
+
+        g729_decode_ac_vector(pitch_delay_int, (pitch_delay_3x%3)-1,
                 ctx->exc + i*ctx->subframe_size, ctx->subframe_size);
 
         if(ctx->data_error)
@@ -1818,7 +1821,7 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
                 ctx->subframe_size))
             ctx->data_error = 1;
 
-        g729_fix_fc_vector(pitch_delay/3, ctx->pitch_sharp, fc, ctx->subframe_size);
+        g729_fix_fc_vector(pitch_delay_int, ctx->pitch_sharp, fc, ctx->subframe_size);
         if(ctx->data_error)
         {
             /*
@@ -1873,7 +1876,7 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
         }
 
         /* 4.2 */
-        g729a_postfilter(ctx, lp+i*10, pitch_delay/3, out_frame + i*ctx->subframe_size);
+        g729a_postfilter(ctx, lp+i*10, pitch_delay_int, out_frame + i*ctx->subframe_size);
 
         ctx->subframe_idx++;
     }
