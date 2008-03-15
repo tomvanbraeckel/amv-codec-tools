@@ -1864,7 +1864,7 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
         {
             //Overflow occured, downscaling excitation signal...
             for(j=0; j<2*MAX_SUBFRAME_SIZE+PITCH_MAX+INTERPOL_LEN; j++)
-                ctx->exc_base[j] /= 4;
+                ctx->exc_base[j] >>= 2;
 
             //... and calling the same routine again
             g729_lp_synthesis_filter(lp+i*10, 
