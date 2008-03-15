@@ -147,7 +147,7 @@ typedef struct
     /// past excitation signal buffer
     int16_t exc_base[2*MAX_SUBFRAME_SIZE+PITCH_MAX+INTERPOL_LEN];
     int16_t* exc;               ///< start of past excitation data in buffer
-    int intT2_prev;             ///< int(T2) value of previous frame (4.1.3)
+    int pitch_delay_int_prev;   ///< integer part of previous subframe's pitch delay (4.1.3)
     int16_t lq_prev[MA_NP][10]; ///< (Q13) LSP quantizer output (3.2.4)
     int16_t lsp_prev[10];       ///< (Q15) LSP coefficients from previous frame (3.2.5)
     int16_t lsf_prev[10];       ///< (Q13) LSF coefficients from previous frame
@@ -1362,7 +1362,7 @@ static void g729_residual(int16_t* lp, const int16_t* speech, int16_t* residual,
  * \brief Signal postfiltering (4.2, with A.4.2 simplification)
  * \param ctx private data structure
  * \param lp (Q12) LP filter coefficients
- * \param pitch_delay_int integer part of the pitch delay T1 of the first subframe
+ * \param pitch_delay_int integer part of the pitch delay
  * \param speech [in/out] (Q0) signal buffer
  *
  * Filtering has following  stages:
@@ -1744,7 +1744,7 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
     int pitch_delay_3x;          // pitch delay, multiplied by 3
     int pitch_delay_int;         // pitch delay, integer part
     int16_t fc[MAX_SUBFRAME_SIZE]; // fixed codebooc vector
-    int intT1, i, j;
+    int i, j;
 
     ctx->data_error = frame_erasure;
     ctx->bad_pitch=0;
@@ -1773,35 +1773,23 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
         {
             // Decoding of the adaptive-codebook vector delay for first subframe (4.1.3)
             if(ctx->bad_pitch || ctx->data_error)
-            {
-                pitch_delay_3x = 3 * ctx->intT2_prev + 1;
-
-                intT1=FFMIN(ctx->intT2_prev + 1, PITCH_MAX);
-            }
+                pitch_delay_3x = 3 * ctx->pitch_delay_int_prev + 1;
             else
             {
                 if(parm->ac_index[i] >= 197)
                     pitch_delay_3x = 3 * parm->ac_index[i] - 335;
                 else
                     pitch_delay_3x = parm->ac_index[i] + 59;
-
-                intT1=pitch_delay_3x / 3;    //Used in long-term postfilter    
             }
         }
         else
         {
             // Decoding of the adaptive-codebook vector delay for second subframe (4.1.3)
             if(ctx->data_error)
-            {
-                pitch_delay_3x=3*intT1+1;
-                ctx->intT2_prev=FFMIN(intT1+1, PITCH_MAX);
-            }
+                pitch_delay_3x = 3 * ctx->pitch_delay_int_prev + 1;
             else
-            {
                 pitch_delay_3x = parm->ac_index[i] +
-                        3*FFMIN(FFMAX(pitch_delay_3x/3-5, PITCH_MIN), PITCH_MAX-9) - 1;
-                ctx->intT2_prev = pitch_delay_3x / 3;
-            }
+                        3 * FFMIN(FFMAX(ctx->pitch_delay_int_prev-5, PITCH_MIN), PITCH_MAX-9) - 1;
         }
         pitch_delay_int = pitch_delay_3x / 3;
 
@@ -1877,6 +1865,11 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
 
         /* 4.2 */
         g729a_postfilter(ctx, lp+i*10, pitch_delay_int, out_frame + i*ctx->subframe_size);
+
+        if(ctx->data_error)
+	    ctx->pitch_delay_int_prev = FFMIN(ctx->pitch_delay_int_prev + 1, PITCH_MAX);
+        else
+            ctx->pitch_delay_int_prev = pitch_delay_int;
 
         ctx->subframe_idx++;
     }
