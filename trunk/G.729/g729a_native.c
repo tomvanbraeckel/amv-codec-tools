@@ -845,7 +845,6 @@ static inline uint16_t g729_random(G729A_Context* ctx)
     return ctx->rand_value = 31821 * ctx->rand_value + 13849;
 }
 
-
 /**
  * \brief Check parity bit (3.7.2)
  * \param P1 Adaptive codebook index for first subframe
