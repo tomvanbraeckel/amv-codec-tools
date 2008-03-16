@@ -1041,7 +1041,7 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
       This is done to avoid overflow. Result fits into 16-bit.
     */
     exp = (energy >> 15);             // integer part (exponent)
-    energy += (14-exp) << 15;         // replacing integer part (exponent) with 14
+    energy += (14-exp) << 15;         // replace integer part (exponent) with 14
     energy = l_pow2(energy) & 0x7fff; // Only fraction part of Q15
 
     // shift prediction error vector
@@ -1284,7 +1284,7 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn, co
     for(i=0; i<10; i++)
         hf_buf[i+11] = lp_gn[i];
 
-    /* Applying 1/A(z/GAMMA_D) to hf */
+    /* Apply 1/A(z/GAMMA_D) filter to hf */
     for(n=0; n<22; n++)
     {
         sum=hf_buf[n+10];
@@ -1295,10 +1295,10 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn, co
 
     /* Now hf_buf (starting with 10) contains impulse response of A(z/GAMMA_N)/A(z/GAMMA_D) filter */
 
-    /* A.4.2.3, Equation A.14, calcuating rh(0)  */
+    /* A.4.2.3, Equation A.14, calcuate rh(0)  */
     rh0 = sum_of_squares(hf_buf+10, 22, 0, 0) >> 12;   // Q24 -> Q12
 
-    /* A.4.2.3, Equation A.14, calcuating rh(1)  */
+    /* A.4.2.3, Equation A.14, calcuate rh(1)  */
     rh1 = sum_of_squares(hf_buf+10, 22-1, 1, 0) >> 12; // Q24 -> Q12
 
     rh1 = rh1 * GAMMA_T >> 15; // Q12 * Q15 = Q27 -> Q12
@@ -1309,7 +1309,7 @@ static void g729a_tilt_compensation(G729A_Context *ctx, const int16_t *lp_gn, co
     else
         gt = 0;
 
-    /* A.4.2.3. Equation A.13, applying filter to signal */
+    /* A.4.2.3. Equation A.13, apply filter to signal */
     tmp=res_pst[ctx->subframe_size-1];
 
     for(i=ctx->subframe_size-1; i>=1; i--)
@@ -1548,7 +1548,7 @@ static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
         sum = lq[i] * ma_predictor_sum[L0][i]; //Q28
         for(k=0; k<MA_NP; k++)
             sum += ctx->lq_prev[k][i] * ma_predictor[L0][k][i];
-        //Saving LSF for using when error occured in next frames
+        //Save LSF for using when error occured in next frames
         ctx->lsf_prev[i] = lsfq[i] = sum >> 15; //Q28 -> Q13
     }
 
@@ -1562,13 +1562,13 @@ static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
     }
     ctx->prev_mode=L0;
 
-    /* sorting lsfq in ascending order. float bubble agorithm*/
+    /* sort lsfq in ascending order. float bubble agorithm*/
     for(j=9; j>0; j--)
         for(i=0; i<j; i++)
             if(lsfq[i] > lsfq[i+1])
                 FFSWAP(int16_t, lsfq[i], lsfq[i+1]);
 
-    /* checking for stability */
+    /* check for stability */
     lsfq[0] = FFMAX(lsfq[0],LSFQ_MIN); //Is warning required ?
 
     for(i=0;i<9; i++)
@@ -1646,7 +1646,7 @@ static void g729_lp_decode(const int16_t* lsp_2nd, int16_t* lsp_prev, int16_t* l
     /* LSP values for second subframe (3.2.5)*/
     g729_lsp2lp(lsp_2nd, lp+10);
 
-    /* saving LSP coefficients for using in next frame */
+    /* save LSP coefficients for using in next frame */
     for(i=0;i<10;i++)
         lsp_prev[i]=lsp_2nd[i];
 }
@@ -1854,11 +1854,11 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
                 ctx->subframe_size,
                 1))
         {
-            //Overflow occured, downscaling excitation signal...
+            //Overflow occured, downscale excitation signal...
             for(j=0; j<2*MAX_SUBFRAME_SIZE+PITCH_MAX+INTERPOL_LEN; j++)
                 ctx->exc_base[j] >>= 2;
 
-            //... and calling the same routine again
+            //... and call the same routine again
             g729_lp_synthesis_filter(lp+i*10, 
                     ctx->exc  + i*ctx->subframe_size,
                     out_frame + i*ctx->subframe_size,
