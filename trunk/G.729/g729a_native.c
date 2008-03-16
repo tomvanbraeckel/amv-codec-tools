@@ -33,9 +33,9 @@ Validation results on ITU test vectors for Fixed-point G729.A:
    All vectors are not bit-exactly equal (but reference C code for
    floating point implementation fails to provide bit-exact equal files
    while fixed-point code passes all tests). Thus test was based
-   on presence of hearable artefacts/differences
+   on presence of hearable artifacts/differences
 
-Per-vector results (PASS means no hearable differences, FAILED means hearable artefacts):
+Per-vector results (PASS means no hearable differences, FAILED means hearable artifacts):
 algthm  : PASS
 erasure : PASS
 fixed   : PASS
@@ -78,7 +78,7 @@ Q<n>      : Means "value * (1<<n)" (i.e. fixed-point value with 2^n base)
 
 /*
 -------------------------------------------------------------------------------
-    Formats description
+    Format description
 -------------------------------------------------------------------------------
 */
 
@@ -91,28 +91,28 @@ Q<n>      : Means "value * (1<<n)" (i.e. fixed-point value with 2^n base)
 #define PITCH_MAX 143
 #define INTERPOL_LEN 11
 
-#define L0_BITS 1             ///< Switched MA predictor of LSP quantizer (size in bits)
-#define L1_BITS 7             ///< First stage vector of quantizer (size in bits)
-#define L2_BITS 5             ///< First stage lowervector of quantizer (size in bits)
-#define L3_BITS 5             ///< First stage hihjer vector of quantizer (size in bits)
-#define P1_BITS 8             ///< Adaptive codebook index for first subframe (size in bits)
-#define P2_BITS 5             ///< Adaptive codebook index for second subframe (size in bits)
-#define P0_BITS 1             ///< Parity bit for pitch delay (size in bits)
+#define L0_BITS 1             ///< switched MA predictor of LSP quantizer (size in bits)
+#define L1_BITS 7             ///< first stage vector of quantizer (size in bits)
+#define L2_BITS 5             ///< first stage lowervector of quantizer (size in bits)
+#define L3_BITS 5             ///< first stage higher vector of quantizer (size in bits)
+#define P1_BITS 8             ///< zdaptive codebook index for first subframe (size in bits)
+#define P2_BITS 5             ///< zdaptive codebook index for second subframe (size in bits)
+#define P0_BITS 1             ///< parity bit for pitch delay (size in bits)
 #define GA_BITS 3             ///< GA codebook index (size in bits)
 #define GB_BITS 4             ///< GB codebook index (size in bits)
-#define FC_PULSE_COUNT 4      ///< Number of pulses in fixed-codebook vector
+#define FC_PULSE_COUNT 4      ///< number of pulses in fixed-codebook vector
 #define FC_BITS(ctx) (formats[ctx->format].fc_index_bits*FC_PULSE_COUNT+1) ///< Fixed codebook index (size in bits)
 
 typedef struct
 {
-    uint8_t ma_predictor;     ///< Switched MA predictor of LSP quantizer
-    uint8_t quantizer_1st;    ///< First stage vector of quantizer
-    uint8_t quantizer_2nd_lo; ///< First stage lowervector of quantizer (size in bits)
-    uint8_t quantizer_2nd_hi; ///< First stage hihjer vector of quantizer (size in bits)
-    uint8_t parity;           ///< Parity bit for pitch delay (size in bits)
-    uint8_t ac_index[2];      ///< Adaptive codebook index
-    uint8_t pulses_signs[2];  ///< Fixed-codebook vectors pulses' signs
-    int fc_indexes[2];        ///< Fixed-codebook indexes
+    uint8_t ma_predictor;     ///< switched MA predictor of LSP quantizer
+    uint8_t quantizer_1st;    ///< first stage vector of quantizer
+    uint8_t quantizer_2nd_lo; ///< first stage lowervector of quantizer (size in bits)
+    uint8_t quantizer_2nd_hi; ///< first stage higher vector of quantizer (size in bits)
+    uint8_t parity;           ///< parity bit for pitch delay (size in bits)
+    uint8_t ac_index[2];      ///< adaptive codebook index
+    uint8_t pulses_signs[2];  ///< fixed-codebook vectors pulses' signs
+    int fc_indexes[2];        ///< fixed-codebook indexes
     uint8_t ga_cb_index[2];   ///< GA codebook index
     uint8_t gb_cb_index[2];   ///< GB codebook index
 } G729_parameters;
@@ -378,7 +378,7 @@ static const int16_t cb_L2_L3[1<<L2_BITS][10] =
  *     padded with zeros at +/-30 b30[30]=0
  *     The filter has a cut-off frequency (-3 dB) at 3600 Hz in the oversampled domain.
  *
- *   After some analisys i found this aproximation:
+ *   After some analysis, I found this aproximation:
  *
  *                                    PI * x
  *   Hamm(x,N) = 0.53836-0.46164*cos(--------)
@@ -531,7 +531,7 @@ static const int16_t base_cos[64] =
 };
 
 /**
- * Sslope used to compute y = cos(x)
+ * Slope used to compute y = cos(x)
  *
  * cos(ind*64+offset) = base_cos[ind]+offset*slope_cos[ind]
  */
@@ -593,7 +593,7 @@ static const uint16_t tab_inv_sqrt[49] =
 ------------------------------------------------------------------------------
 */
 /**
- * \brief multiplies 32-bit integer by abother 16-bit and divides result by 2^15
+ * \brief multiplies 32-bit integer by another 16-bit and divides result by 2^15
  * \param var_q24 (Q24) 32-bit integer
  * \param var_15 (Q15) 16-bit integer
  * \return (Q24) result of mupliplication
@@ -763,7 +763,7 @@ static int l_inv_sqrt(int arg)
  *
  * \remark numbers should in same base, result will be scaled to given base
  *
- * \todo Better implementation requred
+ * \todo Better implementation reqiured
  */
 int l_div(int num, int denom, int base)
 {
@@ -903,7 +903,7 @@ static void g729_decode_ac_vector(int pitch_delay_int, int pitch_delay_frac, int
 }
 
 /**
- * \brief Decoding fo the fixed-codebook vector (3.8)
+ * \brief Decoding of the fixed-codebook vector (3.8)
  * \param fc_index Fixed codebook index
  * \param fc_index_its number of bits per index entry
  * \param pulses_signs Signs of the excitation pulses (0 bit value means negative sign)
@@ -1097,7 +1097,7 @@ static void g729_mem_update(const int16_t *fc_v, int16_t gp, int16_t gc, int16_t
  * \param exit_on_overflow 1 - If overflow occured routine updates neither out nor
  *                         filter data arrays, 0 - always update
  *
- * \return 1 if overflow occured, o - otherwise
+ * \return 1 if overflow occured, 0 - otherwise
  *
  * Routine applies 1/A(z) filter to given speech data
  */
@@ -1189,7 +1189,7 @@ static void g729a_weighted_filter(const int16_t* Az, int16_t gamma, int16_t *Azg
 /**
  * \brief long-term postfilter (4.2.1)
  * \param intT1 integer part of the pitch delay T1 in the first subframe
- * \param residual (Q0) input data to filtering
+ * \param residual (Q0) filtering input data
  * \param residual_filt [out] (Q0) speech signal with applied A(z/GAMMA_N) filter
  * \param subframe_size size of subframe
  */
@@ -1229,7 +1229,7 @@ static void g729a_long_term_filter(int intT1, const int16_t* residual, int16_t *
     corr_t0 = sum_of_squares(residual + PITCH_MAX - intT0, subframe_size, 0, 1);
     corr_0  = sum_of_squares(residual + PITCH_MAX,         subframe_size, 0, 1);
 
-    //Downscaling corellaions to fit on 16-bit
+    //Downscale corellaions to fit on 16-bit
     tmp = FFMAX(corr_0, FFMAX(corr_t0, corr_max));
     for(n=0; n<32 && tmp > SHRT_MAX; n++)
     {
@@ -1239,7 +1239,7 @@ static void g729a_long_term_filter(int intT1, const int16_t* residual, int16_t *
         corr_max >>= 1;
     }
 
-    /* 4.2.1, Equation 82. checking if filter should be disabled */
+    /* 4.2.1, Equation 82. check if filter should be disabled */
     if(corr_max * corr_max < (corr_0 * corr_t0) >> 1)
         gl = 0;
     else if(!corr_t0 || corr_max > corr_t0)
@@ -1256,7 +1256,7 @@ static void g729a_long_term_filter(int intT1, const int16_t* residual, int16_t *
 
     glgp_inv_glgp = 32768 - inv_glgp; // 1.0 in Q15
 
-    /* 4.2.1, Equation 78, reconstructing delayed signal */
+    /* 4.2.1, Equation 78, reconstruct delayed signal */
     for(n=0; n<subframe_size; n++)
         residual_filt[n] = (residual[n + PITCH_MAX        ] * inv_glgp +
                             residual[n + PITCH_MAX - intT0] * glgp_inv_glgp) >> 15;
@@ -1333,11 +1333,11 @@ static void g729_residual(int16_t* lp, const int16_t* speech, int16_t* residual,
     int16_t tmp_speech_buf[MAX_SUBFRAME_SIZE+10];
     int16_t *tmp_speech=tmp_speech_buf+10;
 
-    // Copying data from previous frame
+    // Copy data from previous frame
     for(i=0; i<10; i++)
         tmp_speech[-10+i] = pos_filter_data[i];
 
-    // Copying the rest of speech data
+    // Copy the rest of speech data
     for(i=0; i<subframe_size; i++)
         tmp_speech[i] = speech[i];
     /*
@@ -1353,7 +1353,7 @@ static void g729_residual(int16_t* lp, const int16_t* speech, int16_t* residual,
         residual[n+PITCH_MAX] = g729_round(sum << 4);
     }
 
-    // Save data for using in next subframe
+    // Save data to use it in the next subframe
     for(i=0; i<10; i++)
         pos_filter_data[i] = speech[subframe_size-10+i];
 }
@@ -1365,7 +1365,7 @@ static void g729_residual(int16_t* lp, const int16_t* speech, int16_t* residual,
  * \param pitch_delay_int integer part of the pitch delay
  * \param speech [in/out] (Q0) signal buffer
  *
- * Filtering has following  stages:
+ * Filtering has the following  stages:
  *   Long-term postfilter (4.2.1)
  *   Short-term postfilter (4.2.2).
  *   Tilt-compensation (4.2.3)
@@ -1381,12 +1381,12 @@ static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_de
     int16_t lp_gd[10]; // Q12
     int gain_before, gain_after;
 
-    /* Calculating coefficients of A(z/GAMMA_N) filter */
+    /* Calculate A(z/GAMMA_N) filter coefficients */
     g729a_weighted_filter(lp, GAMMA_N, lp_gn);
-    /* Calculating coefficients of A(z/GAMMA_D) filter */
+    /* Calculate A(z/GAMMA_D) filter coefficients */
     g729a_weighted_filter(lp, GAMMA_D, lp_gd);
 
-    /* Calculating gain of unfiltered signal for using in AGC */
+    /* Calculate gain of unfiltered signal for using in AGC */
     gain_before=sum_of_squares(speech, ctx->subframe_size, 0, 4);
 
     /* Residual signal calculation (one-half of short-term postfilter) */
@@ -1401,10 +1401,10 @@ static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_de
     /* short-term filter tilt compensation (A.4.2.3) */
     g729a_tilt_compensation(ctx, lp_gn, lp_gd, residual_filt);
 
-    /* Applying second half of short-term postfilter: 1/A(z/GAMMA_D)*/
+    /* Apply second half of short-term postfilter: 1/A(z/GAMMA_D)*/
     g729_lp_synthesis_filter(lp_gd, residual_filt, speech, ctx->res_filter_data, ctx->subframe_size, 0);
 
-    /* Calculating gain of filtered signal for using in AGC */
+    /* Calculate gain of filtered signal for using in AGC */
     gain_after=sum_of_squares(speech, ctx->subframe_size, 0, 4);
 
     /* adaptive gain control (A.4.2.4) */
@@ -1579,9 +1579,9 @@ static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
 
 
 /**
- * \brief decodes polinomial coefficients from LSP
+ * \brief decodes polynomial coefficients from LSP
  * \param lsp (Q15) LSP coefficients
- * \param f [out] (Q24) decoded polinomial coefficients
+ * \param f [out] (Q24) decoded polynomial coefficients
  */
 static void get_lsp_coefficients(const int16_t* lsp, int* f)
 {
