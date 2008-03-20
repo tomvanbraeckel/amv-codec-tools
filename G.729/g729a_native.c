@@ -756,9 +756,6 @@ int l_div(int num, int denom, int base)
     for(; num < 0x4000000; diff++)
         num <<= 1;
 
-    for(; denom < 0x4000000; diff--)
-        denom <<= 1;
-
     if(diff > base)
         num >>= diff-base;
     else
