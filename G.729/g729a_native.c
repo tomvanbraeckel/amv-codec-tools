@@ -664,9 +664,8 @@ static int l_log2(int value)
     assert(value > 0);
 
     // Stripping zeros from beginning ( ?? -> Q31)
-    result=value;    
-    for(power_int=31; power_int>=0 && !(result & 0x80000000); power_int--)
-        result <<= 1;
+    power_int = av_log2(value);
+    result = value << 31 - power_int;
 
     /*
       After normalization :
@@ -704,9 +703,9 @@ static int l_inv_sqrt(int arg)
 
     assert(arg > 0);
 
-    result=arg;    
-    for(power_int=16; power_int>=0 && !(result & 0xc0000000); power_int--)
-        result <<= 2;
+    power_int = (av_log2(arg) >> 1) + 1;
+    result = arg << 32 - (power_int << 1);
+
     /*
       When result is treated as Q26,
       bits 26-31 are integer part, 16-25 - fractional
@@ -1197,13 +1196,12 @@ static void g729a_long_term_filter(int intT1, const int16_t* residual, int16_t *
     corr_0  = sum_of_squares(residual + PITCH_MAX,         subframe_size, 0, 1);
 
     //Downscale corellaions to fit on 16-bit
-    tmp = FFMAX(corr_0, FFMAX(corr_t0, corr_max));
-    for(n=0; n<32 && tmp > SHRT_MAX; n++)
+    tmp = av_log2(FFMAX(corr_0, FFMAX(corr_t0, corr_max)));
+    if(tmp > 14)
     {
-        tmp      >>= 1;
-        corr_t0  >>= 1;
-        corr_0   >>= 1;
-        corr_max >>= 1;
+        corr_t0  >>= tmp - 14;
+        corr_0   >>= tmp - 14;
+        corr_max >>= tmp - 14;
     }
 
     /* 4.2.1, Equation 82. check if filter should be disabled */
