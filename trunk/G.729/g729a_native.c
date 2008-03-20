@@ -755,9 +755,6 @@ static int sum_of_squares(const int16_t* speech, int cycles, int offset, int shi
     int n;
     int sum = 0;
 
-    if(offset < 0)
-        return 0;
-
     for(n=0; n<cycles; n++)
        sum += (speech[n] >> shift) * (speech[n + offset] >> shift);
 
@@ -1140,6 +1137,8 @@ static void g729a_long_term_filter(int intT1, const int16_t* residual, int16_t *
     /* A.4.2.1 */
     int minT0=FFMIN(intT1, PITCH_MAX-3)-3;
     int maxT0=FFMIN(intT1, PITCH_MAX-3)+3;
+
+    assert(minT0 >= 0);
     /* Long-term postfilter start */
 
     /*
