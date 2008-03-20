@@ -1440,9 +1440,7 @@ static void g729_lsf_restore_from_previous(G729A_Context *ctx, int16_t* lsfq)
         for(k=0;k<MA_NP; k++)
             lq[i] -= ctx->lq_prev[k][i] * ma_predictor[ctx->prev_mode][k][i]; // Q28
 
-        lq[i] >>= 15;
-        lq[i] *= ma_predictor_sum_inv[ctx->prev_mode][i];                     // Q12
-        lq[i] >>= 12;
+        lq[i] = ((lq[i] >> 15) * ma_predictor_sum_inv[ctx->prev_mode][i]) >> 12; // Q12
     }
 
     /* Rotate lq_prev */
