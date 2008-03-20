@@ -402,7 +402,7 @@ static const int16_t cb_L2_L3[1<<L2_BITS][10] =
  *   1/3 resolution interpolation filter  (-3 dB at 3600 Hz)
  *
  */
-static const int16_t interp_filter[10][3] =
+static const int16_t interp_filter[11][3] =
 { /* Q15 */
   { 29443,   25207,   14701},
   {  3143,   -4402,   -5850},
@@ -414,6 +414,7 @@ static const int16_t interp_filter[10][3] =
   {   308,     296,      78},
   {  -120,    -165,     -79},
   {    34,      91,      70},
+  {     0,       0,       0},
 };
 
 /**
