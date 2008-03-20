@@ -596,15 +596,12 @@ static const uint16_t tab_inv_sqrt[49] =
  * \brief multiplies 32-bit integer by another 16-bit and divides result by 2^15
  * \param var_q24 (Q24) 32-bit integer
  * \param var_15 (Q15) 16-bit integer
- * \return (Q24) result of mupliplication
  *
- * \note this code is bit-equal to reference's Mpy_32_16
+ * \return (Q24) result of multiplication
  */
 static inline int mul_24_15(int var_q24, int16_t var_q15)
 {
-    int hi = var_q24 >> 15;
-    int lo = var_q24 & 0x7fff;
-    return var_q15 * hi + ((var_q15 * lo) >> 15);
+    return ((int64_t)var_q24 * var_q15) >> 15;
 }
 
 /**
