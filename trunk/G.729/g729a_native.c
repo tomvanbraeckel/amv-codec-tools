@@ -605,25 +605,18 @@ static inline int mul_24_15(int var_q24, int16_t var_q15)
 }
 
 /**
- * \brief Calculates 2^x
- * \param arg (Q15) power (>=0)
+ * \brief Calculates 2^(14+x)
+ * \param arg (Q15) fractional part of power (>=0)
  *
- * \return (Q0) result of pow(2, power)
- *
- * \note If integer part of power is greater than 15, function
- *       will return INT_MAX
+ * \return (Q0) result of pow(2, (14<<15)+power)
  */
-static int l_pow2(int power)
+static int l_pow2(int16_t power)
 {
     uint16_t frac_x0;
     uint16_t frac_dx;
-    uint16_t power_int = power >> 15;
     int result;
 
     assert(power>=0);
-
-    if(power_int > 30 )
-        return INT_MAX; // overflow
 
     /*
       power in Q15, thus
@@ -640,12 +633,8 @@ static int l_pow2(int power)
     result = tab_pow2[frac_x0] << 15; // Q14 -> Q29;
     result += frac_dx * (tab_pow2[frac_x0+1] - tab_pow2[frac_x0]); // Q15*Q14;
 
-    // multiply by 2^power_int and Q29 -> Q1
-    result >>= 28 - power_int;
-    // rounding
-    result++;
-    
-    return result >> 1; // Q1 -> Q0
+    // multiply by 2^14 and Q29 -> Q0 with rouding
+    return (result +16384)>> 15;
 }
 
 /**
@@ -990,8 +979,7 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
       This is done to avoid overflow. Result fits into 16-bit.
     */
     exp = (energy >> 15);             // integer part (exponent)
-    energy += (14-exp) << 15;         // replace integer part (exponent) with 14
-    energy = l_pow2(energy) & 0x7fff; // Only fraction part of Q15
+    energy = l_pow2(energy & 0x7fff) & 0x7fff; // Only fraction part of Q15
 
     // shift prediction error vector
     for(i=3; i>0; i--)
