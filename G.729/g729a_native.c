@@ -1433,6 +1433,25 @@ static void g729_lsf2lsp(const int16_t *lsf, int16_t *lsp)
 }
 
 /**
+ * \brief save quantized LSF coefficients for using in next frame
+ * \param ctx context structure
+ * \param lq quantized LSF coefficients
+ */
+static void g729_lq_rotate(G729A_Context *ctx, int* lq)
+{
+    int i, k;
+
+    /* Rotate lq_prev */
+    for(i=0; i<10; i++)
+    {
+        for(k=MA_NP-1; k>0; k--)
+            ctx->lq_prev[k][i] = ctx->lq_prev[k-1][i];
+
+        ctx->lq_prev[0][i] = lq[i];
+    }
+}
+
+/**
  * \brief Restore LSP parameters using previous frame data
  * \param ctx private data structure
  * \param lsfq [out] (Q13) Decoded LSF coefficients
@@ -1460,13 +1479,7 @@ static void g729_lsf_restore_from_previous(G729A_Context *ctx, int16_t* lsfq)
     }
 
     /* Rotate lq_prev */
-    for(i=0; i<10; i++)
-    {
-        for(k=MA_NP-1; k>0; k--)
-            ctx->lq_prev[k][i] = ctx->lq_prev[k-1][i];
-
-        ctx->lq_prev[0][i] = lq[i];
-    }
+    g729_lq_rotate(ctx, lq);
 }
 
 /**
@@ -1482,7 +1495,7 @@ static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
 {
     int i,j,k;
     int16_t J[2]={10, 5}; //Q13
-    int16_t lq[10];       //Q13
+    int lq[10];           //Q13
     int16_t diff;         //Q13
     int sum;              //Q28
 
@@ -1518,13 +1531,8 @@ static void g729_lsf_decode(G729A_Context* ctx, int16_t L0, int16_t L1, int16_t 
     }
 
     /* Rotate lq_prev */
-    for(i=0; i<10; i++)
-    {
-        for(k=MA_NP-1; k>0; k--)
-            ctx->lq_prev[k][i] = ctx->lq_prev[k-1][i];
+    g729_lq_rotate(ctx, lq);
 
-        ctx->lq_prev[0][i] = lq[i];
-    }
     ctx->prev_mode=L0;
 
     /* sort lsfq in ascending order. float bubble agorithm*/
