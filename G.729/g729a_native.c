@@ -1049,7 +1049,7 @@ static void g729_mem_update(const int16_t *fc_v, int16_t gp, int16_t gc, int16_t
     for(i=0; i<subframe_size; i++)
     {
         sum = exc[i] * gp + fc_v[i] * gc;
-        sum = FFMAX(FFMIN(sum, SHRT_MAX << 14), SHRT_MIN << 14);
+        sum = av_clip(sum, SHRT_MIN << 14, SHRT_MAX << 14);
         exc[i] = g729_round(sum << 2);
     }
 }
@@ -1087,7 +1087,7 @@ static int g729_lp_synthesis_filter(const int16_t* lp, const int16_t *in, int16_
 	{
             if(exit_on_overflow)
                 return 1;
-            sum = FFMAX(FFMIN(sum, SHRT_MAX), SHRT_MIN);
+            sum = av_clip(sum, SHRT_MIN, SHRT_MAX);
 	}
         tmp[n] = sum;
     }
@@ -1316,7 +1316,7 @@ static void g729_residual(int16_t* lp, const int16_t* speech, int16_t* residual,
         sum = tmp_speech[n] << 12;
         for(i=0; i<10; i++)
             sum += lp[i] * tmp_speech[n-i-1];
-        sum = FFMAX(FFMIN(sum, SHRT_MAX << 12), SHRT_MIN << 12);
+        sum = av_clip(sum, SHRT_MIN << 12, SHRT_MAX << 12);
         residual[n+PITCH_MAX] = g729_round(sum << 4);
     }
 
@@ -1405,8 +1405,8 @@ static void g729_high_pass_filter(G729A_Context* ctx, int16_t* speech, int lengt
             +  7699 * z_2;
 	f_0 <<= 2; // Q13 -> Q15
 
-        speech[i] = FFMAX(FFMIN(f_0 >> 14, SHRT_MAX), SHRT_MIN); // 2*f_0 in 15
-	
+        speech[i] = av_clip(f_0 >> 14, SHRT_MIN, SHRT_MAX); // 2*f_0 in 15
+
         ctx->hpf_f2=ctx->hpf_f1;
         ctx->hpf_f1=f_0;
     }
@@ -1761,7 +1761,7 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
                 pitch_delay_3x = 3 * ctx->pitch_delay_int_prev + 1;
             else
                 pitch_delay_3x = parm->ac_index[i] +
-                        3 * FFMIN(FFMAX(ctx->pitch_delay_int_prev-5, PITCH_MIN), PITCH_MAX-9) - 1;
+                        3 * av_clip(ctx->pitch_delay_int_prev-5, PITCH_MIN, PITCH_MAX-9) - 1;
         }
         pitch_delay_int = pitch_delay_3x / 3;
 
@@ -1810,7 +1810,7 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
         }
 
         /* save pitch sharpening for next subframe */
-        ctx->pitch_sharp = FFMIN(FFMAX(ctx->gain_pitch, SHARP_MIN), SHARP_MAX);
+        ctx->pitch_sharp = av_clip(ctx->gain_pitch, SHARP_MIN, SHARP_MAX);
 
         g729_mem_update(fc, ctx->gain_pitch, ctx->gain_code, ctx->exc + i*ctx->subframe_size, ctx->subframe_size);
 
