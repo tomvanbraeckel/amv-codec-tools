@@ -670,11 +670,7 @@ static int l_log2(int value)
     result = tab_log2[frac_x0] << 15; // Q15 -> Q30
     result += frac_dx * (tab_log2[frac_x0+1] - tab_log2[frac_x0]); // Q15*Q15;
 
-    result >>= 15; // Q30 -> Q15
-
-    result += power_int << 15; // Q0 -> Q15
-
-    return result;
+    return (power_int << 15) + (result >> 15);
 }
 
 /**
