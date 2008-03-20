@@ -1365,9 +1365,7 @@ static void g729_high_pass_filter(G729A_Context* ctx, int16_t* speech, int lengt
 
         f_0 = mul_24_15(ctx->hpf_f1, 15836)
             + mul_24_15(ctx->hpf_f2, -7667)
-            +  7699 * ctx->hpf_z0
-            - 15398 * ctx->hpf_z1
-            +  7699 * z_2;
+            + 7699 * (ctx->hpf_z0 - 2*ctx->hpf_z1 + z_2);
         f_0 <<= 2; // Q13 -> Q15
 
         speech[i] = av_clip_int16(f_0 >> 14); // 2*f_0 in 15
