@@ -952,8 +952,7 @@ static int16_t g729_get_gain_code(int ga_cb_index, int gb_cb_index, const int16_
     */
     energy =  mul_24_15(l_log2(energy),       -24660); // Q13
     energy += mul_24_15(l_log2(subframe_size), 24660); // Q13
-    energy += mul_24_15(26 << 15,              24660); // Q13
-    energy += 30 << 13;
+    energy += 0xd8888; // 24660 * 26 + (30 << 13)
 
     // FIXME: Compensation. Makes result bit-equal with reference code
     energy -= 2;
