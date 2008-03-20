@@ -1838,16 +1838,15 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
 static int g729_bytes2parm(G729A_Context *ctx, const uint8_t *buf, int buf_size, G729_parameters *parm)
 {
     GetBitContext gb;
-    int i, frame_erasure;
+    int i, frame_nonzero;
 
     init_get_bits(&gb, buf, buf_size);
 
-    frame_erasure = 1;
+    frame_nonzero = 0;
     for(i=0; i<buf_size; i++)
-        if(get_bits(&gb,8))
-            frame_erasure=0;
+        frame_nonzero |= get_bits(&gb, 8);//FIXME: Testing code, replace with buf[i]
 
-    if(frame_erasure)
+    if(!frame_nonzero)
         return 1;
 
     init_get_bits(&gb, buf, buf_size);
