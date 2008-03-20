@@ -605,19 +605,6 @@ static inline int mul_24_15(int var_q24, int16_t var_q15)
 }
 
 /**
- * \brief shift to right with rounding
- * \param var1 32-bit integer to shift
- * \param var2 16-bit shift
- */
-static int l_shr_r(int var1, int16_t var2)
-{
-    if(var1 && (var1 & (1 << (var2 - 1))))
-        return (var1 >> var2) + 1;
-    else
-        return (var1 >> var2);
-}
-
-/**
  * \brief add two 32 bit intgers, bounding result into [min,max] range
  * \param var1 first variable
  * \param var2 second variable
@@ -1618,8 +1605,9 @@ static void g729_lsp2lp(const int16_t* lsp, int16_t* lp)
         int ff1 = f1[i+1] + f1[i]; // Q24
         int ff2 = f2[i+1] - f2[i]; // Q24
 
-        lp[i]   = l_shr_r(ff1 + ff2, 13);
-        lp[9-i] = l_shr_r(ff1 - ff2, 13);
+        ff1 += 1<<12;
+        lp[i]   = (ff1 + ff2) >> 13;
+        lp[9-i] = (ff1 - ff2) >> 13;
     }
 }
 
