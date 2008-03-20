@@ -1426,7 +1426,9 @@ static void g729_lsf2lsp(const int16_t *lsf, int16_t *lsp)
     {
         int16_t freq= (lsf[i] * 20861)>>15; //1.0/(2.0*PI) in Q17, result in Q16
         int16_t offset= freq & 0xff;
-        int16_t ind = FFMIN(freq >> 8, 63);
+        int16_t ind = freq >> 8;
+
+        assert(ind < 64);
 
         lsp[i] = base_cos[ind] + ((slope_cos[ind] * offset) >> 12);
     }
