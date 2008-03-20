@@ -726,40 +726,26 @@ static int l_inv_sqrt(int arg)
  * \param base base to scale result to
  *
  * \return result of division scaled to given base
- *
- * \remark numbers should in same base, result will be scaled to given base
- *
- * \todo Better implementation reqiured
  */
-int l_div(int num, int denom, int base)
+int l_div(int num, int denom, uint8_t base)
 {
-    int diff = 0;
-    int sig = 0;
-
-    assert(denom);
+    int diff, sig;
 
     if(!num)
         return 0;
 
-    if(num < 0)
-    {
-        num = -num;
-        sig = !sig;
-    }
+    sig = (num ^ denom) >> 31;
 
-    if(denom < 0)
-    {
-        denom = -denom;
-        sig = !sig;
-    }
+    num = FFABS(num);
+    denom = FFABS(denom);
 
-    for(; num < 0x4000000; diff++)
-        num <<= 1;
+    diff = 26 - av_log2(num);
+    assert(diff >= 0 && base >= 0);
 
-    if(diff > base)
-        num >>= diff-base;
-    else
-        denom >>= base-diff;
+    num   <<= FFMIN(base, diff);
+    denom >>= FFMAX(base, diff) - diff;
+
+    assert(denom); //division by zero or base too large (overflow)
 
     if(sig)
         return -num/denom;
