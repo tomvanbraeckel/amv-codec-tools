@@ -165,10 +165,8 @@ typedef struct
     uint16_t rand_value;        ///< random number generator value (4.4.4)
     int prev_mode;              ///< L0 from previous frame
     //High-pass filter data
-    int hpf_f1;
-    int hpf_f2;
-    int16_t hpf_z0;
-    int16_t hpf_z1;
+    int hpf_f[3];
+    int16_t hpf_z[3];
     int subframe_idx;           ///< subframe index (for debugging)
 }  G729A_Context;
 
@@ -1352,25 +1350,21 @@ static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_de
  */
 static void g729_high_pass_filter(G729A_Context* ctx, int16_t* speech, int length)
 {
-    int16_t z_2=0;
-    int f_0=0;
     int i;
 
     for(i=0; i<length; i++)
     {
-        z_2=ctx->hpf_z1;
-        ctx->hpf_z1=ctx->hpf_z0;
-        ctx->hpf_z0=speech[i];
+        memmove(ctx->hpf_z+1, ctx->hpf_z, 2*sizeof(ctx->hpf_z[0]));
+        ctx->hpf_z[0]=speech[i];
 
-        f_0 = mul_24_15(ctx->hpf_f1, 15836)
-            + mul_24_15(ctx->hpf_f2, -7667)
-            + 7699 * (ctx->hpf_z0 - 2*ctx->hpf_z1 + z_2);
-        f_0 <<= 2; // Q13 -> Q15
+        ctx->hpf_f[0] = mul_24_15(ctx->hpf_f[1], 15836)
+            + mul_24_15(ctx->hpf_f[2], -7667)
+            + 7699 * (ctx->hpf_z[0] - 2*ctx->hpf_z[1] + ctx->hpf_z[2]);
+        ctx->hpf_f[0] <<= 2; // Q13 -> Q15
 
-        speech[i] = av_clip_int16(f_0 >> 14); // 2*f_0 in 15
+        speech[i] = av_clip_int16(ctx->hpf_f[0] >> 14); // 2*f_0 in 15
 
-        ctx->hpf_f2=ctx->hpf_f1;
-        ctx->hpf_f1=f_0;
+        memmove(ctx->hpf_f+1, ctx->hpf_f, 2*sizeof(ctx->hpf_f[0]));
     }
 }
 
