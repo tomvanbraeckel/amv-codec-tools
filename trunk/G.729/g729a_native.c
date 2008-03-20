@@ -1879,7 +1879,7 @@ static int ff_g729a_decode_frame(AVCodecContext *avctx,
 {
     G729_parameters parm;
     G729A_Context *ctx=avctx->priv_data;
-    int in_frame_size  = formats[ctx->format].input_frame_size;
+    int  in_frame_size = formats[ctx->format]. input_frame_size;
     int out_frame_size = formats[ctx->format].output_frame_size;
     int frame_erasure;
 
