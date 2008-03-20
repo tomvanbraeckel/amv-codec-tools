@@ -1087,7 +1087,7 @@ static int g729_lp_synthesis_filter(const int16_t* lp, const int16_t *in, int16_
 	{
             if(exit_on_overflow)
                 return 1;
-            sum = av_clip(sum, SHRT_MIN, SHRT_MAX);
+            sum = av_clip_int16(sum);
 	}
         tmp[n] = sum;
     }
@@ -1405,7 +1405,7 @@ static void g729_high_pass_filter(G729A_Context* ctx, int16_t* speech, int lengt
             +  7699 * z_2;
 	f_0 <<= 2; // Q13 -> Q15
 
-        speech[i] = av_clip(f_0 >> 14, SHRT_MIN, SHRT_MAX); // 2*f_0 in 15
+        speech[i] = av_clip_int16(f_0 >> 14); // 2*f_0 in 15
 
         ctx->hpf_f2=ctx->hpf_f1;
         ctx->hpf_f1=f_0;
