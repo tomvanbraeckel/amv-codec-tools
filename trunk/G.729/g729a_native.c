@@ -107,8 +107,8 @@ typedef struct
 {
     uint8_t ma_predictor;     ///< switched MA predictor of LSP quantizer
     uint8_t quantizer_1st;    ///< first stage vector of quantizer
-    uint8_t quantizer_2nd_lo; ///< first stage lowervector of quantizer (size in bits)
-    uint8_t quantizer_2nd_hi; ///< first stage higher vector of quantizer (size in bits)
+    uint8_t quantizer_2nd_lo; ///< second stage lowervector of quantizer (size in bits)
+    uint8_t quantizer_2nd_hi; ///< second stage higher vector of quantizer (size in bits)
     uint8_t parity;           ///< parity bit for pitch delay (size in bits)
     uint8_t ac_index[2];      ///< adaptive codebook index
     uint8_t pulses_signs[2];  ///< fixed-codebook vectors pulses' signs
@@ -151,7 +151,7 @@ typedef struct
     int16_t lq_prev[MA_NP][10]; ///< (Q13) LSP quantizer output (3.2.4)
     int16_t lsp_prev[10];       ///< (Q15) LSP coefficients from previous frame (3.2.5)
     int16_t lsf_prev[10];       ///< (Q13) LSF coefficients from previous frame
-    int16_t pred_energ_q[4];    ///< (Q10) past quantized energies
+    int16_t pred_energ_q[4];    ///< (Q10) past quantized energy
     int16_t gain_pitch;         ///< (Q14) Pitch gain of previous subframe (3.8) [SHARP_MIN ... SHARP_MAX]
     int16_t gain_code;          ///< (Q1) Gain code of previous subframe
     int16_t pitch_sharp;        ///< pitch sharpening of the previous frame
@@ -161,7 +161,7 @@ typedef struct
     int16_t res_filter_data[10];
     int16_t pos_filter_data[10];///< previous speech data for postfilter
     int16_t ht_prev_data;       ///< previous data for 4.2.3, equation 86
-    int16_t g;                  ///< gain coefficient (4.2.4)
+    int16_t gain_coeff;         ///< gain coefficient (4.2.4)
     uint16_t rand_value;        ///< random number generator value (4.4.4)
     int prev_mode;              ///< L0 from previous frame
     //High-pass filter data
@@ -476,7 +476,7 @@ static const int16_t ma_predictor[2][MA_NP][10] =
 };
 
 /**
- * ma_predicot_sum[i] := 1-sum{1}{4}{ma_predictor[k][i]}
+ * ma_predictor_sum[i] := 1-sum{1}{4}{ma_predictor[k][i]}
  */
 static const int16_t ma_predictor_sum[2][10] =
 { /* Q15 */
@@ -579,7 +579,7 @@ static const uint16_t tab_log2[33] =
  * tab_inv_sqrt[i] = 1/sqrt((16+i)/64)
  */
 static const uint16_t tab_inv_sqrt[49] =
-{ /* Q!4 */
+{ /* Q14 */
  32767, 31790, 30894, 30070, 29309, 28602, 27945, 27330, 26755, 26214,
  25705, 25225, 24770, 24339, 23930, 23541, 23170, 22817, 22479, 22155,
  21845, 21548, 21263, 20988, 20724, 20470, 20225, 19988, 19760, 19539,
@@ -720,7 +720,7 @@ static int l_inv_sqrt(int arg)
 }
 
 /**
- * \brief divide two positive fixed point numbers
+ * \brief divide two fixed point numbers
  * \param num numenator
  * \param denom denumenator
  * \param base base to scale result to
@@ -1125,7 +1125,7 @@ static int16_t g729a_adaptive_gain_control(int gain_before, int gain_after, int1
 
     for(n=0; n<subframe_size; n++)
     {
-        // 0.9 * ctx->g + 0.1 * gain
+        // 0.9 * ctx->gain_coeff + 0.1 * gain
         gain_prev = (29491 * gain_prev + 3276 * gain) >> 15;
         speech[n] = (speech[n] * gain_prev) >> 12;
     }
@@ -1373,7 +1373,7 @@ static void g729a_postfilter(G729A_Context *ctx, const int16_t *lp, int pitch_de
     gain_after=sum_of_squares(speech, ctx->subframe_size, 0, 4);
 
     /* adaptive gain control (A.4.2.4) */
-    ctx->g = g729a_adaptive_gain_control(gain_before, gain_after, speech, ctx->subframe_size, ctx->g);
+    ctx->gain_coeff = g729a_adaptive_gain_control(gain_before, gain_after, speech, ctx->subframe_size, ctx->gain_coeff);
 }
 
 /**
@@ -1681,7 +1681,7 @@ static int ff_g729a_decoder_init(AVCodecContext * avctx)
     ctx->pitch_sharp = SHARP_MIN;
 
     /* gain coefficient */
-    ctx->g = 4096; // 1.0 in Q12
+    ctx->gain_coeff = 4096; // 1.0 in Q12
 
     /* LSP coefficients */
     for(i=0; i<10; i++)
