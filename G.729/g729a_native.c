@@ -776,9 +776,9 @@ static int16_t g729_round(int value)
 /**
  * \brief pseudo random number generator
  */
-static inline uint16_t g729_random(G729A_Context* ctx)
+static inline uint16_t g729_random(uint16_t value)
 {
-    return ctx->rand_value = 31821 * ctx->rand_value + 13849;
+    return 31821 * value + 13849;
 }
 
 /**
@@ -1734,8 +1734,10 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
 
         if(ctx->data_error)
         {
-            parm->fc_indexes[i]   = g729_random(ctx) & 0x1fff;
-            parm->pulses_signs[i] = g729_random(ctx) & 0x000f;
+            ctx->rand_value = g729_random(ctx->rand_value);
+            parm->fc_indexes[i]   = ctx->rand_value & 0x1fff;
+            ctx->rand_value = g729_random(ctx->rand_value);
+            parm->pulses_signs[i] = ctx->rand_value & 0x000f;
         }
 
         if(g729_decode_fc_vector(parm->fc_indexes[i],
