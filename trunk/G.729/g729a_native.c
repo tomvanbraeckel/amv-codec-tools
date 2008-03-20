@@ -828,9 +828,9 @@ static void g729_decode_ac_vector(int pitch_delay_int, int pitch_delay_frac, int
         for(i=0; i<10; i++)
         {
             /*  R(x):=ac_v[-k+x] */
-	    tmp = ac_v[n - pitch_delay_int - i    ] * interp_filter[i][    pitch_delay_frac];
+            tmp = ac_v[n - pitch_delay_int - i    ] * interp_filter[i][    pitch_delay_frac];
             v = av_clip(v + tmp, INT_MIN >> 1, INT_MAX >> 1); //v += R(n-i)*interp_filter(t+3i)
-	    tmp = ac_v[n - pitch_delay_int + i + 1] * interp_filter[i][3 - pitch_delay_frac];
+            tmp = ac_v[n - pitch_delay_int + i + 1] * interp_filter[i][3 - pitch_delay_frac];
             v = av_clip(v + tmp, INT_MIN >> 1, INT_MAX >> 1); //v += R(n+i+1)*interp_filter(3-t+3i)
         }
         ac_v[n] = g729_round(v << 1);
@@ -1047,14 +1047,14 @@ static int g729_lp_synthesis_filter(const int16_t* lp, const int16_t *in, int16_
     {
         sum = in[n] << 12;
         for(i=0; i<10; i++)
-            sum -= (lp[i] * tmp[n-i-1]);
-	sum >>= 12;
-	if(sum > SHRT_MAX || sum < SHRT_MIN)
-	{
+            sum -= lp[i] * tmp[n-i-1];
+        sum >>= 12;
+        if(sum > SHRT_MAX || sum < SHRT_MIN)
+        {
             if(exit_on_overflow)
                 return 1;
             sum = av_clip_int16(sum);
-	}
+        }
         tmp[n] = sum;
     }
 
@@ -1368,7 +1368,7 @@ static void g729_high_pass_filter(G729A_Context* ctx, int16_t* speech, int lengt
             +  7699 * ctx->hpf_z0
             - 15398 * ctx->hpf_z1
             +  7699 * z_2;
-	f_0 <<= 2; // Q13 -> Q15
+        f_0 <<= 2; // Q13 -> Q15
 
         speech[i] = av_clip_int16(f_0 >> 14); // 2*f_0 in 15
 
@@ -1814,7 +1814,7 @@ static int  g729a_decode_frame_internal(G729A_Context* ctx, int16_t* out_frame, 
         g729a_postfilter(ctx, lp+i*10, pitch_delay_int, out_frame + i*ctx->subframe_size);
 
         if(ctx->data_error)
-	    ctx->pitch_delay_int_prev = FFMIN(ctx->pitch_delay_int_prev + 1, PITCH_MAX);
+            ctx->pitch_delay_int_prev = FFMIN(ctx->pitch_delay_int_prev + 1, PITCH_MAX);
         else
             ctx->pitch_delay_int_prev = pitch_delay_int;
 
@@ -1849,7 +1849,7 @@ static int g729_bytes2parm(G729A_Context *ctx, const uint8_t *buf, int buf_size,
     frame_erasure = 1;
     for(i=0; i<buf_size; i++)
         if(get_bits(&gb,8))
-	    frame_erasure=0;
+            frame_erasure=0;
 
     if(frame_erasure)
         return 1;
