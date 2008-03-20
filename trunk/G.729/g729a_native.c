@@ -1924,20 +1924,4 @@ int  g729a_decode_frame(AVCodecContext* avctx, int16_t* serial, int serial_size,
 
     return g729a_decode_frame_internal(avctx->priv_data, out_frame, out_frame_size, &parm, frame_erasure);
 }
-/*
----------------------------------------------------------------------------
-    Encoder
----------------------------------------------------------------------------
-*/
-void* g729a_encoder_init()
-{
-    return NULL;
-}
-int g729a_encode_frame(void * context, int16_t* data, int ibuflen, int16_t* serial, int obuflen)
-{
-    return 0;
-}
-void g729_encoder_uninit(void* context)
-{
-}
 #endif /* G729A_NATIVE */
